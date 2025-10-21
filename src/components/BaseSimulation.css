@@ -1,0 +1,26 @@
+.simulation-container {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2rem;
+  flex-wrap: wrap;
+}
+
+.simulation-canvas {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.simulation-canvas canvas {
+  display: block;
+  border-radius: 8px;
+}
+
+.simulation-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
