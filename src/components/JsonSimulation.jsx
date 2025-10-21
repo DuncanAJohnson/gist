@@ -136,6 +136,14 @@ function JsonSimulation({ config }) {
           onReset={() => {
             simulationControls?.reset();
             setIsRunning(false);
+            // Re-apply all control values after reset
+            setTimeout(() => {
+              controls.forEach((control) => {
+                if (control.type === 'slider') {
+                  handleControlChange(control, controlValues[control.label]);
+                }
+              });
+            }, 0);
           }}
         />
       </div>

@@ -25,12 +25,6 @@ function Home() {
             <span className="card-tag">Velocity</span>
           </div>
         </Link>
-
-        <div className="simulation-card coming-soon">
-          <div className="card-icon">🎯</div>
-          <h2>Coming Soon</h2>
-          <p>More simulations will be added here</p>
-        </div>
       </div>
     </div>
   );
