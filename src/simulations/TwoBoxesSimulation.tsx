@@ -1,4 +1,3 @@
-import React from 'react';
 import JsonSimulation from '../components/JsonSimulation';
 import twoBoxesConfig from './twoBoxes.json';
 

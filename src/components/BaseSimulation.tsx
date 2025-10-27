@@ -1,18 +1,47 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, ReactNode } from 'react';
 import Matter from 'matter-js';
 import { PhysicsProvider } from '../contexts/PhysicsContext';
-import './BaseSimulation.css';
 
-function BaseSimulation({ width = 800, height = 600, onInit, onUpdate, children, onControlsReady }) {
-  const sceneRef = useRef(null);
-  const engineRef = useRef(null);
-  const renderRef = useRef(null);
+interface SimulationControls {
+  play: () => void;
+  pause: () => void;
+  reset: () => void;
+}
+
+interface BaseSimulationProps {
+  width?: number;
+  height?: number;
+  onInit?: (engine: Matter.Engine, render: Matter.Render) => void;
+  onUpdate?: (engine: Matter.Engine, time: number) => void;
+  children?: ReactNode;
+  onControlsReady?: (controls: SimulationControls) => void;
+}
+
+function BaseSimulation({ 
+  width = 800, 
+  height = 600, 
+  onInit, 
+  onUpdate, 
+  children, 
+  onControlsReady 
+}: BaseSimulationProps) {
+  const sceneRef = useRef<HTMLDivElement>(null);
+  const engineRef = useRef<Matter.Engine | null>(null);
+  const renderRef = useRef<Matter.Render | null>(null);
   const [engineReady, setEngineReady] = useState(false);
   const isRunningRef = useRef(false);
-  const initialBodiesRef = useRef([]);
+  const initialBodiesRef = useRef<Array<{
+    id: number;
+    position: { x: number; y: number };
+    velocity: { x: number; y: number };
+    angle: number;
+    angularVelocity: number;
+  }>>([]);
   const simulationTimeRef = useRef(0);
 
   useEffect(() => {
+    if (!sceneRef.current) return;
+
     // Create engine
     const engine = Matter.Engine.create();
     engineRef.current = engine;
@@ -54,9 +83,9 @@ function BaseSimulation({ width = 800, height = 600, onInit, onUpdate, children,
 
     // Manual animation loop using Engine.update
     let lastTime = performance.now();
-    let animationFrameId;
+    let animationFrameId: number;
     
-    const updateLoop = (currentTime) => {
+    const updateLoop = (currentTime: number) => {
       const delta = currentTime - lastTime;
       lastTime = currentTime;
       
@@ -117,12 +146,14 @@ function BaseSimulation({ width = 800, height = 600, onInit, onUpdate, children,
   }, [width, height, onInit, onUpdate, onControlsReady]);
 
   return (
-    <div className="simulation-container">
-      <div className="simulation-canvas" ref={sceneRef} />
+    <div className="grid grid-cols-[1fr_auto_1fr] grid-rows-[auto_auto] gap-8 items-start px-8 py-8 max-w-[1800px] mx-auto">
+      <div className="col-start-2 row-start-1 rounded-lg shadow-md overflow-hidden" ref={sceneRef}>
+        {/* Canvas will be rendered here */}
+      </div>
       {engineReady && engineRef.current && (
         <PhysicsProvider engine={engineRef.current}>
           {children && (
-            <div className="simulation-controls">
+            <div className="contents">
               {children}
             </div>
           )}

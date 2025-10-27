@@ -1,8 +1,19 @@
-import { useEffect, useImperativeHandle, forwardRef } from 'react';
+import { useEffect, forwardRef } from 'react';
 import Matter from 'matter-js';
 import { usePhysics } from '../../contexts/PhysicsContext';
 
-const Box = forwardRef(function Box(
+interface BoxProps {
+  id: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  color?: string;
+  velocity?: { x: number; y: number };
+  restitution?: number;
+}
+
+const Box = forwardRef<Matter.Body, BoxProps>(function Box(
   {
     id,
     x,
@@ -54,7 +65,7 @@ const Box = forwardRef(function Box(
         }
       }
     };
-  }, [engine]);
+  }, [engine, id, x, y, width, height, color, velocity, restitution, ref]);
 
   return null; // This component doesn't render anything visible
 });

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   LineChart,
   Line,
@@ -9,9 +9,34 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import './Graph.css';
 
-function Graph({ title, data, config }) {
+interface LineConfig {
+  label: string;
+  color: string;
+  targetBox: string;
+  property: string;
+}
+
+interface GraphConfig {
+  yAxisRange: {
+    min: number;
+    max: number;
+  };
+  lines: LineConfig[];
+}
+
+interface DataPoint {
+  time: number;
+  [key: string]: number;
+}
+
+interface GraphProps {
+  title: string;
+  data: DataPoint[];
+  config: GraphConfig;
+}
+
+function Graph({ title, data, config }: GraphProps) {
   const { yAxisRange, lines } = config;
 
   // Calculate actual y-axis domain (extend beyond initial range if needed)
@@ -54,8 +79,8 @@ function Graph({ title, data, config }) {
   }, [data]);
 
   return (
-    <div className="graph-container">
-      {title && <h3 className="graph-title">{title}</h3>}
+    <div className="bg-white rounded-lg p-4 shadow-md min-w-[400px]">
+      {title && <h3 className="m-0 mb-4 text-gray-800 text-base font-semibold text-center">{title}</h3>}
       <ResponsiveContainer width="100%" height={400}>
         <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
@@ -64,15 +89,15 @@ function Graph({ title, data, config }) {
             domain={xDomain}
             type="number"
             label={{ value: 'Time (s)', position: 'insideBottom', offset: -5 }}
-            tickFormatter={(value) => value.toFixed(1)}
+            tickFormatter={(value: number) => value.toFixed(1)}
           />
           <YAxis
             domain={yDomain}
             label={{ value: 'Value', angle: -90, position: 'insideLeft' }}
           />
           <Tooltip
-            formatter={(value) => (typeof value === 'number' ? value.toFixed(2) : value)}
-            labelFormatter={(label) => `Time: ${label.toFixed(2)}s`}
+            formatter={(value: number) => (typeof value === 'number' ? value.toFixed(2) : value)}
+            labelFormatter={(label: number) => `Time: ${label.toFixed(2)}s`}
           />
           <Legend />
           {lines.map((line, index) => (

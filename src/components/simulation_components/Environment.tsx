@@ -2,12 +2,18 @@ import { useEffect } from 'react';
 import Matter from 'matter-js';
 import { usePhysics } from '../../contexts/PhysicsContext';
 
-function Environment({ walls = [], width = 800, height = 600 }) {
+interface EnvironmentProps {
+  walls?: string[];
+  width?: number;
+  height?: number;
+}
+
+function Environment({ walls = [], width = 800, height = 600 }: EnvironmentProps) {
   const engine = usePhysics();
 
   useEffect(() => {
     const { Bodies, Composite } = Matter;
-    const createdBodies = [];
+    const createdBodies: Matter.Body[] = [];
 
     const wallThickness = 40;
 

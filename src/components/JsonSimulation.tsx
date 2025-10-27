@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Matter from 'matter-js';
 import BaseSimulation from './BaseSimulation';
 import Environment from './simulation_components/Environment';
@@ -8,9 +8,75 @@ import Slider from './simulation_components/Slider';
 import Outputs from './simulation_components/Outputs';
 import SimulationControls from './simulation_components/SimulationControls';
 import Graph from './simulation_components/Graph';
-import './JsonSimulation.css';
 
-function JsonSimulation({ config }) {
+interface SimulationConfig {
+  title?: string;
+  description?: string;
+  width?: number;
+  height?: number;
+  environment?: {
+    walls?: string[];
+  };
+  boxes?: Array<{
+    id: string;
+    x: number;
+    y: number;
+    width?: number;
+    height?: number;
+    color?: string;
+    velocity?: { x: number; y: number };
+    restitution?: number;
+  }>;
+  controls?: Array<{
+    type: string;
+    label: string;
+    targetBox: string;
+    property: string;
+    defaultValue: number;
+    min: number;
+    max: number;
+    step: number;
+  }>;
+  outputs?: Array<{
+    title?: string;
+    values: Array<{
+      label: string;
+      targetBox: string;
+      property: string;
+      unit?: string;
+    }>;
+  }>;
+  graphs?: Array<{
+    title: string;
+    yAxisRange: {
+      min: number;
+      max: number;
+    };
+    lines: Array<{
+      label: string;
+      color: string;
+      targetBox: string;
+      property: string;
+    }>;
+  }>;
+}
+
+interface JsonSimulationProps {
+  config: SimulationConfig;
+}
+
+interface SimulationControls {
+  play: () => void;
+  pause: () => void;
+  reset: () => void;
+}
+
+interface DataPoint {
+  time: number;
+  [key: string]: number;
+}
+
+function JsonSimulation({ config }: JsonSimulationProps) {
   const {
     title,
     description,
@@ -24,11 +90,11 @@ function JsonSimulation({ config }) {
   } = config;
 
   // Store refs to all boxes by their ID
-  const boxRefs = useRef({});
+  const boxRefs = useRef<Record<string, Matter.Body>>({});
   
   // State for control values
-  const [controlValues, setControlValues] = useState(() => {
-    const initialValues = {};
+  const [controlValues, setControlValues] = useState<Record<string, number>>(() => {
+    const initialValues: Record<string, number> = {};
     controls.forEach((control) => {
       if (control.type === 'slider') {
         initialValues[control.label] = control.defaultValue;
@@ -38,36 +104,36 @@ function JsonSimulation({ config }) {
   });
 
   // State for output values
-  const [outputValues, setOutputValues] = useState({});
+  const [outputValues, setOutputValues] = useState<Record<string, number>>({});
 
   // State for simulation controls
-  const [simulationControls, setSimulationControls] = useState(null);
+  const [simulationControls, setSimulationControls] = useState<SimulationControls | null>(null);
   const [isRunning, setIsRunning] = useState(false);
 
   // State for graph data - one array per graph
-  const [graphData, setGraphData] = useState(() => graphs.map(() => []));
+  const [graphData, setGraphData] = useState<DataPoint[][]>(() => graphs.map(() => []));
   const shouldClearGraphDataRef = useRef(false);
 
   // Callback when simulation controls are ready
-  const handleControlsReady = useCallback((controls) => {
+  const handleControlsReady = useCallback((controls: SimulationControls) => {
     setSimulationControls(controls);
   }, []);
 
   // Helper function to get nested property value
-  const getNestedValue = (obj, path) => {
+  const getNestedValue = (obj: any, path: string): any => {
     return path.split('.').reduce((current, key) => current?.[key], obj);
   };
 
   // Helper function to set nested property value
-  const setNestedValue = (obj, path, value) => {
+  const setNestedValue = (obj: any, path: string, value: any): void => {
     const keys = path.split('.');
-    const lastKey = keys.pop();
+    const lastKey = keys.pop()!;
     const target = keys.reduce((current, key) => current[key], obj);
     target[lastKey] = value;
   };
 
   // Handle control changes
-  const handleControlChange = useCallback((control, value) => {
+  const handleControlChange = useCallback((control: typeof controls[0], value: number) => {
     setControlValues((prev) => ({
       ...prev,
       [control.label]: value,
@@ -78,7 +144,7 @@ function JsonSimulation({ config }) {
     if (box && control.property) {
       if (control.property.startsWith('velocity.')) {
         // Special handling for velocity
-        const axis = control.property.split('.')[1]; // 'x' or 'y'
+        const axis = control.property.split('.')[1] as 'x' | 'y';
         const currentVelocity = box.velocity;
         const newVelocity = {
           x: axis === 'x' ? value : currentVelocity.x,
@@ -87,7 +153,7 @@ function JsonSimulation({ config }) {
         Matter.Body.setVelocity(box, newVelocity);
       } else if (control.property.startsWith('position.')) {
         // Special handling for position
-        const axis = control.property.split('.')[1]; // 'x' or 'y'
+        const axis = control.property.split('.')[1] as 'x' | 'y';
         const currentPosition = box.position;
         const newPosition = {
           x: axis === 'x' ? value : currentPosition.x,
@@ -102,8 +168,8 @@ function JsonSimulation({ config }) {
   }, []);
 
   // Update loop to read output values and graph data
-  const handleUpdate = useCallback((engine, time) => {
-    const newOutputValues = {};
+  const handleUpdate = useCallback((engine: Matter.Engine, time: number) => {
+    const newOutputValues: Record<string, number> = {};
     
     outputs.forEach((outputGroup) => {
       outputGroup.values.forEach((output) => {
@@ -122,7 +188,7 @@ function JsonSimulation({ config }) {
       setGraphData((prevData) => {
         return prevData.map((data, graphIndex) => {
           const graph = graphs[graphIndex];
-          const dataPoint = { time };
+          const dataPoint: DataPoint = { time };
 
           // Collect all line values for this graph
           graph.lines.forEach((line) => {
@@ -140,11 +206,11 @@ function JsonSimulation({ config }) {
 
   return (
     <div>
-      <div className="simulation-header">
-        <div className="simulation-info">
-          {title && <h1 className="simulation-title">{title}</h1>}
+      <div className="flex flex-col items-center px-8 py-4 mb-4 bg-gray-50 rounded-lg shadow-sm gap-4">
+        <div className="text-center">
+          {title && <h1 className="m-0 text-gray-800 text-3xl font-semibold">{title}</h1>}
           {description && (
-            <p className="simulation-description">
+            <p className="mt-2 mb-0 text-gray-600 text-base leading-relaxed">
               {description}
             </p>
           )}
@@ -191,7 +257,7 @@ function JsonSimulation({ config }) {
       >
         {/* Controls */}
         {controls.length > 0 && (
-          <ControlPanel title="Controls" className="controls-left">
+          <ControlPanel title="Controls" className="col-start-1 row-start-1">
             {controls.map((control, index) => {
               if (control.type === 'slider') {
                 return (
@@ -229,7 +295,7 @@ function JsonSimulation({ config }) {
 
         {/* Graphs */}
         {graphs.map((graph, graphIndex) => (
-          <ControlPanel key={graphIndex} className="graphs-right">
+          <ControlPanel key={graphIndex} className="col-start-3 row-start-1">
             <Graph
               title={graph.title}
               data={graphData[graphIndex] || []}
@@ -243,10 +309,14 @@ function JsonSimulation({ config }) {
 
         {/* Outputs */}
         {outputs.length > 0 && (
-          <ControlPanel className="outputs-bottom">
+          <ControlPanel className="col-start-2 row-start-2 justify-self-center">
             {outputs.map((outputGroup, groupIndex) => (
               <div key={groupIndex}>
-                {outputGroup.title && <h4 className="output-group-title">{outputGroup.title}</h4>}
+                {outputGroup.title && (
+                  <h4 className="mt-4 first:mt-0 mb-2 text-sm text-gray-700 font-semibold border-b border-gray-300 pb-1">
+                    {outputGroup.title}
+                  </h4>
+                )}
                 {outputGroup.values.map((output, outputIndex) => {
                   const key = `${output.targetBox}.${output.property}`;
                   return (
