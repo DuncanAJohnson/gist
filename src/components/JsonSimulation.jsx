@@ -7,6 +7,7 @@ import ControlPanel from './simulation_components/ControlPanel';
 import Slider from './simulation_components/Slider';
 import Outputs from './simulation_components/Outputs';
 import SimulationControls from './simulation_components/SimulationControls';
+import Graph from './simulation_components/Graph';
 import './JsonSimulation.css';
 
 function JsonSimulation({ config }) {
@@ -19,6 +20,7 @@ function JsonSimulation({ config }) {
     boxes = [],
     controls = [],
     outputs = [],
+    graphs = [],
   } = config;
 
   // Store refs to all boxes by their ID
@@ -40,7 +42,11 @@ function JsonSimulation({ config }) {
 
   // State for simulation controls
   const [simulationControls, setSimulationControls] = useState(null);
-  const [isRunning, setIsRunning] = useState(true);
+  const [isRunning, setIsRunning] = useState(false);
+
+  // State for graph data - one array per graph
+  const [graphData, setGraphData] = useState(() => graphs.map(() => []));
+  const shouldClearGraphDataRef = useRef(false);
 
   // Callback when simulation controls are ready
   const handleControlsReady = useCallback((controls) => {
@@ -95,8 +101,8 @@ function JsonSimulation({ config }) {
     }
   }, []);
 
-  // Update loop to read output values
-  const handleUpdate = useCallback(() => {
+  // Update loop to read output values and graph data
+  const handleUpdate = useCallback((engine, time) => {
     const newOutputValues = {};
     
     outputs.forEach((outputGroup) => {
@@ -110,7 +116,27 @@ function JsonSimulation({ config }) {
     });
 
     setOutputValues(newOutputValues);
-  }, [outputs]);
+
+    // Collect graph data
+    if (graphs.length > 0 && isRunning) {
+      setGraphData((prevData) => {
+        return prevData.map((data, graphIndex) => {
+          const graph = graphs[graphIndex];
+          const dataPoint = { time };
+
+          // Collect all line values for this graph
+          graph.lines.forEach((line) => {
+            const box = boxRefs.current[line.targetBox];
+            if (box) {
+              dataPoint[line.label] = getNestedValue(box, line.property);
+            }
+          });
+
+          return [...data, dataPoint];
+        });
+      });
+    }
+  }, [outputs, graphs, isRunning]);
 
   return (
     <div>
@@ -126,6 +152,11 @@ function JsonSimulation({ config }) {
         <SimulationControls
           isRunning={isRunning}
           onPlay={() => {
+            // Clear graph data if we just reset
+            if (shouldClearGraphDataRef.current) {
+              setGraphData(graphs.map(() => []));
+              shouldClearGraphDataRef.current = false;
+            }
             simulationControls?.play();
             setIsRunning(true);
           }}
@@ -136,6 +167,8 @@ function JsonSimulation({ config }) {
           onReset={() => {
             simulationControls?.reset();
             setIsRunning(false);
+            // Mark that we should clear graph data on next play
+            shouldClearGraphDataRef.current = true;
             // Re-apply all control values after reset
             setTimeout(() => {
               controls.forEach((control) => {
@@ -147,6 +180,8 @@ function JsonSimulation({ config }) {
           }}
         />
       </div>
+
+      
       
       <BaseSimulation
         width={width}
@@ -154,25 +189,9 @@ function JsonSimulation({ config }) {
         onUpdate={handleUpdate}
         onControlsReady={handleControlsReady}
       >
-        {/* Environment */}
-        <Environment walls={environment.walls || []} width={width} height={height} />
-        
-        {/* Boxes */}
-        {boxes.map((box) => (
-          <Box
-            key={box.id}
-            ref={(ref) => {
-              if (ref) {
-                boxRefs.current[box.id] = ref;
-              }
-            }}
-            {...box}
-          />
-        ))}
-
         {/* Controls */}
         {controls.length > 0 && (
-          <ControlPanel title="Controls">
+          <ControlPanel title="Controls" className="controls-left">
             {controls.map((control, index) => {
               if (control.type === 'slider') {
                 return (
@@ -192,22 +211,57 @@ function JsonSimulation({ config }) {
           </ControlPanel>
         )}
 
-        {/* Outputs */}
-        {outputs.map((outputGroup, groupIndex) => (
-          <ControlPanel key={groupIndex} title={outputGroup.title}>
-            {outputGroup.values.map((output, outputIndex) => {
-              const key = `${output.targetBox}.${output.property}`;
-              return (
-                <Outputs
-                  key={outputIndex}
-                  label={output.label}
-                  value={outputValues[key] || 0}
-                  unit={output.unit || ''}
-                />
-              );
-            })}
+        {/* Environment */}
+        <Environment walls={environment.walls || []} width={width} height={height} />
+        
+        {/* Boxes */}
+        {boxes.map((box) => (
+          <Box
+            key={box.id}
+            ref={(ref) => {
+              if (ref) {
+                boxRefs.current[box.id] = ref;
+              }
+            }}
+            {...box}
+          />
+        ))}
+
+        {/* Graphs */}
+        {graphs.map((graph, graphIndex) => (
+          <ControlPanel key={graphIndex} className="graphs-right">
+            <Graph
+              title={graph.title}
+              data={graphData[graphIndex] || []}
+              config={{
+                yAxisRange: graph.yAxisRange,
+                lines: graph.lines,
+              }}
+            />
           </ControlPanel>
         ))}
+
+        {/* Outputs */}
+        {outputs.length > 0 && (
+          <ControlPanel className="outputs-bottom">
+            {outputs.map((outputGroup, groupIndex) => (
+              <div key={groupIndex}>
+                {outputGroup.title && <h4 className="output-group-title">{outputGroup.title}</h4>}
+                {outputGroup.values.map((output, outputIndex) => {
+                  const key = `${output.targetBox}.${output.property}`;
+                  return (
+                    <Outputs
+                      key={outputIndex}
+                      label={output.label}
+                      value={outputValues[key] || 0}
+                      unit={output.unit || ''}
+                    />
+                  );
+                })}
+              </div>
+            ))}
+          </ControlPanel>
+        )}
       </BaseSimulation>
     </div>
   );

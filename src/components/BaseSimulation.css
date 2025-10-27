@@ -1,13 +1,17 @@
 .simulation-container {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-rows: auto auto;
   gap: 2rem;
   align-items: flex-start;
-  justify-content: center;
   padding: 2rem;
-  flex-wrap: wrap;
+  max-width: 1800px;
+  margin: 0 auto;
 }
 
 .simulation-canvas {
+  grid-column: 2;
+  grid-row: 1;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
@@ -19,8 +23,26 @@
 }
 
 .simulation-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: contents;
+}
+
+.simulation-controls > .control-panel {
+  /* Default positioning */
+}
+
+.simulation-controls > .control-panel.controls-left {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.simulation-controls > .control-panel.graphs-right {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.simulation-controls > .control-panel.outputs-bottom {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: center;
 }
 

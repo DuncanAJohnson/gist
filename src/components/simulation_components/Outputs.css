@@ -1,5 +1,5 @@
 .output-container {
-  display: flex;
+  display: flex-row;
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 0;

@@ -4,7 +4,7 @@
   "width": 800,
   "height": 600,
   "environment": {
-    "walls": ["left", "right", "bottom", "top"]
+    "walls": ["left", "right", "bottom"]
   },
   "boxes": [
     {
@@ -13,7 +13,7 @@
       "y": 100,
       "width": 60,
       "height": 60,
-      "color": "#ff6b6b",
+      "color": "#ff6bff",
       "velocity": { "x": 5, "y": 0 },
       "restitution": 0.8
     },
@@ -82,6 +82,26 @@
           "targetBox": "boxB",
           "property": "velocity.y",
           "unit": "px/s"
+        }
+      ]
+    }
+  ],
+  "graphs": [
+    {
+      "title": "Horizontal Velocity Over Time",
+      "yAxisRange": { "min": -10, "max": 10 },
+      "lines": [
+        {
+          "label": "Box A Velocity X",
+          "targetBox": "boxA",
+          "property": "velocity.x",
+          "color": "#ff6bff"
+        },
+        {
+          "label": "Box B Velocity X",
+          "targetBox": "boxB",
+          "property": "velocity.x",
+          "color": "#4ecdc4"
         }
       ]
     }

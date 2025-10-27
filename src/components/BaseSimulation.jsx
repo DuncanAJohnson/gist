@@ -8,8 +8,9 @@ function BaseSimulation({ width = 800, height = 600, onInit, onUpdate, children,
   const engineRef = useRef(null);
   const renderRef = useRef(null);
   const [engineReady, setEngineReady] = useState(false);
-  const isRunningRef = useRef(true);
+  const isRunningRef = useRef(false);
   const initialBodiesRef = useRef([]);
+  const simulationTimeRef = useRef(0);
 
   useEffect(() => {
     // Create engine
@@ -62,11 +63,13 @@ function BaseSimulation({ width = 800, height = 600, onInit, onUpdate, children,
       // Only step the simulation if running
       if (isRunningRef.current) {
         Matter.Engine.update(engine, delta);
+        // Increment simulation time (convert milliseconds to seconds)
+        simulationTimeRef.current += delta / 1000;
       }
       
-      // Call user update callback
+      // Call user update callback with engine and current simulation time
       if (onUpdate) {
-        onUpdate(engine);
+        onUpdate(engine, simulationTimeRef.current);
       }
       
       animationFrameId = requestAnimationFrame(updateLoop);
@@ -95,6 +98,7 @@ function BaseSimulation({ width = 800, height = 600, onInit, onUpdate, children,
             }
           });
           isRunningRef.current = false;
+          simulationTimeRef.current = 0;
         },
       });
     }
