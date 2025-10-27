@@ -28,10 +28,11 @@ const Box = forwardRef<Matter.Body, BoxProps>(function Box(
 ) {
   const engine = usePhysics();
 
+  // Create the box body once
   useEffect(() => {
     const { Bodies, Composite, Body } = Matter;
 
-    // Create the box body
+    // Create the box body with initial values
     const box = Bodies.rectangle(x, y, width, height, {
       restitution: restitution,
       render: {
@@ -54,7 +55,7 @@ const Box = forwardRef<Matter.Body, BoxProps>(function Box(
       }
     }
 
-    // Cleanup
+    // Cleanup - only when component unmounts
     return () => {
       Composite.remove(engine.world, box);
       if (ref) {
@@ -65,7 +66,8 @@ const Box = forwardRef<Matter.Body, BoxProps>(function Box(
         }
       }
     };
-  }, [engine, id, x, y, width, height, color, velocity, restitution, ref]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engine, id]); // Only recreate if engine or id changes
 
   return null; // This component doesn't render anything visible
 });

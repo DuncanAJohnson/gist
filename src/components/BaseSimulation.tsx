@@ -9,17 +9,16 @@ interface SimulationControls {
 }
 
 interface BaseSimulationProps {
-  width?: number;
-  height?: number;
   onInit?: (engine: Matter.Engine, render: Matter.Render) => void;
   onUpdate?: (engine: Matter.Engine, time: number) => void;
   children?: ReactNode;
   onControlsReady?: (controls: SimulationControls) => void;
 }
 
+export const BASE_SIMULATION_WIDTH = 800;
+export const BASE_SIMULATION_HEIGHT = 600;
+
 function BaseSimulation({ 
-  width = 800, 
-  height = 600, 
   onInit, 
   onUpdate, 
   children, 
@@ -51,8 +50,8 @@ function BaseSimulation({
       element: sceneRef.current,
       engine: engine,
       options: {
-        width: width,
-        height: height,
+        width: 800,
+        height: 600,
         wireframes: false,
         background: '#fafafa',
       },
@@ -143,7 +142,7 @@ function BaseSimulation({
       render.textures = {};
       setEngineReady(false);
     };
-  }, [width, height, onInit, onUpdate, onControlsReady]);
+  }, [onInit, onUpdate, onControlsReady]);
 
   return (
     <div className="grid grid-cols-[1fr_auto_1fr] grid-rows-[auto_auto] gap-8 items-start px-8 py-8 max-w-[1800px] mx-auto">

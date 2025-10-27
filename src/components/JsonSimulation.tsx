@@ -6,14 +6,12 @@ import Box from './simulation_components/Box';
 import ControlPanel from './simulation_components/ControlPanel';
 import Slider from './simulation_components/Slider';
 import Outputs from './simulation_components/Outputs';
-import SimulationControls from './simulation_components/SimulationControls';
+import SimulationHeader from './simulation_components/SimulationHeader';
 import Graph from './simulation_components/Graph';
 
 interface SimulationConfig {
   title?: string;
   description?: string;
-  width?: number;
-  height?: number;
   environment?: {
     walls?: string[];
   };
@@ -80,8 +78,6 @@ function JsonSimulation({ config }: JsonSimulationProps) {
   const {
     title,
     description,
-    width = 800,
-    height = 600,
     environment = {},
     boxes = [],
     controls = [],
@@ -113,6 +109,12 @@ function JsonSimulation({ config }: JsonSimulationProps) {
   // State for graph data - one array per graph
   const [graphData, setGraphData] = useState<DataPoint[][]>(() => graphs.map(() => []));
   const shouldClearGraphDataRef = useRef(false);
+  const isRunningRef = useRef(isRunning);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    isRunningRef.current = isRunning;
+  }, [isRunning]);
 
   // Callback when simulation controls are ready
   const handleControlsReady = useCallback((controls: SimulationControls) => {
@@ -168,7 +170,7 @@ function JsonSimulation({ config }: JsonSimulationProps) {
   }, []);
 
   // Update loop to read output values and graph data
-  const handleUpdate = useCallback((engine: Matter.Engine, time: number) => {
+  const handleUpdate = useCallback((_engine: Matter.Engine, time: number) => {
     const newOutputValues: Record<string, number> = {};
     
     outputs.forEach((outputGroup) => {
@@ -184,7 +186,7 @@ function JsonSimulation({ config }: JsonSimulationProps) {
     setOutputValues(newOutputValues);
 
     // Collect graph data
-    if (graphs.length > 0 && isRunning) {
+    if (graphs.length > 0 && isRunningRef.current) {
       setGraphData((prevData) => {
         return prevData.map((data, graphIndex) => {
           const graph = graphs[graphIndex];
@@ -202,56 +204,46 @@ function JsonSimulation({ config }: JsonSimulationProps) {
         });
       });
     }
-  }, [outputs, graphs, isRunning]);
+  }, [outputs, graphs]);
 
   return (
     <div>
-      <div className="flex flex-col items-center px-8 py-4 mb-4 bg-gray-50 rounded-lg shadow-sm gap-4">
-        <div className="text-center">
-          {title && <h1 className="m-0 text-gray-800 text-3xl font-semibold">{title}</h1>}
-          {description && (
-            <p className="mt-2 mb-0 text-gray-600 text-base leading-relaxed">
-              {description}
-            </p>
-          )}
-        </div>
-        <SimulationControls
-          isRunning={isRunning}
-          onPlay={() => {
-            // Clear graph data if we just reset
-            if (shouldClearGraphDataRef.current) {
-              setGraphData(graphs.map(() => []));
-              shouldClearGraphDataRef.current = false;
-            }
-            simulationControls?.play();
-            setIsRunning(true);
-          }}
-          onPause={() => {
-            simulationControls?.pause();
-            setIsRunning(false);
-          }}
-          onReset={() => {
-            simulationControls?.reset();
-            setIsRunning(false);
-            // Mark that we should clear graph data on next play
-            shouldClearGraphDataRef.current = true;
-            // Re-apply all control values after reset
-            setTimeout(() => {
-              controls.forEach((control) => {
-                if (control.type === 'slider') {
-                  handleControlChange(control, controlValues[control.label]);
-                }
-              });
-            }, 0);
-          }}
-        />
-      </div>
+      <SimulationHeader
+        title={title}
+        description={description}
+        isRunning={isRunning}
+        onPlay={() => {
+          // Clear graph data if we just reset
+          if (shouldClearGraphDataRef.current) {
+            setGraphData(graphs.map(() => []));
+            shouldClearGraphDataRef.current = false;
+          }
+          simulationControls?.play();
+          setIsRunning(true);
+        }}
+        onPause={() => {
+          simulationControls?.pause();
+          setIsRunning(false);
+        }}
+        onReset={() => {
+          simulationControls?.reset();
+          setIsRunning(false);
+          // Mark that we should clear graph data on next play
+          shouldClearGraphDataRef.current = true;
+          // Re-apply all control values after reset
+          setTimeout(() => {
+            controls.forEach((control) => {
+              if (control.type === 'slider') {
+                handleControlChange(control, controlValues[control.label]);
+              }
+            });
+          }, 0);
+        }}
+      />
 
       
       
       <BaseSimulation
-        width={width}
-        height={height}
         onUpdate={handleUpdate}
         onControlsReady={handleControlsReady}
       >
@@ -278,7 +270,7 @@ function JsonSimulation({ config }: JsonSimulationProps) {
         )}
 
         {/* Environment */}
-        <Environment walls={environment.walls || []} width={width} height={height} />
+        <Environment walls={environment.walls || []} />
         
         {/* Boxes */}
         {boxes.map((box) => (
@@ -309,27 +301,31 @@ function JsonSimulation({ config }: JsonSimulationProps) {
 
         {/* Outputs */}
         {outputs.length > 0 && (
-          <ControlPanel className="col-start-2 row-start-2 justify-self-center">
-            {outputs.map((outputGroup, groupIndex) => (
-              <div key={groupIndex}>
-                {outputGroup.title && (
-                  <h4 className="mt-4 first:mt-0 mb-2 text-sm text-gray-700 font-semibold border-b border-gray-300 pb-1">
-                    {outputGroup.title}
-                  </h4>
-                )}
-                {outputGroup.values.map((output, outputIndex) => {
-                  const key = `${output.targetBox}.${output.property}`;
-                  return (
-                    <Outputs
-                      key={outputIndex}
-                      label={output.label}
-                      value={outputValues[key] || 0}
-                      unit={output.unit || ''}
-                    />
-                  );
-                })}
-              </div>
-            ))}
+          <ControlPanel className="col-start-2 row-start-2 min-w-[800px] justify-center">
+            <div className="flex flex-row gap-4 justify-center">
+              {outputs.map((outputGroup, groupIndex) => (
+                <div key={groupIndex}>
+                  {outputGroup.title && (
+                    <h4 className="mt-4 first:mt-0 mb-2 text-sm text-gray-700 font-semibold border-b border-gray-300 pb-1">
+                      {outputGroup.title}
+                    </h4>
+                  )}
+                  <div className="flex flex-col gap-2">
+                    {outputGroup.values.map((output, outputIndex) => {
+                      const key = `${output.targetBox}.${output.property}`;
+                      return (
+                        <Outputs
+                          key={outputIndex}
+                          label={output.label}
+                          value={outputValues[key] || 0}
+                          unit={output.unit || ''}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </ControlPanel>
         )}
       </BaseSimulation>

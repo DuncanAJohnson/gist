@@ -1,8 +1,6 @@
 {
   "title": "Two Boxes Collision",
   "description": "Adjust the velocities to see the boxes move and collide",
-  "width": 800,
-  "height": 600,
   "environment": {
     "walls": ["left", "right", "bottom"]
   },

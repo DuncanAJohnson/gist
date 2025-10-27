@@ -1,14 +1,13 @@
 import { useEffect } from 'react';
 import Matter from 'matter-js';
 import { usePhysics } from '../../contexts/PhysicsContext';
+import { BASE_SIMULATION_WIDTH, BASE_SIMULATION_HEIGHT } from '../BaseSimulation';
 
 interface EnvironmentProps {
   walls?: string[];
-  width?: number;
-  height?: number;
 }
 
-function Environment({ walls = [], width = 800, height = 600 }: EnvironmentProps) {
+function Environment({ walls = [] }: EnvironmentProps) {
   const engine = usePhysics();
 
   useEffect(() => {
@@ -20,9 +19,9 @@ function Environment({ walls = [], width = 800, height = 600 }: EnvironmentProps
     // Create walls based on the walls array
     if (walls.includes('bottom')) {
       const ground = Bodies.rectangle(
-        width / 2,
-        height - wallThickness / 2,
-        width + wallThickness,
+        BASE_SIMULATION_WIDTH / 2,
+        BASE_SIMULATION_HEIGHT - wallThickness / 2,
+        BASE_SIMULATION_WIDTH + wallThickness,
         wallThickness,
         {
           isStatic: true,
@@ -36,9 +35,9 @@ function Environment({ walls = [], width = 800, height = 600 }: EnvironmentProps
 
     if (walls.includes('top')) {
       const ceiling = Bodies.rectangle(
-        width / 2,
+        BASE_SIMULATION_WIDTH / 2,
         wallThickness / 2,
-        width + wallThickness,
+        BASE_SIMULATION_WIDTH + wallThickness,
         wallThickness,
         {
           isStatic: true,
@@ -53,9 +52,9 @@ function Environment({ walls = [], width = 800, height = 600 }: EnvironmentProps
     if (walls.includes('left')) {
       const leftWall = Bodies.rectangle(
         wallThickness / 2,
-        height / 2,
+        BASE_SIMULATION_HEIGHT / 2,
         wallThickness,
-        height,
+        BASE_SIMULATION_HEIGHT,
         {
           isStatic: true,
           render: {
@@ -68,10 +67,10 @@ function Environment({ walls = [], width = 800, height = 600 }: EnvironmentProps
 
     if (walls.includes('right')) {
       const rightWall = Bodies.rectangle(
-        width - wallThickness / 2,
-        height / 2,
+        BASE_SIMULATION_WIDTH - wallThickness / 2,
+        BASE_SIMULATION_HEIGHT / 2,
         wallThickness,
-        height,
+        BASE_SIMULATION_HEIGHT,
         {
           isStatic: true,
           render: {
@@ -89,10 +88,9 @@ function Environment({ walls = [], width = 800, height = 600 }: EnvironmentProps
     return () => {
       Composite.remove(engine.world, createdBodies);
     };
-  }, [walls, width, height, engine]);
+  }, [walls, engine]);
 
-  return null; // This component doesn't render anything visible
+  return null;
 }
 
 export default Environment;
-

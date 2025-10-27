@@ -21,7 +21,7 @@
   }
 
   button {
-    @apply rounded-lg border border-transparent px-5 py-2.5 text-base font-medium bg-primary text-white cursor-pointer transition-colors duration-250;
+    @apply rounded-lg border border-transparent px-5 py-2.5 text-base font-medium bg-primary text-white cursor-pointer transition-colors duration-200;
   }
 
   button:hover {
