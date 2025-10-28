@@ -98,8 +98,9 @@ function Graph({ title, data, config }: GraphProps) {
           <Tooltip
             formatter={(value: number) => (typeof value === 'number' ? value.toFixed(2) : value)}
             labelFormatter={(label: number) => `Time: ${label.toFixed(2)}s`}
+            contentStyle={{ paddingTop: '10px' }}
           />
-          <Legend />
+          <Legend height={5}/>
           {lines.map((line, index) => (
             <Line
               key={index}

@@ -134,6 +134,11 @@ function JsonSimulation({ config }: JsonSimulationProps) {
     target[lastKey] = value;
   };
 
+  // Helper function to clamp very small values to zero
+  const clampToZero = (value: number): number => {
+    return Math.abs(value) < 0.01 ? 0 : value;
+  };
+
   // Handle control changes
   const handleControlChange = useCallback((control: typeof controls[0], value: number) => {
     setControlValues((prev) => ({
@@ -196,7 +201,8 @@ function JsonSimulation({ config }: JsonSimulationProps) {
           graph.lines.forEach((line) => {
             const box = boxRefs.current[line.targetBox];
             if (box) {
-              dataPoint[line.label] = getNestedValue(box, line.property);
+              const value = getNestedValue(box, line.property);
+              dataPoint[line.label] = clampToZero(value);
             }
           });
 
@@ -317,7 +323,7 @@ function JsonSimulation({ config }: JsonSimulationProps) {
                         <Outputs
                           key={outputIndex}
                           label={output.label}
-                          value={outputValues[key] || 0}
+                          value={clampToZero(outputValues[key] || 0)}
                           unit={output.unit || ''}
                         />
                       );
