@@ -94,6 +94,7 @@ function Graph({ title, data, config }: GraphProps) {
           <YAxis
             domain={yDomain}
             label={{ value: 'Value', angle: -90, position: 'insideLeft' }}
+            tickFormatter={(value: number) => value.toFixed(1)}
           />
           <Tooltip
             formatter={(value: number) => (typeof value === 'number' ? value.toFixed(2) : value)}
