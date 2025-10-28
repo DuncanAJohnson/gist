@@ -11,7 +11,7 @@ interface ObjectProps {
   color?: string;
   velocity?: { x: number; y: number };
   restitution?: number;
-  shape: 'rectangle' | 'circle';
+  shape: string;
 }
 
 const Object = forwardRef<Matter.Body, ObjectProps>(function Object(

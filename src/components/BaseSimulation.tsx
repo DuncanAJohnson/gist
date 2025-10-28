@@ -50,8 +50,8 @@ function BaseSimulation({
       element: sceneRef.current,
       engine: engine,
       options: {
-        width: 800,
-        height: 600,
+        width: BASE_SIMULATION_WIDTH,
+        height: BASE_SIMULATION_HEIGHT,
         wireframes: false,
         background: '#fafafa',
       },
