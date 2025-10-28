@@ -38,17 +38,7 @@ function DynamicSimulation() {
   }
 
   return (
-    <div>
-      <div className="max-w-7xl mx-auto px-8 py-4">
-        <button
-          onClick={() => navigate('/create-simulation')}
-          className="text-primary hover:underline mb-4 inline-flex items-center gap-2"
-        >
-          ← Back to Creator
-        </button>
-      </div>
-      <JsonSimulation config={config} />
-    </div>
+    <JsonSimulation config={config} />
   );
 }
 
