@@ -42,6 +42,24 @@ function Home() {
             Toss a ball vertically and observe acceleration versus velocity.
           </p>
         </Link>
+        <Link 
+          to="/create-simulation" 
+          className="bg-white rounded-xl p-8 shadow-md no-underline text-inherit transition-all duration-200 flex flex-col hover:-translate-y-1 hover:shadow-xl border-2 border-primary"
+        >
+          <div className="text-5xl mb-4">🤖</div>
+          <h2 className="text-2xl text-gray-800 mb-2">Create AI Simulation</h2>
+          <p className="text-gray-600 leading-relaxed flex-grow">
+            Use AI to generate custom physics simulations. Describe what you want or upload a JSON file.
+          </p>
+          <div className="flex gap-2 mt-4">
+            <span className="bg-primary/10 text-primary px-3 py-1 rounded-xl text-sm font-medium">
+              AI Powered
+            </span>
+            <span className="bg-gray-100 px-3 py-1 rounded-xl text-sm text-gray-600">
+              Custom
+            </span>
+          </div>
+        </Link>
       </div>
     </div>
   );

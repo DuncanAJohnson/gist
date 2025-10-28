@@ -1,12 +1,11 @@
 """
-Modal serverless function for streaming OpenAI responses using the Responses API.
+Modal serverless function for OpenAI chat completion using the Responses API.
 Handles conversation history, coding level priming, and context injection.
 Converts legacy message format to new Responses API format internally.
 """
 
 import modal
 import json
-from typing import AsyncIterator
 from gist_instructions import instructions
 
 # Create Modal app
@@ -18,22 +17,22 @@ image = modal.Image.debian_slim().pip_install("openai", "fastapi[standard]")
 
 @app.function(
     image=image,
-    secrets=[modal.Secret.from_name("gist-openai-api-key")],
+    secrets=[modal.Secret.from_name("gist-openai-key")],
     timeout=300,
 )
-async def stream_chat_completion(
+async def chat_completion(
     messages: list[dict],
     model: str = "gpt-5-mini",
     max_tokens: int = 100000,
-) -> AsyncIterator[str]:
+) -> dict:
     """    
     Args:
         messages: List of message dicts with 'role' and 'content'
         model: OpenAI model name
         max_tokens: Maximum tokens to generate
     
-    Yields:
-        JSON-formatted chunks for SSE streaming
+    Returns:
+        Dict with the complete response content
     """
     import os
     from openai import AsyncOpenAI
@@ -42,15 +41,13 @@ async def stream_chat_completion(
     client = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
     
     try:
-        instructions = None
         input_messages = []
+        combined_instructions = instructions  # Start with base instructions
         
         for msg in messages:
             if msg["role"] == "system":
-                if instructions is None:
-                    instructions = msg["content"]
-                else:
-                    instructions += "\n\n" + msg["content"]
+                # Append any additional system messages to instructions
+                combined_instructions += "\n\n" + msg["content"]
             else:
                 input_messages.append({
                     "type": "message",
@@ -62,7 +59,7 @@ async def stream_chat_completion(
             "model": model,
             "input": input_messages,
             "max_output_tokens": max_tokens,
-            "stream": True,
+            "stream": False,
             "text": {
                 "format": {
                     "type": "text"
@@ -70,35 +67,37 @@ async def stream_chat_completion(
             }
         }
         
-        if instructions:
-            request_params["instructions"] = instructions
+        if combined_instructions:
+            request_params["instructions"] = combined_instructions
 
-        stream = await client.responses.create(**request_params)
+        response = await client.responses.create(**request_params)
         
-        # Stream chunks as SSE format
-        async for event in stream:
-            if hasattr(event, 'type'):
-                if event.type == "response.output_text.delta":
-                    if hasattr(event, 'delta') and event.delta:
-                        data = json.dumps({
-                            "type": "content",
-                            "content": event.delta
-                        })
-                        yield f"data: {data}\n\n"
+        # Extract the text content from the response
+        content = ""
+        if hasattr(response, 'output') and response.output:
+            for output_item in response.output:
+                if hasattr(output_item, 'type') and output_item.type == "message":
+                    if hasattr(output_item, 'content') and output_item.content:
+                        for content_item in output_item.content:
+                            if hasattr(content_item, 'type') and content_item.type == "output_text":
+                                if hasattr(content_item, 'text'):
+                                    content += content_item.text
         
-        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        return {
+            "type": "success",
+            "content": content
+        }
         
     except Exception as e:
-        error_data = json.dumps({
+        return {
             "type": "error",
             "error": str(e)
-        })
-        yield f"data: {error_data}\n\n"
+        }
 
 
 @app.function(
     image=image,
-    secrets=[modal.Secret.from_name("gist-openai-api-key")],
+    secrets=[modal.Secret.from_name("gist-openai-key")],
 )
 @modal.fastapi_endpoint(method="POST")
 async def chat_endpoint(request: dict):
@@ -113,7 +112,7 @@ async def chat_endpoint(request: dict):
         "max_tokens": 10000
     }
     """
-    from fastapi.responses import StreamingResponse
+    from fastapi.responses import JSONResponse
     
     # Extract parameters
     messages = request.get("messages", [])
@@ -121,18 +120,20 @@ async def chat_endpoint(request: dict):
     max_tokens = request.get("max_tokens", 100000)
     
     if not messages:
-        return {"error": "No messages provided"}, 400
+        return JSONResponse(
+            content={"error": "No messages provided"},
+            status_code=400
+        )
     
-    return StreamingResponse(
-        stream_chat_completion.remote_gen(
-            messages=messages,
-            model=model,
-            max_tokens=max_tokens,
-        ),
-        media_type="text/event-stream",
+    result = await chat_completion.remote.aio(
+        messages=messages,
+        model=model,
+        max_tokens=max_tokens,
+    )
+    
+    return JSONResponse(
+        content=result,
         headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "POST, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type",

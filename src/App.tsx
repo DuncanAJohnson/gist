@@ -3,6 +3,8 @@ import Navigation from './components/Navigation'
 import Home from './pages/Home'
 import TwoBoxesSimulation from './simulations/TwoBoxesSimulation'
 import TossBallSimulation from './simulations/TossBallSimulation'
+import CreateSimulation from './pages/CreateSimulation'
+import DynamicSimulation from './pages/DynamicSimulation'
 
 function App() {
   return (
@@ -13,6 +15,8 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/simulation/two-boxes" element={<TwoBoxesSimulation />} />
           <Route path="/simulation/toss-ball" element={<TossBallSimulation />} />
+          <Route path="/create-simulation" element={<CreateSimulation />} />
+          <Route path="/simulation/dynamic" element={<DynamicSimulation />} />
         </Routes>
       </div>
     </Router>
