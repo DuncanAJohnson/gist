@@ -7,9 +7,10 @@ Converts legacy message format to new Responses API format internally.
 import modal
 import json
 from typing import AsyncIterator
+from gist_instructions import instructions
 
 # Create Modal app
-app = modal.App("coderobots-openai-stream")
+app = modal.App("gist-openai-stream")
 
 # Define the image with dependencies
 image = modal.Image.debian_slim().pip_install("openai", "fastapi[standard]")
@@ -17,17 +18,15 @@ image = modal.Image.debian_slim().pip_install("openai", "fastapi[standard]")
 
 @app.function(
     image=image,
-    secrets=[modal.Secret.from_name("openai-api-key")],
-    timeout=300,  # 5 minute timeout
+    secrets=[modal.Secret.from_name("gist-openai-api-key")],
+    timeout=300,
 )
 async def stream_chat_completion(
     messages: list[dict],
-    model: str = "gpt-5-nano",
+    model: str = "gpt-5-mini",
     max_tokens: int = 100000,
 ) -> AsyncIterator[str]:
-    """
-    Stream OpenAI responses using the new Responses API with Server-Sent Events format.
-    
+    """    
     Args:
         messages: List of message dicts with 'role' and 'content'
         model: OpenAI model name
@@ -43,26 +42,22 @@ async def stream_chat_completion(
     client = AsyncOpenAI(api_key=os.environ["OPENAI_API_KEY"])
     
     try:
-        # Convert messages to new Responses API format
         instructions = None
         input_messages = []
         
         for msg in messages:
             if msg["role"] == "system":
-                # Combine system messages into instructions
                 if instructions is None:
                     instructions = msg["content"]
                 else:
                     instructions += "\n\n" + msg["content"]
             else:
-                # Convert user/assistant messages to input format
                 input_messages.append({
                     "type": "message",
                     "role": msg["role"],
                     "content": msg["content"]
                 })
         
-        # Build request parameters for new Responses API
         request_params = {
             "model": model,
             "input": input_messages,
@@ -75,32 +70,25 @@ async def stream_chat_completion(
             }
         }
         
-        # Add instructions if system messages were present
         if instructions:
             request_params["instructions"] = instructions
-        
-        # Create streaming response with new API
+
         stream = await client.responses.create(**request_params)
         
         # Stream chunks as SSE format
         async for event in stream:
-            # Handle different event types from the Responses API
             if hasattr(event, 'type'):
-                # Handle text delta events - the main streaming content
                 if event.type == "response.output_text.delta":
                     if hasattr(event, 'delta') and event.delta:
-                        # delta is a string directly, not an object
                         data = json.dumps({
                             "type": "content",
                             "content": event.delta
                         })
                         yield f"data: {data}\n\n"
         
-        # Send completion signal
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
         
     except Exception as e:
-        # Send error message
         error_data = json.dumps({
             "type": "error",
             "error": str(e)
@@ -110,7 +98,7 @@ async def stream_chat_completion(
 
 @app.function(
     image=image,
-    secrets=[modal.Secret.from_name("openai-api-key")],
+    secrets=[modal.Secret.from_name("gist-openai-api-key")],
 )
 @modal.fastapi_endpoint(method="POST")
 async def chat_endpoint(request: dict):
@@ -121,7 +109,7 @@ async def chat_endpoint(request: dict):
     Expected payload:
     {
         "messages": [{"role": "system|user|assistant", "content": "..."}],
-        "model": "gpt-5-nano",
+        "model": "gpt-5-mini",
         "max_tokens": 10000
     }
     """
@@ -129,13 +117,12 @@ async def chat_endpoint(request: dict):
     
     # Extract parameters
     messages = request.get("messages", [])
-    model = request.get("model", "gpt-5-nano")
+    model = request.get("model", "gpt-5-mini")
     max_tokens = request.get("max_tokens", 100000)
     
     if not messages:
         return {"error": "No messages provided"}, 400
     
-    # Return streaming response
     return StreamingResponse(
         stream_chat_completion.remote_gen(
             messages=messages,

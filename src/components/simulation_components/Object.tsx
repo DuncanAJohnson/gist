@@ -10,8 +10,10 @@ interface ObjectProps {
   height?: number;
   color?: string;
   velocity?: { x: number; y: number };
+  acceleration?: { x: number; y: number };
   restitution?: number;
   shape: string;
+  frictionAir?: number;
 }
 
 const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
@@ -23,8 +25,10 @@ const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
     height = 60,
     color = '#ff6b6b',
     velocity = { x: 0, y: 0 },
+    acceleration = { x: 0, y: 0 },
     restitution = 0.8,
     shape = 'rectangle',
+    frictionAir = 0,
   },
   ref
 ) {
@@ -42,6 +46,7 @@ const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
         render: {
           fillStyle: color,
         },
+        frictionAir: frictionAir,
       });
     } else if (shape === 'circle') {
       object = Bodies.circle(x, y, width / 2, {
@@ -49,6 +54,7 @@ const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
         render: {
           fillStyle: color,
         },
+        frictionAir: frictionAir,
       });
     } else {
       throw new Error(`Invalid shape: ${shape}`);
@@ -56,6 +62,9 @@ const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
 
     // Set initial velocity
     Body.setVelocity(object, velocity);
+
+    // Initialize acceleration property
+    (object as any).acceleration = acceleration;
 
     // Add to world
     Composite.add(engine.world, object);

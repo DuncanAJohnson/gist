@@ -89,6 +89,10 @@ function JsonSimulation({ config }: JsonSimulationProps) {
   // Store refs to all objects by their ID
   const objRefs = useRef<Record<string, Matter.Body>>({});
   
+  // Store previous velocities to calculate acceleration
+  const prevVelocitiesRef = useRef<Record<string, { x: number; y: number }>>({});
+  const prevTimeRef = useRef<number>(0);
+  
   // State for control values
   const [controlValues, setControlValues] = useState<Record<string, number>>(() => {
     const initialValues: Record<string, number> = {};
@@ -177,6 +181,33 @@ function JsonSimulation({ config }: JsonSimulationProps) {
 
   // Update loop to read output values and graph data
   const handleUpdate = useCallback((_engine: Matter.Engine, time: number) => {
+    // Calculate acceleration for all bodies
+    const deltaTime = time - prevTimeRef.current;
+    if (deltaTime > 0) {
+      // Use objects from the config to iterate through bodies
+      objects.forEach((objectConfig) => {
+        const body = objRefs.current[objectConfig.id];
+        if (!body) return;
+        
+        const prevVelocity = prevVelocitiesRef.current[objectConfig.id];
+        if (prevVelocity) {
+          // Calculate acceleration as change in velocity over time
+          const acceleration = {
+            x: (body.velocity.x - prevVelocity.x) / deltaTime,
+            y: (body.velocity.y - prevVelocity.y) / deltaTime,
+          };
+          // Store acceleration on the body as a custom property
+          (body as any).acceleration = acceleration;
+        } else {
+          // First frame - initialize acceleration to zero
+          (body as any).acceleration = { x: 0, y: 0 };
+        }
+        // Update previous velocity
+        prevVelocitiesRef.current[objectConfig.id] = { ...body.velocity };
+      });
+    }
+    prevTimeRef.current = time;
+
     const newOutputValues: Record<string, number> = {};
     
     outputs.forEach((outputGroup) => {
@@ -237,6 +268,9 @@ function JsonSimulation({ config }: JsonSimulationProps) {
           setIsRunning(false);
           // Mark that we should clear graph data on next play
           shouldClearGraphDataRef.current = true;
+          // Reset acceleration tracking
+          prevVelocitiesRef.current = {};
+          prevTimeRef.current = 0;
           // Re-apply all control values after reset
           setTimeout(() => {
             controls.forEach((control) => {
