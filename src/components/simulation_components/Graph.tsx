@@ -13,7 +13,7 @@ import {
 interface LineConfig {
   label: string;
   color: string;
-  targetBox: string;
+  targetObj: string;
   property: string;
 }
 

@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Navigation from './components/Navigation'
 import Home from './pages/Home'
 import TwoBoxesSimulation from './simulations/TwoBoxesSimulation'
+import TossBallSimulation from './simulations/TossBallSimulation'
 
 function App() {
   return (
@@ -11,6 +12,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/simulation/two-boxes" element={<TwoBoxesSimulation />} />
+          <Route path="/simulation/toss-ball" element={<TossBallSimulation />} />
         </Routes>
       </div>
     </Router>

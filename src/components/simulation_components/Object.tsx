@@ -2,7 +2,7 @@ import { useEffect, forwardRef } from 'react';
 import Matter from 'matter-js';
 import { usePhysics } from '../../contexts/PhysicsContext';
 
-interface BoxProps {
+interface ObjectProps {
   id: string;
   x: number;
   y: number;
@@ -11,9 +11,10 @@ interface BoxProps {
   color?: string;
   velocity?: { x: number; y: number };
   restitution?: number;
+  shape: 'rectangle' | 'circle';
 }
 
-const Box = forwardRef<Matter.Body, BoxProps>(function Box(
+const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
   {
     id,
     x,
@@ -23,6 +24,7 @@ const Box = forwardRef<Matter.Body, BoxProps>(function Box(
     color = '#ff6b6b',
     velocity = { x: 0, y: 0 },
     restitution = 0.8,
+    shape = 'rectangle',
   },
   ref
 ) {
@@ -33,31 +35,43 @@ const Box = forwardRef<Matter.Body, BoxProps>(function Box(
     const { Bodies, Composite, Body } = Matter;
 
     // Create the box body with initial values
-    const box = Bodies.rectangle(x, y, width, height, {
-      restitution: restitution,
-      render: {
-        fillStyle: color,
-      },
-    });
+    let object: Matter.Body;
+    if (shape === 'rectangle') {
+      object = Bodies.rectangle(x, y, width, height, {
+        restitution: restitution,
+        render: {
+          fillStyle: color,
+        },
+      });
+    } else if (shape === 'circle') {
+      object = Bodies.circle(x, y, width / 2, {
+        restitution: restitution,
+        render: {
+          fillStyle: color,
+        },
+      });
+    } else {
+      throw new Error(`Invalid shape: ${shape}`);
+    }
 
     // Set initial velocity
-    Body.setVelocity(box, velocity);
+    Body.setVelocity(object, velocity);
 
     // Add to world
-    Composite.add(engine.world, box);
+    Composite.add(engine.world, object);
 
     // Expose the Matter.js body via ref
     if (ref) {
       if (typeof ref === 'function') {
-        ref(box);
+        ref(object);
       } else {
-        ref.current = box;
+        ref.current = object;
       }
     }
 
     // Cleanup - only when component unmounts
     return () => {
-      Composite.remove(engine.world, box);
+      Composite.remove(engine.world, object);
       if (ref) {
         if (typeof ref === 'function') {
           ref(null);
@@ -72,5 +86,5 @@ const Box = forwardRef<Matter.Body, BoxProps>(function Box(
   return null; // This component doesn't render anything visible
 });
 
-export default Box;
+export default Object;
 

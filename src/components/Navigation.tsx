@@ -23,6 +23,12 @@ function Navigation() {
           >
             Two Boxes
           </Link>
+          <Link 
+            to="/simulation/toss-ball" 
+            className="text-white no-underline font-medium transition-colors duration-200 px-4 py-2 rounded hover:bg-white/10"
+          >
+            Toss Ball
+          </Link>
         </div>
       </div>
     </nav>

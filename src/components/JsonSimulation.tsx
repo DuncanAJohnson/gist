@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import Matter from 'matter-js';
 import BaseSimulation from './BaseSimulation';
 import Environment from './simulation_components/Environment';
-import Box from './simulation_components/Box';
+import Object from './simulation_components/Object';
 import ControlPanel from './simulation_components/ControlPanel';
 import Slider from './simulation_components/Slider';
 import Outputs from './simulation_components/Outputs';
@@ -15,8 +15,9 @@ interface SimulationConfig {
   environment?: {
     walls?: string[];
   };
-  boxes?: Array<{
+  objects?: Array<{
     id: string;
+    shape: string;
     x: number;
     y: number;
     width?: number;
@@ -28,7 +29,7 @@ interface SimulationConfig {
   controls?: Array<{
     type: string;
     label: string;
-    targetBox: string;
+    targetObj: string;
     property: string;
     defaultValue: number;
     min: number;
@@ -39,7 +40,7 @@ interface SimulationConfig {
     title?: string;
     values: Array<{
       label: string;
-      targetBox: string;
+      targetObj: string;
       property: string;
       unit?: string;
     }>;
@@ -53,7 +54,7 @@ interface SimulationConfig {
     lines: Array<{
       label: string;
       color: string;
-      targetBox: string;
+      targetObj: string;
       property: string;
     }>;
   }>;
@@ -79,14 +80,14 @@ function JsonSimulation({ config }: JsonSimulationProps) {
     title,
     description,
     environment = {},
-    boxes = [],
+    objects = [],
     controls = [],
     outputs = [],
     graphs = [],
   } = config;
 
-  // Store refs to all boxes by their ID
-  const boxRefs = useRef<Record<string, Matter.Body>>({});
+  // Store refs to all objects by their ID
+  const objRefs = useRef<Record<string, Matter.Body>>({});
   
   // State for control values
   const [controlValues, setControlValues] = useState<Record<string, number>>(() => {
@@ -146,30 +147,30 @@ function JsonSimulation({ config }: JsonSimulationProps) {
       [control.label]: value,
     }));
 
-    // Update the box property
-    const box = boxRefs.current[control.targetBox];
-    if (box && control.property) {
+    // Update the object property
+    const obj = objRefs.current[control.targetObj];
+    if (obj && control.property) {
       if (control.property.startsWith('velocity.')) {
         // Special handling for velocity
         const axis = control.property.split('.')[1] as 'x' | 'y';
-        const currentVelocity = box.velocity;
+        const currentVelocity = obj.velocity;
         const newVelocity = {
           x: axis === 'x' ? value : currentVelocity.x,
           y: axis === 'y' ? value : currentVelocity.y,
         };
-        Matter.Body.setVelocity(box, newVelocity);
+        Matter.Body.setVelocity(obj, newVelocity);
       } else if (control.property.startsWith('position.')) {
         // Special handling for position
         const axis = control.property.split('.')[1] as 'x' | 'y';
-        const currentPosition = box.position;
+        const currentPosition = obj.position;
         const newPosition = {
           x: axis === 'x' ? value : currentPosition.x,
           y: axis === 'y' ? value : currentPosition.y,
         };
-        Matter.Body.setPosition(box, newPosition);
+        Matter.Body.setPosition(obj, newPosition);
       } else {
         // Generic property update
-        setNestedValue(box, control.property, value);
+        setNestedValue(obj, control.property, value);
       }
     }
   }, []);
@@ -180,10 +181,10 @@ function JsonSimulation({ config }: JsonSimulationProps) {
     
     outputs.forEach((outputGroup) => {
       outputGroup.values.forEach((output) => {
-        const box = boxRefs.current[output.targetBox];
-        if (box) {
-          const key = `${output.targetBox}.${output.property}`;
-          newOutputValues[key] = getNestedValue(box, output.property);
+        const obj = objRefs.current[output.targetObj];
+        if (obj) {
+          const key = `${output.targetObj}.${output.property}`;
+          newOutputValues[key] = getNestedValue(obj, output.property);
         }
       });
     });
@@ -199,9 +200,9 @@ function JsonSimulation({ config }: JsonSimulationProps) {
 
           // Collect all line values for this graph
           graph.lines.forEach((line) => {
-            const box = boxRefs.current[line.targetBox];
-            if (box) {
-              const value = getNestedValue(box, line.property);
+            const obj = objRefs.current[line.targetObj];
+            if (obj) {
+              const value = getNestedValue(obj, line.property);
               dataPoint[line.label] = clampToZero(value);
             }
           });
@@ -278,16 +279,16 @@ function JsonSimulation({ config }: JsonSimulationProps) {
         {/* Environment */}
         <Environment walls={environment.walls || []} />
         
-        {/* Boxes */}
-        {boxes.map((box) => (
-          <Box
-            key={box.id}
+        {/* Objects */}
+        {objects.map((object) => (
+          <Object
+            key={object.id}
             ref={(ref) => {
               if (ref) {
-                boxRefs.current[box.id] = ref;
+                objRefs.current[object.id] = ref;
               }
             }}
-            {...box}
+            {...object}
           />
         ))}
 
@@ -318,7 +319,7 @@ function JsonSimulation({ config }: JsonSimulationProps) {
                   )}
                   <div className="flex flex-col gap-2">
                     {outputGroup.values.map((output, outputIndex) => {
-                      const key = `${output.targetBox}.${output.property}`;
+                      const key = `${output.targetObj}.${output.property}`;
                       return (
                         <Outputs
                           key={outputIndex}

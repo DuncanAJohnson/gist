@@ -4,9 +4,10 @@
   "environment": {
     "walls": ["left", "right", "bottom"]
   },
-  "boxes": [
+  "objects": [
     {
       "id": "boxA",
+      "shape": "rectangle",
       "x": 150,
       "y": 100,
       "width": 60,
@@ -17,6 +18,7 @@
     },
     {
       "id": "boxB",
+      "shape": "rectangle",
       "x": 650,
       "y": 200,
       "width": 60,
@@ -30,7 +32,7 @@
     {
       "type": "slider",
       "label": "Box A Velocity",
-      "targetBox": "boxA",
+      "targetObj": "boxA",
       "property": "velocity.x",
       "min": -10,
       "max": 10,
@@ -40,7 +42,7 @@
     {
       "type": "slider",
       "label": "Box B Velocity",
-      "targetBox": "boxB",
+      "targetObj": "boxB",
       "property": "velocity.x",
       "min": -10,
       "max": 10,
@@ -54,13 +56,13 @@
       "values": [
         {
           "label": "Velocity X",
-          "targetBox": "boxA",
+          "targetObj": "boxA",
           "property": "velocity.x",
           "unit": "px/s"
         },
         {
           "label": "Velocity Y",
-          "targetBox": "boxA",
+          "targetObj": "boxA",
           "property": "velocity.y",
           "unit": "px/s"
         }
@@ -71,13 +73,13 @@
       "values": [
         {
           "label": "Velocity X",
-          "targetBox": "boxB",
+          "targetObj": "boxB",
           "property": "velocity.x",
           "unit": "px/s"
         },
         {
           "label": "Velocity Y",
-          "targetBox": "boxB",
+          "targetObj": "boxB",
           "property": "velocity.y",
           "unit": "px/s"
         }
@@ -91,13 +93,13 @@
       "lines": [
         {
           "label": "Box A Velocity X",
-          "targetBox": "boxA",
+          "targetObj": "boxA",
           "property": "velocity.x",
           "color": "#ff6bff"
         },
         {
           "label": "Box B Velocity X",
-          "targetBox": "boxB",
+          "targetObj": "boxB",
           "property": "velocity.x",
           "color": "#4ecdc4"
         }

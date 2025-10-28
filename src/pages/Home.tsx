@@ -32,6 +32,16 @@ function Home() {
             </span>
           </div>
         </Link>
+        <Link 
+          to="/simulation/toss-ball" 
+          className="bg-white rounded-xl p-8 shadow-md no-underline text-inherit transition-all duration-200 flex flex-col hover:-translate-y-1 hover:shadow-xl"
+        >
+          <div className="text-5xl mb-4">⚾</div>
+          <h2 className="text-2xl text-gray-800 mb-2">Toss Ball</h2>
+          <p className="text-gray-600 leading-relaxed flex-grow">
+            Toss a ball vertically and observe acceleration versus velocity.
+          </p>
+        </Link>
       </div>
     </div>
   );
