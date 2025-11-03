@@ -24,7 +24,6 @@ function SimulationHeader({
   onReset,
   onEdit,
   onTweakJSON,
-  simulationId,
   currentJSON,
 }: SimulationHeaderProps) {
   const [showEditPopup, setShowEditPopup] = useState(false);

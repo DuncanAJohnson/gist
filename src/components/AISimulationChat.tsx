@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface AISimulationChatProps {
   onJSONExtracted?: (json: any) => void;
@@ -10,12 +10,50 @@ interface AISimulationChatProps {
 function AISimulationChat({
   onJSONExtracted,
   existingJSON,
-  onClose,
   compact = false,
 }: AISimulationChatProps) {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [extractedJSON, setExtractedJSON] = useState<any>(null);
+  const [progress, setProgress] = useState(0);
+
+  // Fake loading progress that takes ~40 seconds
+  useEffect(() => {
+    if (!isStreaming) {
+      setProgress(0);
+      return;
+    }
+
+    const duration = 30000; // 30 seconds in milliseconds
+    const startTime = Date.now();
+    const updateInterval = 50; // Update every 50ms for smooth animation
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      if (elapsed >= duration) {
+        setProgress((prev) => Math.max(prev, 95)); // Don't override if already at 100%
+        clearInterval(interval);
+        return;
+      }
+
+      // Non-linear easing function for more realistic progress
+      // Starts fast, slows in middle, speeds up near end
+      // please make it faster at the beginning
+      const t = elapsed / duration;
+      // Using ease-in-out-cubic-like curve
+      const easedProgress = t < 0.5
+        ? 16 * t * t * t
+        : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      
+      setProgress((prev) => {
+        // Don't update if already at 100% (set by API completion)
+        if (prev >= 100) return prev;
+        return Math.min(95, easedProgress * 100); // Cap at 95% until actual completion
+      });
+    }, updateInterval);
+
+    return () => clearInterval(interval);
+  }, [isStreaming]);
 
   // Extract JSON from text
   const extractJSON = (text: string): any | null => {
@@ -99,7 +137,11 @@ function AISimulationChat({
       console.error('Error calling chat API:', error);
       alert(`Sorry, there was an error communicating with the AI: ${error}`);
     } finally {
-      setIsStreaming(false);
+      setProgress(100);
+      // Small delay to show 100% before hiding
+      setTimeout(() => {
+        setIsStreaming(false);
+      }, 300);
     }
   };
 
@@ -121,13 +163,18 @@ function AISimulationChat({
           </div>
         )}
         {isStreaming && (
-          <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800 flex items-center gap-2">
-            <div className="flex gap-1">
-              <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-              <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-              <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-blue-800">Generating simulation...</span>
             </div>
-            Generating simulation...
+            <div className="w-full bg-blue-200 rounded-full h-2 overflow-hidden">
+              <div
+                className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${progress}%` }}
+              >
+                <div className="h-full w-full bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 animate-pulse"></div>
+              </div>
+            </div>
           </div>
         )}
         <div className="flex gap-2">
@@ -159,7 +206,6 @@ function AISimulationChat({
       <div className="flex-1 overflow-y-auto p-6">
         {!existingJSON && (
           <div className="text-center text-gray-500 mt-12">
-            <div className="text-6xl mb-4">🤖</div>
             <h2 className="text-xl font-semibold mb-2">Create a Simulation</h2>
             <p className="text-gray-600">
               Describe the physics simulation you'd like to create.
@@ -167,22 +213,27 @@ function AISimulationChat({
             <div className="mt-6 text-left max-w-md mx-auto bg-gray-50 p-4 rounded-lg">
               <p className="font-semibold mb-2">Example prompts:</p>
               <ul className="text-sm space-y-1 text-gray-700">
-                <li>• "Create a pendulum simulation"</li>
-                <li>• "Show projectile motion with angle control"</li>
-                <li>• "Make a bouncing ball with gravity control"</li>
+                <li>• "Launch a rocket into space"</li>
+                <li>• "Have a pumpkin roll down a hill"</li>
+                <li>• "Show a collision between two objects"</li>
               </ul>
             </div>
           </div>
         )}
         {isStreaming && (
-          <div className="text-center mt-8">
-            <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          <div className="text-center mt-8 max-w-md mx-auto">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-6 py-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-base font-medium text-blue-800">Generating simulation...</span>
               </div>
-              <span className="text-sm text-blue-800">Generating simulation...</span>
+              <div className="w-full bg-blue-200 rounded-full h-3 overflow-hidden shadow-inner">
+                <div
+                  className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out relative"
+                  style={{ width: `${progress}%` }}
+                >
+                  <div className="h-full w-full bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 animate-pulse"></div>
+                </div>
+              </div>
             </div>
           </div>
         )}
