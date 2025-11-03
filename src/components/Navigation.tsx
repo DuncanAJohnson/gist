@@ -8,32 +8,20 @@ function Navigation() {
           to="/" 
           className="text-2xl font-bold text-white no-underline transition-opacity duration-200 hover:opacity-90"
         >
-          Physics Simulations
+          Generative Interactive Simulations for Teaching
         </Link>
         <div className="flex gap-6">
           <Link 
             to="/" 
             className="text-white no-underline font-medium transition-colors duration-200 px-4 py-2 rounded hover:bg-white/10"
           >
-            Home
-          </Link>
-          <Link 
-            to="/simulation/two-boxes" 
-            className="text-white no-underline font-medium transition-colors duration-200 px-4 py-2 rounded hover:bg-white/10"
-          >
-            Two Boxes
-          </Link>
-          <Link 
-            to="/simulation/toss-ball" 
-            className="text-white no-underline font-medium transition-colors duration-200 px-4 py-2 rounded hover:bg-white/10"
-          >
-            Toss Ball
+            Simulation Library
           </Link>
           <Link 
             to="/create-simulation" 
             className="text-white no-underline font-medium transition-colors duration-200 px-4 py-2 rounded hover:bg-white/10"
           >
-            Create AI Simulation
+            Create New Simulation
           </Link>
         </div>
       </div>

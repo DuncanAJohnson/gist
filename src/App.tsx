@@ -17,6 +17,7 @@ function App() {
           <Route path="/simulation/toss-ball" element={<TossBallSimulation />} />
           <Route path="/create-simulation" element={<CreateSimulation />} />
           <Route path="/simulation/dynamic" element={<DynamicSimulation />} />
+          <Route path="/simulation/:id" element={<DynamicSimulation />} />
         </Routes>
       </div>
     </Router>

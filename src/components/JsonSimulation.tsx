@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Matter from 'matter-js';
 import BaseSimulation from './BaseSimulation';
 import Environment from './simulation_components/Environment';
@@ -8,6 +9,8 @@ import Slider from './simulation_components/Slider';
 import Outputs from './simulation_components/Outputs';
 import SimulationHeader from './simulation_components/SimulationHeader';
 import Graph from './simulation_components/Graph';
+import JsonEditor from './JsonEditor';
+import { createSimulation } from '../lib/simulationService';
 
 interface SimulationConfig {
   title?: string;
@@ -62,6 +65,7 @@ interface SimulationConfig {
 
 interface JsonSimulationProps {
   config: SimulationConfig;
+  simulationId?: number;
 }
 
 interface SimulationControls {
@@ -75,7 +79,8 @@ interface DataPoint {
   [key: string]: number;
 }
 
-function JsonSimulation({ config }: JsonSimulationProps) {
+function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
+  const navigate = useNavigate();
   const {
     title,
     description,
@@ -85,6 +90,8 @@ function JsonSimulation({ config }: JsonSimulationProps) {
     outputs = [],
     graphs = [],
   } = config;
+
+  const [showJsonEditor, setShowJsonEditor] = useState(false);
 
   // Store refs to all objects by their ID
   const objRefs = useRef<Record<string, Matter.Body>>({});
@@ -244,12 +251,50 @@ function JsonSimulation({ config }: JsonSimulationProps) {
     }
   }, [outputs, graphs]);
 
+  const handleEdit = async (editedJSON: any) => {
+    if (!simulationId) return;
+    try {
+      const newSimulationId = await createSimulation(editedJSON, true, simulationId);
+      navigate(`/simulation/${newSimulationId}`);
+    } catch (error) {
+      console.error('Failed to save edited simulation:', error);
+      alert('Failed to save edited simulation. Please try again.');
+    }
+  };
+
+  const handleTweakJSON = () => {
+    setShowJsonEditor(true);
+  };
+
+  const handleSaveTweakedJSON = async (tweakedJSON: any) => {
+    if (!simulationId) return;
+    try {
+      const newSimulationId = await createSimulation(tweakedJSON, false, simulationId);
+      setShowJsonEditor(false);
+      navigate(`/simulation/${newSimulationId}`);
+    } catch (error) {
+      console.error('Failed to save tweaked simulation:', error);
+      alert('Failed to save tweaked simulation. Please try again.');
+    }
+  };
+
   return (
     <div>
+      {showJsonEditor && (
+        <JsonEditor
+          initialJSON={config}
+          onSave={handleSaveTweakedJSON}
+          onClose={() => setShowJsonEditor(false)}
+        />
+      )}
       <SimulationHeader
         title={title}
         description={description}
         isRunning={isRunning}
+        simulationId={simulationId}
+        currentJSON={config}
+        onEdit={simulationId ? handleEdit : undefined}
+        onTweakJSON={simulationId ? handleTweakJSON : undefined}
         onPlay={() => {
           // Clear graph data if we just reset
           if (shouldClearGraphDataRef.current) {
