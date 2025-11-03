@@ -10,7 +10,7 @@ import Outputs from './simulation_components/Outputs';
 import SimulationHeader from './simulation_components/SimulationHeader';
 import Graph from './simulation_components/Graph';
 import JsonEditor from './JsonEditor';
-import { createSimulation } from '../lib/simulationService';
+import { createSimulation, updateChangesMade } from '../lib/simulationService';
 
 interface SimulationConfig {
   title?: string;
@@ -255,6 +255,8 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     if (!simulationId) return;
     try {
       const newSimulationId = await createSimulation(editedJSON, true, simulationId);
+      // Trigger server-side update of changes_made column
+      updateChangesMade(newSimulationId);
       navigate(`/simulation/${newSimulationId}`);
     } catch (error) {
       console.error('Failed to save edited simulation:', error);
@@ -270,6 +272,8 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     if (!simulationId) return;
     try {
       const newSimulationId = await createSimulation(tweakedJSON, false, simulationId);
+      // Trigger server-side update of changes_made column
+      updateChangesMade(newSimulationId);
       setShowJsonEditor(false);
       navigate(`/simulation/${newSimulationId}`);
     } catch (error) {

@@ -8,6 +8,7 @@ export interface SimulationRecord {
   parent_id: number | null;
   title: string | null;
   description: string | null;
+  changes_made: string | null;
 }
 
 export interface SimulationListItem {
@@ -15,6 +16,8 @@ export interface SimulationListItem {
   title: string | null;
   description: string | null;
   created_at: string;
+  parent_id: number | null;
+  changes_made: string | null;
 }
 
 /**
@@ -78,7 +81,7 @@ export async function getSimulation(id: number): Promise<any> {
 export async function getAllSimulations(): Promise<SimulationListItem[]> {
   const { data, error } = await supabase
     .from('simulations')
-    .select('id, title, description, created_at')
+    .select('id, title, description, created_at, parent_id, changes_made')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -86,5 +89,27 @@ export async function getAllSimulations(): Promise<SimulationListItem[]> {
   }
 
   return data || [];
+}
+
+/**
+ * Triggers a server-side update of the changes_made column for a simulation.
+ * This is a fire-and-forget call that happens asynchronously on the server.
+ * @param simulationId - The ID of the simulation to update
+ */
+export async function updateChangesMade(simulationId: number): Promise<void> {
+  // Fire-and-forget: don't wait for the response or throw errors
+  // This ensures the update happens server-side even if the user closes the tab
+  fetch('https://duncanajohnson--gist-update-changes-update-changes-made.modal.run', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      simulation_id: simulationId,
+    }),
+  }).catch((error) => {
+    // Silently fail - this is a background operation
+    console.error('Failed to trigger changes_made update:', error);
+  });
 }
 

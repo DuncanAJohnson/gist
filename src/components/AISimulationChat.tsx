@@ -24,7 +24,7 @@ function AISimulationChat({
       return;
     }
 
-    const duration = 30000; // 30 seconds in milliseconds
+    const duration = 60000; // 60 seconds in milliseconds
     const startTime = Date.now();
     const updateInterval = 50; // Update every 50ms for smooth animation
 
@@ -38,11 +38,10 @@ function AISimulationChat({
 
       // Non-linear easing function for more realistic progress
       // Starts fast, slows in middle, speeds up near end
-      // please make it faster at the beginning
       const t = elapsed / duration;
-      // Using ease-in-out-cubic-like curve
+      // Using quadratic ease-in for faster start, cubic ease-out
       const easedProgress = t < 0.5
-        ? 16 * t * t * t
+        ? 2 * t * t
         : 1 - Math.pow(-2 * t + 2, 3) / 2;
       
       setProgress((prev) => {

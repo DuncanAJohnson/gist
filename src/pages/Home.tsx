@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AISimulationChat from '../components/AISimulationChat';
 import { getAllSimulations, createSimulation, SimulationListItem } from '../lib/simulationService';
+import SimulationListItemComponent from '../components/SimulationListItem';
 
 function Home() {
   const navigate = useNavigate();
@@ -35,6 +36,37 @@ function Home() {
       alert('Failed to save simulation. Please try again.');
     }
   };
+
+  // Group simulations by day and sort within each day by time descending
+  const groupedSimulations = useMemo(() => {
+    const groups: Record<string, SimulationListItem[]> = {};
+    
+    simulations.forEach((sim) => {
+      const date = new Date(sim.created_at);
+      const dayKey = date.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      
+      if (!groups[dayKey]) {
+        groups[dayKey] = [];
+      }
+      groups[dayKey].push(sim);
+    });
+
+    // Sort simulations within each day by time descending (newest first)
+    Object.keys(groups).forEach((dayKey) => {
+      groups[dayKey].sort((a, b) => {
+        const timeA = new Date(a.created_at).getTime();
+        const timeB = new Date(b.created_at).getTime();
+        return timeB - timeA;
+      });
+    });
+
+    return groups;
+  }, [simulations]);
 
   return (
     <div className="max-w-7xl mx-auto px-8 py-8">
@@ -101,21 +133,16 @@ function Home() {
         ) : simulations.length === 0 ? (
           <div className="text-center text-gray-500 py-8">No simulations yet. Create one to get started!</div>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-8">
-            {simulations.map((sim) => (
-              <Link
-                key={sim.id}
-                to={`/simulation/${sim.id}`}
-                className="bg-white rounded-xl p-8 shadow-md no-underline text-inherit transition-all duration-200 flex flex-col hover:-translate-y-1 hover:shadow-xl"
-              >
-                <h2 className="text-2xl text-gray-800 mb-2">{sim.title || 'Untitled Simulation'}</h2>
-                <p className="text-gray-600 leading-relaxed flex-grow">
-                  {sim.description || 'No description'}
-                </p>
-                <div className="mt-4 text-sm text-gray-500">
-                  {new Date(sim.created_at).toLocaleDateString()}
+          <div className="space-y-8">
+            {Object.entries(groupedSimulations).map(([dayKey, daySimulations]) => (
+              <div key={dayKey}>
+                <h3 className="text-lg font-semibold text-gray-700 mb-3">{dayKey}</h3>
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-200">
+                  {daySimulations.map((sim) => (
+                    <SimulationListItemComponent key={sim.id} simulation={sim} />
+                  ))}
                 </div>
-              </Link>
+              </div>
             ))}
           </div>
         )}
