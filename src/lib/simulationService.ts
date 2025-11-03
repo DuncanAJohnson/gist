@@ -35,7 +35,7 @@ export async function createSimulation(
   // Extract title and description from JSON
   const title = json.title || null;
   const description = json.description || null;
-
+  
   const { data, error } = await supabase
     .from('simulations')
     .insert({
@@ -99,7 +99,12 @@ export async function getAllSimulations(): Promise<SimulationListItem[]> {
 export async function updateChangesMade(simulationId: number): Promise<void> {
   // Fire-and-forget: don't wait for the response or throw errors
   // This ensures the update happens server-side even if the user closes the tab
-  fetch('https://duncanajohnson--gist-update-changes-update-changes-made.modal.run', {
+  const updateChangesMadeModalUrl = (import.meta as any).env.VITE_UPDATE_CHANGES_MADE_MODAL_URL;
+  if (!updateChangesMadeModalUrl) {
+    console.error('Missing env.VITE_UPDATE_CHANGES_MADE_MODAL_URL');
+    return;
+  }
+  fetch(updateChangesMadeModalUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

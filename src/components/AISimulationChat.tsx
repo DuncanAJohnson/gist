@@ -16,6 +16,12 @@ function AISimulationChat({
   const [isStreaming, setIsStreaming] = useState(false);
   const [extractedJSON, setExtractedJSON] = useState<any>(null);
   const [progress, setProgress] = useState(0);
+  const simulationAiUrl = (import.meta as any).env.VITE_SIMULATION_AI_URL;
+
+  if (!simulationAiUrl) {
+    console.error('Missing env.VITE_SIMULATION_AI_URL');
+    return;
+  }
 
   // Fake loading progress that takes ~40 seconds
   useEffect(() => {
@@ -99,7 +105,7 @@ function AISimulationChat({
     setIsStreaming(true);
 
     try {
-      const response = await fetch('https://duncanajohnson--gist-openai-stream-chat-endpoint.modal.run', {
+      const response = await fetch(simulationAiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
