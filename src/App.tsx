@@ -3,7 +3,7 @@ import Navigation from './components/Navigation'
 import Home from './pages/Home'
 import TwoBoxesSimulation from './simulations/TwoBoxesSimulation'
 import TossBallSimulation from './simulations/TossBallSimulation'
-import CreateSimulationModal from './components/CreateSimulation'
+import CreateSimulation from './components/CreateSimulation'
 import DynamicSimulation from './pages/DynamicSimulation'
 import { CreateSimulationProvider, useCreateSimulation } from './contexts/CreateSimulationContext'
 
@@ -20,7 +20,7 @@ function AppContent() {
         <Route path="/simulation/dynamic" element={<DynamicSimulation />} />
         <Route path="/simulation/:id" element={<DynamicSimulation />} />
       </Routes>
-      <CreateSimulationModal isOpen={isOpen} onClose={closeModal} />
+      <CreateSimulation isOpen={isOpen} onClose={closeModal} />
     </>
   )
 }

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { SimulationListItem as SimulationListItemType } from '../lib/simulationService';
 
 interface SimulationListItemProps {
@@ -7,6 +7,7 @@ interface SimulationListItemProps {
 }
 
 function SimulationListItem({ simulation, descriptionPreviewLength = 100 }: SimulationListItemProps) {
+  const navigate = useNavigate();
   const date = new Date(simulation.created_at);
   const timeString = date.toLocaleTimeString('en-US', { 
     hour: '2-digit', 
@@ -41,14 +42,16 @@ function SimulationListItem({ simulation, descriptionPreviewLength = 100 }: Simu
               <span>New Simulation</span>
             ) : (
               <span>
-                
-                <Link
-                  to={`/simulation/${simulation.parent_id}`}
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-primary hover:underline"
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    navigate(`/simulation/${simulation.parent_id}`);
+                  }}
+                  className="text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer"
                 >
                   Update from Simulation {simulation.parent_id}
-                </Link>
+                </button>
                 : {simulation.changes_made || 'Loading...'}
               </span>
             )}

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import SimulationControls from './SimulationControls';
-import AISimulationChat from '../AISimulationChat';
+import CreateSimulation from '../CreateSimulation';
 
 interface SimulationHeaderProps {
   title?: string;
@@ -104,7 +104,8 @@ function SimulationHeader({
                 className="absolute top-full right-0 mt-2 z-50"
                 style={{ transform: 'translateX(0)' }}
               >
-                <AISimulationChat
+                <CreateSimulation
+                  isOpen={showEditPopup}
                   existingJSON={currentJSON}
                   onJSONExtracted={handleJSONExtracted}
                   onClose={() => setShowEditPopup(false)}

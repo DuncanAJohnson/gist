@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AISimulationChat from '../components/AISimulationChat';
+import CreateSimulation from '../components/CreateSimulation';
 import { getAllSimulations, createSimulation, SimulationListItem } from '../lib/simulationService';
 import SimulationListItemComponent from '../components/SimulationListItem';
+import tossBallConfig from '../simulations/tossBall.json';
+import twoBoxesConfig from '../simulations/twoBoxes.json';
 
 function Home() {
   const navigate = useNavigate();
@@ -36,6 +38,26 @@ function Home() {
       alert('Failed to save simulation. Please try again.');
     }
   };
+
+  // Static simulation items for TossBall and TwoBoxes
+  const staticSimulations: SimulationListItem[] = useMemo(() => [
+    {
+      id: 'toss-ball' as any,
+      title: tossBallConfig.title || 'Toss Ball',
+      description: tossBallConfig.description || null,
+      created_at: new Date('2024-01-01').toISOString(),
+      parent_id: null,
+      changes_made: null,
+    },
+    {
+      id: 'two-boxes' as any,
+      title: twoBoxesConfig.title || 'Two Boxes Collision',
+      description: twoBoxesConfig.description || null,
+      created_at: new Date('2024-01-01').toISOString(),
+      parent_id: null,
+      changes_made: null,
+    },
+  ], []);
 
   // Group simulations by day and sort within each day by time descending
   const groupedSimulations = useMemo(() => {
@@ -115,6 +137,16 @@ function Home() {
         </div>
       </div> */}
 
+      {/* Static Sample Simulations */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-semibold text-gray-800 mb-6">Sample Simulations</h2>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-200">
+          {staticSimulations.map((sim) => (
+            <SimulationListItemComponent key={sim.id} simulation={sim} />
+          ))}
+        </div>
+      </div>
+
       {/* Create New Simulation */}
       <div className="mb-8 text-center">
         <button
@@ -149,28 +181,11 @@ function Home() {
       </div>
 
       {/* Modal for Creating New Simulation */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setShowModal(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-4xl" style={{ height: 'calc(100vh - 100px)' }}>
-            <div className="bg-primary text-white px-6 py-4 flex justify-between items-center rounded-t-xl">
-              <div>
-                <h2 className="text-2xl font-semibold">Create AI Simulation</h2>
-                <p className="text-sm opacity-90">Describe the physics simulation you would like to create</p>
-              </div>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-white hover:text-gray-200 text-2xl leading-none"
-              >
-                ×
-              </button>
-            </div>
-            <div className="h-[calc(100%-80px)]">
-              <AISimulationChat onJSONExtracted={handleJSONExtracted} />
-            </div>
-          </div>
-        </div>
-      )}
+      <CreateSimulation
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onJSONExtracted={handleJSONExtracted}
+      />
     </div>
   );
 }
