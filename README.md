@@ -1,16 +1,23 @@
-# React + Vite
+# Generative (Physics) Simulations
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Enter in a prompt and an interactive simulation with controls, objects, outputs, and graphs will appear! Currently, only very basic simulations are possible, and our goal is to expand the possibilities.
 
-Currently, two official plugins are available:
+We use [Matter.js](https://brm.io/matter-js/) for our physics engine.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+We use [Recharts](https://recharts.github.io/) for graphing output.
 
-## React Compiler
+## External API calls with Modal
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+We use [Modal](https://modal.com/) for server-less functions (mostly just calling to AI). All Modal functions are specified [here](https://github.com/DuncanAJohnson/gist/tree/main/modal_functions).
 
-## Expanding the ESLint configuration
+## AI Priming
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Our LLM priming can be found [here](https://github.com/DuncanAJohnson/gist/blob/main/modal_functions/gist_instructions.py). If you would like, you can take this prompt and put it into your LLM of choice, generate json, and paste the json into the simulation.
+
+## [Simulation Components](https://github.com/DuncanAJohnson/gist/tree/main/src/components/simulation_components)
+
+An upcoming task is adding new Simulation Components. A few ideas we have:
+- Composite bodies made up of more than one object
+- Friction/air resistance (likely will just edit [Object.tsx](https://github.com/DuncanAJohnson/gist/blob/main/src/components/simulation_components/Object.tsx))
+- A grid for showing units
+
