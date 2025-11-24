@@ -28,6 +28,8 @@ interface SimulationConfig {
     height?: number;
     color?: string;
     velocity?: { x: number; y: number };
+    force?: { x: number; y: number };
+    forceMode?: 'impulse' | 'continuous';
     restitution?: number;
   }>;
   controls?: Array<{
@@ -96,10 +98,13 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
   // Store refs to all objects by their ID
   const objRefs = useRef<Record<string, Matter.Body>>({});
-  
+
   // Store previous velocities to calculate acceleration
   const prevVelocitiesRef = useRef<Record<string, { x: number; y: number }>>({});
   const prevTimeRef = useRef<number>(0);
+
+  // Store continuous forces to be applied each frame
+  const continuousForcesRef = useRef<Record<string, { x: number; y: number }>>({});
   
   // State for control values
   const [controlValues, setControlValues] = useState<Record<string, number>>(() => {
@@ -180,6 +185,17 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           y: axis === 'y' ? value : currentPosition.y,
         };
         Matter.Body.setPosition(obj, newPosition);
+      } else if (control.property.startsWith('force.')) {
+        // Special handling for force - store for continuous application
+        const axis = control.property.split('.')[1] as 'x' | 'y';
+
+        // Initialize force storage for this object if it doesn't exist
+        if (!continuousForcesRef.current[control.targetObj]) {
+          continuousForcesRef.current[control.targetObj] = { x: 0, y: 0 };
+        }
+
+        // Update the force value for the specified axis
+        continuousForcesRef.current[control.targetObj][axis] = value;
       } else {
         // Generic property update
         setNestedValue(obj, control.property, value);
@@ -189,6 +205,25 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
   // Update loop to read output values and graph data
   const handleUpdate = useCallback((_engine: Matter.Engine, time: number) => {
+    // Apply continuous forces to bodies with forceMode: 'continuous'
+    objects.forEach((objectConfig) => {
+      const body = objRefs.current[objectConfig.id];
+
+      // Apply continuous force from object config if forceMode is 'continuous'
+      if (body && objectConfig.forceMode === 'continuous' && objectConfig.force) {
+        const force = objectConfig.force;
+        if (force.x !== 0 || force.y !== 0) {
+          Matter.Body.applyForce(body, body.position, force);
+        }
+      }
+
+      // Apply continuous force from control sliders (stored in continuousForcesRef)
+      const controlForce = continuousForcesRef.current[objectConfig.id];
+      if (body && controlForce && (controlForce.x !== 0 || controlForce.y !== 0)) {
+        Matter.Body.applyForce(body, body.position, controlForce);
+      }
+    });
+
     // Calculate acceleration for all bodies
     const deltaTime = time - prevTimeRef.current;
     if (deltaTime > 0) {
@@ -196,7 +231,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
       objects.forEach((objectConfig) => {
         const body = objRefs.current[objectConfig.id];
         if (!body) return;
-        
+
         const prevVelocity = prevVelocitiesRef.current[objectConfig.id];
         if (prevVelocity) {
           // Calculate acceleration as change in velocity over time

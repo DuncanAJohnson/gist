@@ -11,6 +11,8 @@ interface ObjectProps {
   color?: string;
   velocity?: { x: number; y: number };
   acceleration?: { x: number; y: number };
+  force?: { x: number; y: number };
+  forceMode?: 'impulse' | 'continuous';
   restitution?: number;
   shape: string;
   frictionAir?: number;
@@ -27,6 +29,8 @@ const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
     color = '#ff6b6b',
     velocity = { x: 0, y: 0 },
     acceleration = { x: 0, y: 0 },
+    force = { x: 0, y: 0 },
+    forceMode = 'impulse',
     restitution = 0.8,
     shape = 'rectangle',
     frictionAir = 0,
@@ -69,6 +73,12 @@ const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
 
     // Initialize acceleration property
     (object as any).acceleration = acceleration;
+
+    // Apply initial force if provided and forceMode is 'impulse'
+    // Note: 'continuous' forces are handled in the update loop
+    if (forceMode === 'impulse' && (force.x !== 0 || force.y !== 0)) {
+      Body.applyForce(object, object.position, force);
+    }
 
     // Add to world
     Composite.add(engine.world, object);

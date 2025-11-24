@@ -8,10 +8,13 @@ interface SliderProps {
 }
 
 function Slider({ label, value, onChange, min, max, step }: SliderProps) {
+  // Use more decimal places for very small step sizes
+  const decimalPlaces = step < 0.01 ? 4 : 2;
+
   return (
     <div className="mb-4">
       <label className="block text-sm mb-2 text-gray-800 font-medium">
-        {label}: <span className="text-primary font-semibold">{value.toFixed(2)}</span>
+        {label}: <span className="text-primary font-semibold">{value.toFixed(decimalPlaces)}</span>
       </label>
       <input
         type="range"
