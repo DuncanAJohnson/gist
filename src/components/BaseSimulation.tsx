@@ -97,6 +97,11 @@ function BaseSimulation({
       if (isRunningRef.current) {
         // Process physics in fixed time steps
         while (accumulator >= FIXED_TIME_STEP) {
+          // Apply forces BEFORE physics step for correct timing
+          if (onUpdate) {
+            onUpdate(engine, simulationTimeRef.current);
+          }
+
           Matter.Engine.update(engine, FIXED_TIME_STEP);
           // Increment simulation time by fixed step (convert milliseconds to seconds)
           simulationTimeRef.current += FIXED_TIME_STEP / 1000;
@@ -105,12 +110,11 @@ function BaseSimulation({
       } else {
         // Reset accumulator when paused to avoid burst of updates on resume
         accumulator = 0;
-      }
 
-      // Call user update callback with engine and current simulation time
-      // Called every frame for outputs/graphs, but physics only steps when running
-      if (onUpdate) {
-        onUpdate(engine, simulationTimeRef.current);
+        // Call update when paused to keep outputs/graphs displaying current values
+        if (onUpdate) {
+          onUpdate(engine, simulationTimeRef.current);
+        }
       }
 
       animationFrameId = requestAnimationFrame(updateLoop);
