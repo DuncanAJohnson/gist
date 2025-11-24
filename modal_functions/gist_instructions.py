@@ -33,7 +33,8 @@ Every simulation JSON must have the following top-level structure:
 ### 3. ENVIRONMENT (Optional)
 Structure:
 {
-  "walls": ["left", "right", "top", "bottom"]
+  "walls": ["left", "right", "top", "bottom"],
+  "gravity": 0.001
 }
 
 - "walls": Array of strings specifying which edges have walls
@@ -41,11 +42,15 @@ Structure:
 - Walls prevent objects from leaving the canvas
 - Use walls when you want objects to bounce or stay contained
 - Use empty array [] for no walls (objects can fall off screen)
-
+- Change gravity to 0 to remove gravity. 
+- Scale gravity to make objects fall faster or slower. The default gravity is 0.001.
+- Gravity is applied to all objects equally. 
+- To make a "top down" simulation, set gravity to 0 as gravity is effectively facing "into the screen".
 Example:
 {
   "environment": {
     "walls": ["left", "right", "bottom"]  // Three walls, open top
+    "gravity": 0.001
   }
 }
 
@@ -66,7 +71,8 @@ Structure for each object:
     "y": number                // Vertical velocity (px/frame, negative = up)
   },
   "restitution": number,       // Optional: Bounciness (0-1, default 0.8)
-  "frictionAir": number        // Optional: Air resistance (0-1, default 0)
+  "frictionAir": number,       // Optional: Air resistance (0-1, default 0)
+  "isStatic": boolean          // Optional: Whether the object is static (default false). If true, the object will not move, rotate, or be affected by physics.
 }
 
 **Coordinate System:**
@@ -96,7 +102,8 @@ Example:
   "color": "#ff6bff",
   "velocity": { "x": 0, "y": -20 },
   "restitution": 0.8,
-  "frictionAir": 0
+  "frictionAir": 0,
+  "isStatic": false
 }
 
 ### 5. CONTROLS (Optional but Recommended)

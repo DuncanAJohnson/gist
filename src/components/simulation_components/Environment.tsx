@@ -5,10 +5,13 @@ import { BASE_SIMULATION_WIDTH, BASE_SIMULATION_HEIGHT } from '../BaseSimulation
 
 interface EnvironmentProps {
   walls?: string[];
+  gravity?: number;
 }
 
-function Environment({ walls = [] }: EnvironmentProps) {
+function Environment({ walls = [], gravity = 0.001 }: EnvironmentProps) {
   const engine = usePhysics();
+
+  engine.gravity.scale = gravity;
 
   useEffect(() => {
     const { Bodies, Composite } = Matter;

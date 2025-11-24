@@ -14,6 +14,7 @@ interface ObjectProps {
   restitution?: number;
   shape: string;
   frictionAir?: number;
+  isStatic?: boolean;
 }
 
 const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
@@ -29,6 +30,7 @@ const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
     restitution = 0.8,
     shape = 'rectangle',
     frictionAir = 0,
+    isStatic = false,
   },
   ref
 ) {
@@ -47,6 +49,7 @@ const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
           fillStyle: color,
         },
         frictionAir: frictionAir,
+        isStatic: isStatic,
       });
     } else if (shape === 'circle') {
       object = Bodies.circle(x, y, width / 2, {
@@ -55,6 +58,7 @@ const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
           fillStyle: color,
         },
         frictionAir: frictionAir,
+        isStatic: isStatic,
       });
     } else {
       throw new Error(`Invalid shape: ${shape}`);
