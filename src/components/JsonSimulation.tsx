@@ -15,8 +15,9 @@ import { createSimulation, updateChangesMade } from '../lib/simulationService';
 interface SimulationConfig {
   title?: string;
   description?: string;
-  environment?: {
-    walls?: string[];
+  environment: {
+    walls: string[];
+    gravity: number;
   };
   objects?: Array<{
     id: string;
@@ -84,7 +85,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   const {
     title,
     description,
-    environment = {},
+    environment,
     objects = [],
     controls = [],
     outputs = [],
@@ -360,7 +361,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         )}
 
         {/* Environment */}
-        <Environment walls={environment.walls || []} />
+        <Environment walls={environment.walls} gravity={environment.gravity} />
         
         {/* Objects */}
         {objects.map((object) => (

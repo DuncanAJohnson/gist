@@ -30,7 +30,7 @@ Every simulation JSON must have the following top-level structure:
 - Examples: "Toss a ball vertically and observe acceleration versus velocity"
 - "Adjust the velocities to see the boxes move and collide"
 
-### 3. ENVIRONMENT (Optional)
+### 3. ENVIRONMENT (Required)
 Structure:
 {
   "walls": ["left", "right", "top", "bottom"],

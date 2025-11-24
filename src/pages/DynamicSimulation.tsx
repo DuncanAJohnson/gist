@@ -6,8 +6,9 @@ import { getSimulation } from '../lib/simulationService';
 interface SimulationConfig {
   title?: string;
   description?: string;
-  environment?: {
-    walls?: string[];
+  environment: {
+    walls: string[];
+    gravity: number;
   };
   objects?: Array<any>;
   controls?: Array<any>;
