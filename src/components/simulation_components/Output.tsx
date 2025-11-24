@@ -1,10 +1,10 @@
-interface OutputsProps {
+export interface OutputProps {
   label: string;
   value: number | string;
   unit?: string;
 }
 
-function Outputs({ label, value, unit = '' }: OutputsProps) {
+function Output({ label, value, unit = '' }: OutputProps) {
   const displayValue = typeof value === 'number' ? value.toFixed(2) : value;
   
   return (
@@ -17,5 +17,5 @@ function Outputs({ label, value, unit = '' }: OutputsProps) {
   );
 }
 
-export default Outputs;
+export default Output;
 
