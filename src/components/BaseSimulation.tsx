@@ -108,6 +108,7 @@ function BaseSimulation({
       }
 
       // Call user update callback with engine and current simulation time
+      // Called every frame for outputs/graphs, but physics only steps when running
       if (onUpdate) {
         onUpdate(engine, simulationTimeRef.current);
       }

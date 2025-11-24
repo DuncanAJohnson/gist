@@ -205,24 +205,27 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
   // Update loop to read output values and graph data
   const handleUpdate = useCallback((_engine: Matter.Engine, time: number) => {
-    // Apply continuous forces to bodies with forceMode: 'continuous'
-    objects.forEach((objectConfig) => {
-      const body = objRefs.current[objectConfig.id];
+    // Only apply continuous forces when simulation is running
+    if (isRunningRef.current) {
+      // Apply continuous forces to bodies with forceMode: 'continuous'
+      objects.forEach((objectConfig) => {
+        const body = objRefs.current[objectConfig.id];
 
-      // Apply continuous force from object config if forceMode is 'continuous'
-      if (body && objectConfig.forceMode === 'continuous' && objectConfig.force) {
-        const force = objectConfig.force;
-        if (force.x !== 0 || force.y !== 0) {
-          Matter.Body.applyForce(body, body.position, force);
+        // Apply continuous force from object config if forceMode is 'continuous'
+        if (body && objectConfig.forceMode === 'continuous' && objectConfig.force) {
+          const force = objectConfig.force;
+          if (force.x !== 0 || force.y !== 0) {
+            Matter.Body.applyForce(body, body.position, force);
+          }
         }
-      }
 
-      // Apply continuous force from control sliders (stored in continuousForcesRef)
-      const controlForce = continuousForcesRef.current[objectConfig.id];
-      if (body && controlForce && (controlForce.x !== 0 || controlForce.y !== 0)) {
-        Matter.Body.applyForce(body, body.position, controlForce);
-      }
-    });
+        // Apply continuous force from control sliders (stored in continuousForcesRef)
+        const controlForce = continuousForcesRef.current[objectConfig.id];
+        if (body && controlForce && (controlForce.x !== 0 || controlForce.y !== 0)) {
+          Matter.Body.applyForce(body, body.position, controlForce);
+        }
+      });
+    }
 
     // Calculate acceleration for all bodies
     const deltaTime = time - prevTimeRef.current;
