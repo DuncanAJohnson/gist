@@ -3,14 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import Matter from 'matter-js';
 import BaseSimulation from './BaseSimulation';
 import Environment from './simulation_components/Environment';
-import Object from './simulation_components/Object';
-import ControlPanel from './simulation_components/ControlPanel';
-import Slider from './simulation_components/Slider';
-import Outputs from './simulation_components/Outputs';
+import ControlPanel from './simulation_components/controls/ControlPanel';
+import Output, { type OutputProps } from './simulation_components/Output';
+import Object, {type ObjectProps } from './simulation_components/objects/Object';
 import SimulationHeader from './simulation_components/SimulationHeader';
 import Graph from './simulation_components/Graph';
 import JsonEditor from './JsonEditor';
 import { createSimulation, updateChangesMade } from '../lib/simulationService';
+import type { ControlProps, SliderProps, ToggleProps } from './simulation_components/controls/controlTypes';
+import type { GraphProps, LineConfig, DataPoint } from './simulation_components/Graph';
+import ControlRenderer from './simulation_components/controls/ControlRenderer';
 
 interface SimulationConfig {
   title?: string;
@@ -19,49 +21,10 @@ interface SimulationConfig {
     walls: string[];
     gravity: number;
   };
-  objects?: Array<{
-    id: string;
-    shape: string;
-    x: number;
-    y: number;
-    width?: number;
-    height?: number;
-    color?: string;
-    velocity?: { x: number; y: number };
-    restitution?: number;
-  }>;
-  controls?: Array<{
-    type: string;
-    label: string;
-    targetObj: string;
-    property: string;
-    defaultValue: number;
-    min: number;
-    max: number;
-    step: number;
-  }>;
-  outputs?: Array<{
-    title?: string;
-    values: Array<{
-      label: string;
-      targetObj: string;
-      property: string;
-      unit?: string;
-    }>;
-  }>;
-  graphs?: Array<{
-    title: string;
-    yAxisRange: {
-      min: number;
-      max: number;
-    };
-    lines: Array<{
-      label: string;
-      color: string;
-      targetObj: string;
-      property: string;
-    }>;
-  }>;
+  objects?: Array<ObjectProps>;
+  controls?: Array<ControlProps>;
+  outputs?: Array<OutputProps>;
+  graphs?: Array<GraphProps>;
 }
 
 interface JsonSimulationProps {
@@ -73,11 +36,6 @@ interface SimulationControls {
   play: () => void;
   pause: () => void;
   reset: () => void;
-}
-
-interface DataPoint {
-  time: number;
-  [key: string]: number;
 }
 
 function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
@@ -106,7 +64,9 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     const initialValues: Record<string, number> = {};
     controls.forEach((control) => {
       if (control.type === 'slider') {
-        initialValues[control.label] = control.defaultValue;
+        initialValues[control.label] = (control as SliderProps).value;
+      } else if (control.type === 'toggle') {
+        initialValues[control.label] = (control as ToggleProps).value ? 1 : 0;
       }
     });
     return initialValues;
@@ -160,7 +120,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     }));
 
     // Update the object property
-    const obj = objRefs.current[control.targetObj];
+    const obj = objRefs.current[control.label];
     if (obj && control.property) {
       if (control.property.startsWith('velocity.')) {
         // Special handling for velocity
@@ -218,14 +178,11 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
     const newOutputValues: Record<string, number> = {};
     
-    outputs.forEach((outputGroup) => {
-      outputGroup.values.forEach((output) => {
-        const obj = objRefs.current[output.targetObj];
-        if (obj) {
-          const key = `${output.targetObj}.${output.property}`;
-          newOutputValues[key] = getNestedValue(obj, output.property);
-        }
-      });
+    outputs.forEach((output) => {
+      const obj = objRefs.current[output.label];
+      if (obj) {
+        newOutputValues[output.label] = getNestedValue(obj, output.label);
+      }
     });
 
     setOutputValues(newOutputValues);
@@ -238,7 +195,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           const dataPoint: DataPoint = { time };
 
           // Collect all line values for this graph
-          graph.lines.forEach((line) => {
+          graph.config.lines.forEach((line: LineConfig) => {
             const obj = objRefs.current[line.targetObj];
             if (obj) {
               const value = getNestedValue(obj, line.property);
@@ -341,23 +298,15 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         {/* Controls */}
         {controls.length > 0 && (
           <ControlPanel title="Controls" className="col-start-1 row-start-1">
-            {controls.map((control, index) => {
-              if (control.type === 'slider') {
-                return (
-                  <Slider
-                    key={index}
-                    label={control.label}
-                    value={controlValues[control.label] || 0}
-                    onChange={(value) => handleControlChange(control, value)}
-                    min={control.min}
-                    max={control.max}
-                    step={control.step}
-                  />
-                );
-              }
-              return null;
-            })}
-          </ControlPanel>
+          {controls.map((control) => (
+            <ControlRenderer
+              key={control.property}
+              control={control}
+              value={controlValues[control.label]}
+              onChange={(value: number | boolean) => handleControlChange(control, value as number)}
+            />
+          ))}
+        </ControlPanel>
         )}
 
         {/* Environment */}
@@ -383,8 +332,8 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
               title={graph.title}
               data={graphData[graphIndex] || []}
               config={{
-                yAxisRange: graph.yAxisRange,
-                lines: graph.lines,
+                yAxisRange: graph.config.yAxisRange,
+                lines: graph.config.lines,
               }}
             />
           </ControlPanel>
@@ -394,26 +343,13 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         {outputs.length > 0 && (
           <ControlPanel className="col-start-2 row-start-2 min-w-[800px] justify-center">
             <div className="flex flex-row gap-4 justify-center">
-              {outputs.map((outputGroup, groupIndex) => (
-                <div key={groupIndex}>
-                  {outputGroup.title && (
-                    <h4 className="mt-4 first:mt-0 mb-2 text-sm text-gray-700 font-semibold border-b border-gray-300 pb-1">
-                      {outputGroup.title}
-                    </h4>
-                  )}
-                  <div className="flex flex-col gap-2">
-                    {outputGroup.values.map((output, outputIndex) => {
-                      const key = `${output.targetObj}.${output.property}`;
-                      return (
-                        <Outputs
-                          key={outputIndex}
-                          label={output.label}
-                          value={clampToZero(outputValues[key] || 0)}
-                          unit={output.unit || ''}
-                        />
-                      );
-                    })}
-                  </div>
+              {outputs.map((output, index) => (
+                <div key={index}>
+                  <Output
+                    label={output.label}
+                    value={clampToZero(outputValues[output.label] || 0)}
+                    unit={output.unit || ''}
+                  />
                 </div>
               ))}
             </div>

@@ -10,14 +10,14 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-interface LineConfig {
+export interface LineConfig {
   label: string;
   color: string;
   targetObj: string;
   property: string;
 }
 
-interface GraphConfig {
+export interface GraphConfig {
   yAxisRange: {
     min: number;
     max: number;
@@ -25,12 +25,12 @@ interface GraphConfig {
   lines: LineConfig[];
 }
 
-interface DataPoint {
+export interface DataPoint {
   time: number;
   [key: string]: number;
 }
 
-interface GraphProps {
+export interface GraphProps {
   title: string;
   data: DataPoint[];
   config: GraphConfig;

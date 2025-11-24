@@ -1,19 +1,18 @@
 import { useEffect, forwardRef } from 'react';
 import Matter from 'matter-js';
-import { usePhysics } from '../../contexts/PhysicsContext';
+import { usePhysics } from '../../../contexts/PhysicsContext';
+import type { Body } from './Body';
 
-interface ObjectProps {
+export interface ObjectProps {
   id: string;
   x: number;
   y: number;
-  width?: number;
-  height?: number;
-  color?: string;
+  body: Body;
   velocity?: { x: number; y: number };
   acceleration?: { x: number; y: number };
   restitution?: number;
-  shape: string;
   frictionAir?: number;
+  friction?: number;
   isStatic?: boolean;
 }
 
@@ -22,14 +21,12 @@ const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
     id,
     x,
     y,
-    width = 60,
-    height = 60,
-    color = '#ff6b6b',
+    body,
     velocity = { x: 0, y: 0 },
     acceleration = { x: 0, y: 0 },
     restitution = 0.8,
-    shape = 'rectangle',
     frictionAir = 0,
+    friction = 0,
     isStatic = false,
   },
   ref
@@ -40,29 +37,29 @@ const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
   useEffect(() => {
     const { Bodies, Composite, Body } = Matter;
 
-    // Create the box body with initial values
-    let object: Matter.Body;
-    if (shape === 'rectangle') {
-      object = Bodies.rectangle(x, y, width, height, {
-        restitution: restitution,
-        render: {
-          fillStyle: color,
-        },
-        frictionAir: frictionAir,
-        isStatic: isStatic,
-      });
-    } else if (shape === 'circle') {
-      object = Bodies.circle(x, y, width / 2, {
-        restitution: restitution,
-        render: {
-          fillStyle: color,
-        },
-        frictionAir: frictionAir,
-        isStatic: isStatic,
-      });
-    } else {
-      throw new Error(`Invalid shape: ${shape}`);
+    let object: Matter.Body | null = null;
+    switch (body.type) {
+      case 'rectangle':
+        object = Bodies.rectangle(x, y, body.width, body.height);
+        break;
+      case 'circle':
+        object = Bodies.circle(x, y, body.radius);
+        break;
+      case 'polygon':
+        object = Bodies.polygon(x, y, body.sides, body.radius);
+        break;
+      case 'vertex':
+        object = Bodies.fromVertices(x, y, [body.vertices]);
+        break;
+      default:
+        throw new Error(`Invalid body type`);
     }
+
+    object.restitution = restitution;
+    object.frictionAir = frictionAir;
+    object.friction = friction;
+    object.isStatic = isStatic;
+    object.render.fillStyle = body.color;
 
     // Set initial velocity
     Body.setVelocity(object, velocity);
