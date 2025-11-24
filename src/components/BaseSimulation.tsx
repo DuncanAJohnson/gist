@@ -80,29 +80,41 @@ function BaseSimulation({
       }));
     }, 100);
 
-    // Manual animation loop using Engine.update
+    // Manual animation loop using fixed time step for consistent physics
+    const FIXED_TIME_STEP = 1000 / 60; // 16.67ms (60 FPS)
     let lastTime = performance.now();
+    let accumulator = 0;
     let animationFrameId: number;
-    
+
     const updateLoop = (currentTime: number) => {
       const delta = currentTime - lastTime;
       lastTime = currentTime;
-      
+
+      // Add frame time to accumulator
+      accumulator += delta;
+
       // Only step the simulation if running
       if (isRunningRef.current) {
-        Matter.Engine.update(engine, delta);
-        // Increment simulation time (convert milliseconds to seconds)
-        simulationTimeRef.current += delta / 1000;
+        // Process physics in fixed time steps
+        while (accumulator >= FIXED_TIME_STEP) {
+          Matter.Engine.update(engine, FIXED_TIME_STEP);
+          // Increment simulation time by fixed step (convert milliseconds to seconds)
+          simulationTimeRef.current += FIXED_TIME_STEP / 1000;
+          accumulator -= FIXED_TIME_STEP;
+        }
+      } else {
+        // Reset accumulator when paused to avoid burst of updates on resume
+        accumulator = 0;
       }
-      
+
       // Call user update callback with engine and current simulation time
       if (onUpdate) {
         onUpdate(engine, simulationTimeRef.current);
       }
-      
+
       animationFrameId = requestAnimationFrame(updateLoop);
     };
-    
+
     animationFrameId = requestAnimationFrame(updateLoop);
 
     // Expose control methods
