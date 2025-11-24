@@ -94,7 +94,7 @@ function Home() {
     <div className="max-w-7xl mx-auto px-8 py-8">
       <div className="text-center mb-12 mt-4">
         <h1 className="text-4xl text-gray-800 mb-4 font-semibold">
-          Generative Interactive Simulations for Teaching
+          Dev - Generative Interactive Simulations for Teaching - Dev
         </h1>
         <p className="text-xl text-gray-600">
           Create and share interactive simulations for teaching physics.

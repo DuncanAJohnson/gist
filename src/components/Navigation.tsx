@@ -11,7 +11,7 @@ function Navigation() {
           to="/" 
           className="text-2xl font-bold text-white no-underline transition-opacity duration-200 hover:opacity-90"
         >
-          Generative Interactive Simulations for Teaching
+          D-Generative Interactive Simulations for Teaching-D
         </Link>
         <div className="flex gap-6">
           <Link 
