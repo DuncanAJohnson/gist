@@ -4,7 +4,6 @@ import Matter from 'matter-js';
 import BaseSimulation from './BaseSimulation';
 import Environment from './simulation_components/Environment';
 import Panel from './simulation_components/Panel';
-import Output, { type OutputProps } from './simulation_components/Output';
 import SimulationHeader from './simulation_components/SimulationHeader';
 import JsonEditor from './JsonEditor';
 import { createSimulation, updateChangesMade } from '../lib/simulationService';
@@ -17,6 +16,9 @@ import type { GraphConfig, LineConfig, DataPoint } from './simulation_components
 // Objects
 import ObjectRenderer from './simulation_components/objects/ObjectRenderer';
 import type { ObjectConfig } from './simulation_components/objects/types';
+// Outputs
+import { OutputGroup } from './simulation_components/Output';
+import type { OutputGroupConfig } from '../schemas/simulation';
 
 interface SimulationConfig {
   title?: string;
@@ -27,7 +29,7 @@ interface SimulationConfig {
   };
   objects?: Array<ObjectConfig>;
   controls?: Array<ControlConfig>;
-  outputs?: Array<OutputProps>;
+  outputs?: Array<OutputGroupConfig>;
   graphs?: Array<GraphConfig>;
 }
 
@@ -182,11 +184,14 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
     const newOutputValues: Record<string, number> = {};
     
-    outputs.forEach((output) => {
-      const obj = objRefs.current[output.label];
-      if (obj) {
-        newOutputValues[output.label] = getNestedValue(obj, output.label);
-      }
+    outputs.forEach((group) => {
+      group.values.forEach((output) => {
+        const obj = objRefs.current[output.targetObj];
+        if (obj) {
+          const key = `${output.targetObj}.${output.property}`;
+          newOutputValues[key] = getNestedValue(obj, output.property);
+        }
+      });
     });
 
     setOutputValues(newOutputValues);
@@ -344,15 +349,16 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         {/* Outputs */}
         {outputs.length > 0 && (
           <Panel className="col-start-2 row-start-2 min-w-[800px] justify-center">
-            <div className="flex flex-row gap-4 justify-center">
-              {outputs.map((output, index) => (
-                <div key={index}>
-                  <Output
-                    label={output.label}
-                    value={clampToZero(outputValues[output.label] || 0)}
-                    unit={output.unit || ''}
-                  />
-                </div>
+            <div className="flex flex-row gap-6 justify-center">
+              {outputs.map((group, index) => (
+                <OutputGroup
+                  key={index}
+                  config={group}
+                  getValue={(targetObj, property) => {
+                    const key = `${targetObj}.${property}`;
+                    return clampToZero(outputValues[key] || 0);
+                  }}
+                />
               ))}
             </div>
           </Panel>
