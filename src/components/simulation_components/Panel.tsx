@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
 
-interface ControlPanelProps {
+interface PanelProps {
   title?: string;
   children: ReactNode;
   className?: string;
 }
 
-function ControlPanel({ title, children, className = '' }: ControlPanelProps) {
+function Panel({ title, children, className = '' }: PanelProps) {
   return (
     <div className={`bg-white rounded-lg p-6 shadow-md ${className}`}>
       {title && (
@@ -21,5 +21,5 @@ function ControlPanel({ title, children, className = '' }: ControlPanelProps) {
   );
 }
 
-export default ControlPanel;
+export default Panel;
 

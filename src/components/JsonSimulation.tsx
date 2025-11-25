@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Matter from 'matter-js';
 import BaseSimulation from './BaseSimulation';
 import Environment from './simulation_components/Environment';
-import ControlPanel from './simulation_components/controls/ControlPanel';
+import Panel from './simulation_components/Panel';
 import Output, { type OutputProps } from './simulation_components/Output';
 import SimulationHeader from './simulation_components/SimulationHeader';
 import JsonEditor from './JsonEditor';
@@ -303,7 +303,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
       >
         {/* Controls */}
         {controls.length > 0 && (
-          <ControlPanel title="Controls" className="col-start-1 row-start-1">
+          <Panel title="Controls" className="col-start-1 row-start-1">
           {controls.map((control) => (
             <ControlRenderer
               key={control.property}
@@ -312,7 +312,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
               onChange={(value: number | boolean) => handleControlChange(control, value as number)}
             />
           ))}
-        </ControlPanel>
+        </Panel>
         )}
 
         {/* Environment */}
@@ -333,17 +333,17 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
         {/* Graphs */}
         {graphs.map((graph, graphIndex) => (
-          <ControlPanel key={graphIndex} className="col-start-3 row-start-1">
+          <Panel key={graphIndex} className="col-start-3 row-start-1">
             <GraphRenderer
               config={graph}
               data={graphData[graphIndex] || []}
             />
-          </ControlPanel>
+          </Panel>
         ))}
 
         {/* Outputs */}
         {outputs.length > 0 && (
-          <ControlPanel className="col-start-2 row-start-2 min-w-[800px] justify-center">
+          <Panel className="col-start-2 row-start-2 min-w-[800px] justify-center">
             <div className="flex flex-row gap-4 justify-center">
               {outputs.map((output, index) => (
                 <div key={index}>
@@ -355,7 +355,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
                 </div>
               ))}
             </div>
-          </ControlPanel>
+          </Panel>
         )}
       </BaseSimulation>
     </div>

@@ -1,5 +1,5 @@
 import { getControlComponent } from './registry';
-import type { ControlConfig, ControlRenderProps } from './types';
+import type { ControlConfig } from './types';
 
 // Ensure all variants are registered
 import './variants';
