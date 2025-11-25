@@ -1,43 +1,24 @@
-import Slider from './Slider';
-import Toggle from './Toggle';
-import type { ControlProps } from './controlTypes';
+import { getControlComponent } from './registry';
+import type { ControlConfig, ControlRenderProps } from './types';
 
-interface ControlRendererProps {
-  control: ControlProps;
+// Ensure all variants are registered
+import './variants';
+
+interface Props {
+  control: ControlConfig;
   value: number | boolean;
   onChange: (value: number | boolean) => void;
 }
 
-/**
- * Renders the appropriate control component based on the control type.
- * This provides type-safe rendering of controls using discriminated unions.
- */
-function ControlRenderer({ control, value, onChange }: ControlRendererProps) {
-  if (control.type === 'slider') {
-    return (
-      <Slider
-        {...control}
-        value={value as number}
-        onChange={onChange as (value: number) => void}
-      />
-    );
+function ControlRenderer({ control, value, onChange }: Props) {
+  const Component = getControlComponent(control.type);
+
+  if (!Component) {
+    console.warn(`Unknown control type: ${control.type}`);
+    return null;
   }
 
-  if (control.type === 'toggle') {
-    return (
-      <Toggle
-        {...control}
-        value={value as boolean}
-        onChange={onChange as (value: boolean) => void}
-      />
-    );
-  }
-
-  // TypeScript exhaustiveness check - if you add a new control type,
-  // TypeScript will error here until you handle it
-  const _exhaustive: never = control;
-  return null;
+  return <Component control={control} value={value} onChange={onChange} />;
 }
 
 export default ControlRenderer;
-

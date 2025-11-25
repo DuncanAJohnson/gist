@@ -9,35 +9,11 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import { registerGraph } from '../registry';
+import type { LineGraphConfig, GraphRenderProps } from '../types';
 
-export interface LineConfig {
-  label: string;
-  color: string;
-  targetObj: string;
-  property: string;
-}
-
-export interface GraphConfig {
-  yAxisRange: {
-    min: number;
-    max: number;
-  };
-  lines: LineConfig[];
-}
-
-export interface DataPoint {
-  time: number;
-  [key: string]: number;
-}
-
-export interface GraphProps {
-  title: string;
-  data: DataPoint[];
-  config: GraphConfig;
-}
-
-function Graph({ title, data, config }: GraphProps) {
-  const { yAxisRange, lines } = config;
+function LineGraph({ config, data }: GraphRenderProps<LineGraphConfig>) {
+  const { title, yAxisRange, lines } = config;
 
   // Calculate actual y-axis domain (extend beyond initial range if needed)
   const yDomain = useMemo(() => {
@@ -119,5 +95,8 @@ function Graph({ title, data, config }: GraphProps) {
   );
 }
 
-export default Graph;
+registerGraph('line', LineGraph);
+
+export default LineGraph;
+
 

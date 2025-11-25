@@ -1,22 +1,13 @@
 import { useEffect, forwardRef } from 'react';
 import Matter from 'matter-js';
 import { usePhysics } from '../../../contexts/PhysicsContext';
-import type { Body } from './Body';
+import { getBodyFactory } from './registry';
+import type { ObjectConfig } from './types';
 
-export interface ObjectProps {
-  id: string;
-  x: number;
-  y: number;
-  body: Body;
-  velocity?: { x: number; y: number };
-  acceleration?: { x: number; y: number };
-  restitution?: number;
-  frictionAir?: number;
-  friction?: number;
-  isStatic?: boolean;
-}
+// Ensure all body types are registered
+import './bodies';
 
-const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
+const ObjectRenderer = forwardRef<Matter.Body, ObjectConfig>(function ObjectRenderer(
   {
     id,
     x,
@@ -33,42 +24,32 @@ const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
 ) {
   const engine = usePhysics();
 
-  // Create the box body once
   useEffect(() => {
-    const { Bodies, Composite, Body } = Matter;
+    if (!body) return;
 
-    let object: Matter.Body | null = null;
-    switch (body.type) {
-      case 'rectangle':
-        object = Bodies.rectangle(x, y, body.width, body.height);
-        break;
-      case 'circle':
-        object = Bodies.circle(x, y, body.radius);
-        break;
-      case 'polygon':
-        object = Bodies.polygon(x, y, body.sides, body.radius);
-        break;
-      case 'vertex':
-        object = Bodies.fromVertices(x, y, [body.vertices]);
-        break;
-      default:
-        throw new Error(`Invalid body type`);
+    const factory = getBodyFactory(body.type);
+    if (!factory) {
+      console.warn(`Unknown body type: ${body.type}`);
+      return;
     }
 
+    // Create the body using the registered factory
+    const object = factory(x, y, body);
+
+    // Apply physics properties
     object.restitution = restitution;
     object.frictionAir = frictionAir;
     object.friction = friction;
     object.isStatic = isStatic;
-    object.render.fillStyle = body.color;
 
     // Set initial velocity
-    Body.setVelocity(object, velocity);
+    Matter.Body.setVelocity(object, velocity);
 
     // Initialize acceleration property
     (object as any).acceleration = acceleration;
 
     // Add to world
-    Composite.add(engine.world, object);
+    Matter.Composite.add(engine.world, object);
 
     // Expose the Matter.js body via ref
     if (ref) {
@@ -81,7 +62,7 @@ const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
 
     // Cleanup - only when component unmounts
     return () => {
-      Composite.remove(engine.world, object);
+      Matter.Composite.remove(engine.world, object);
       if (ref) {
         if (typeof ref === 'function') {
           ref(null);
@@ -96,5 +77,5 @@ const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
   return null; // This component doesn't render anything visible
 });
 
-export default Object;
+export default ObjectRenderer;
 

@@ -5,14 +5,18 @@ import BaseSimulation from './BaseSimulation';
 import Environment from './simulation_components/Environment';
 import ControlPanel from './simulation_components/controls/ControlPanel';
 import Output, { type OutputProps } from './simulation_components/Output';
-import Object, {type ObjectProps } from './simulation_components/objects/Object';
 import SimulationHeader from './simulation_components/SimulationHeader';
-import Graph from './simulation_components/Graph';
 import JsonEditor from './JsonEditor';
 import { createSimulation, updateChangesMade } from '../lib/simulationService';
-import type { ControlProps, SliderProps, ToggleProps } from './simulation_components/controls/controlTypes';
-import type { GraphProps, LineConfig, DataPoint } from './simulation_components/Graph';
+// Controls
 import ControlRenderer from './simulation_components/controls/ControlRenderer';
+import type { ControlConfig, ToggleConfig, SliderConfig } from './simulation_components/controls/types';
+// Graphs
+import GraphRenderer from './simulation_components/graphs/GraphRenderer';
+import type { GraphConfig, LineConfig, DataPoint } from './simulation_components/graphs/types';
+// Objects
+import ObjectRenderer from './simulation_components/objects/ObjectRenderer';
+import type { ObjectConfig } from './simulation_components/objects/types';
 
 interface SimulationConfig {
   title?: string;
@@ -21,10 +25,10 @@ interface SimulationConfig {
     walls: string[];
     gravity: number;
   };
-  objects?: Array<ObjectProps>;
-  controls?: Array<ControlProps>;
+  objects?: Array<ObjectConfig>;
+  controls?: Array<ControlConfig>;
   outputs?: Array<OutputProps>;
-  graphs?: Array<GraphProps>;
+  graphs?: Array<GraphConfig>;
 }
 
 interface JsonSimulationProps {
@@ -64,9 +68,9 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     const initialValues: Record<string, number> = {};
     controls.forEach((control) => {
       if (control.type === 'slider') {
-        initialValues[control.label] = (control as SliderProps).value;
+        initialValues[control.label] = (control as SliderConfig).defaultValue;
       } else if (control.type === 'toggle') {
-        initialValues[control.label] = (control as ToggleProps).value ? 1 : 0;
+        initialValues[control.label] = (control as ToggleConfig).defaultValue ? 1 : 0;
       }
     });
     return initialValues;
@@ -194,14 +198,16 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           const graph = graphs[graphIndex];
           const dataPoint: DataPoint = { time };
 
-          // Collect all line values for this graph
-          graph.config.lines.forEach((line: LineConfig) => {
-            const obj = objRefs.current[line.targetObj];
-            if (obj) {
-              const value = getNestedValue(obj, line.property);
-              dataPoint[line.label] = clampToZero(value);
-            }
-          });
+          // Collect all line values for this graph (line graphs have lines property)
+          if (graph.type === 'line' && graph.lines) {
+            graph.lines.forEach((line: LineConfig) => {
+              const obj = objRefs.current[line.targetObj];
+              if (obj) {
+                const value = getNestedValue(obj, line.property);
+                dataPoint[line.label] = clampToZero(value);
+              }
+            });
+          }
 
           return [...data, dataPoint];
         });
@@ -314,7 +320,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         
         {/* Objects */}
         {objects.map((object) => (
-          <Object
+          <ObjectRenderer
             key={object.id}
             ref={(ref) => {
               if (ref) {
@@ -328,13 +334,9 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         {/* Graphs */}
         {graphs.map((graph, graphIndex) => (
           <ControlPanel key={graphIndex} className="col-start-3 row-start-1">
-            <Graph
-              title={graph.title}
+            <GraphRenderer
+              config={graph}
               data={graphData[graphIndex] || []}
-              config={{
-                yAxisRange: graph.config.yAxisRange,
-                lines: graph.config.lines,
-              }}
             />
           </ControlPanel>
         ))}
