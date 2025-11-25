@@ -124,7 +124,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     }));
 
     // Update the object property
-    const obj = objRefs.current[control.label];
+    const obj = objRefs.current[control.targetObj];
     if (obj && control.property) {
       if (control.property.startsWith('velocity.')) {
         // Special handling for velocity

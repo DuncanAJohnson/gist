@@ -21,7 +21,7 @@ import type { ToggleConfig } from '../../../../schemas/simulation';
       >
         <span
           className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-            value ? 'translate-x-6' : 'translate-x-1'
+            value ? 'translate-x-[0.75em]' : 'translate-x-[-0.75em]'
           }`}
         />
       </button>
