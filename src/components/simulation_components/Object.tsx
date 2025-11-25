@@ -16,6 +16,9 @@ interface ObjectProps {
   restitution?: number;
   shape: string;
   frictionAir?: number;
+  friction?: number;
+  frictionStatic?: number;
+  inertia?: number;
   isStatic?: boolean;
 }
 
@@ -34,6 +37,9 @@ const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
     restitution = 0.8,
     shape = 'rectangle',
     frictionAir = 0,
+    friction = 0.1,
+    frictionStatic = 0.5,
+    inertia,
     isStatic = false,
   },
   ref
@@ -53,6 +59,9 @@ const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
           fillStyle: color,
         },
         frictionAir: frictionAir,
+        friction: friction,
+        frictionStatic: frictionStatic,
+        ...(inertia !== undefined && { inertia }),
         isStatic: isStatic,
       });
     } else if (shape === 'circle') {
@@ -62,6 +71,9 @@ const Object = forwardRef<Matter.Body, ObjectProps>(function Object(
           fillStyle: color,
         },
         frictionAir: frictionAir,
+        friction: friction,
+        frictionStatic: frictionStatic,
+        ...(inertia !== undefined && { inertia }),
         isStatic: isStatic,
       });
     } else {

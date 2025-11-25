@@ -31,6 +31,9 @@ interface SimulationConfig {
     force?: { x: number; y: number };
     forceMode?: 'impulse' | 'continuous';
     restitution?: number;
+    friction?: number;
+    frictionStatic?: number;
+    inertia?: number;
   }>;
   controls?: Array<{
     type: string;

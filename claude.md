@@ -46,12 +46,33 @@ The `claude` branch is dedicated to collaborative development between the develo
 
 ---
 
+## Session Documentation
+
+### Session Files
+Detailed session notes are stored in `./claude_sessions/`:
+- `Nov_24_2025.md` - Force implementation and physics timing fixes
+- `Nov_25_2025.md` - Added friction, frictionStatic, and inertia parameters
+
+### Planning Files
+Implementation plans are stored in `~/.claude/plans/`:
+- Plans are created during planning mode
+- Each plan includes objective, approach, and implementation details
+- Plans are automatically archived after completion
+
+---
+
 ## Current Session Notes
 
 _Use this section to track ongoing work, blockers, or next steps between sessions_
 
 ### Active Tasks
-- None currently
+- Testing momentum.json simulation for conservation of momentum
+
+### Recent Work (Nov 25, 2025)
+- Added friction, frictionStatic, and inertia parameters to Object component
+- Created momentum.json for 1D conservation of momentum testing
+- Fixed JSON parse issue (used 1e10 instead of Infinity for inertia)
+- All changes maintain backward compatibility
 
 ### Notes
 - Branch created: 2025-11-24

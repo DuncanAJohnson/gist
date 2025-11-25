@@ -1,0 +1,106 @@
+{
+  "title": "Conservation of Momentum (1D)",
+  "description": "Two boxes collide in a frictionless 1D environment to demonstrate momentum conservation",
+  "environment": {
+    "walls": ["left", "right", "bottom"],
+    "gravity": 0
+  },
+  "objects": [
+    {
+      "id": "boxA",
+      "shape": "rectangle",
+      "x": 200,
+      "y": 300,
+      "width": 60,
+      "height": 60,
+      "color": "#ff6bff",
+      "velocity": { "x": 5, "y": 0 },
+      "restitution": 1.0,
+      "friction": 0,
+      "frictionStatic": 0,
+      "frictionAir": 0,
+      "inertia": 1e10
+    },
+    {
+      "id": "boxB",
+      "shape": "rectangle",
+      "x": 600,
+      "y": 300,
+      "width": 60,
+      "height": 60,
+      "color": "#4ecdc4",
+      "velocity": { "x": 0, "y": 0 },
+      "restitution": 1.0,
+      "friction": 0,
+      "frictionStatic": 0,
+      "frictionAir": 0,
+      "inertia": 1e10
+    }
+  ],
+  "controls": [
+    {
+      "type": "slider",
+      "label": "Box A Velocity X",
+      "targetObj": "boxA",
+      "property": "velocity.x",
+      "min": -10,
+      "max": 10,
+      "step": 0.1,
+      "defaultValue": 5
+    },
+    {
+      "type": "slider",
+      "label": "Box B Velocity X",
+      "targetObj": "boxB",
+      "property": "velocity.x",
+      "min": -10,
+      "max": 10,
+      "step": 0.1,
+      "defaultValue": 0
+    }
+  ],
+  "outputs": [
+    {
+      "title": "Box A",
+      "values": [
+        {
+          "label": "Velocity X",
+          "targetObj": "boxA",
+          "property": "velocity.x",
+          "unit": "px/s"
+        }
+      ]
+    },
+    {
+      "title": "Box B",
+      "values": [
+        {
+          "label": "Velocity X",
+          "targetObj": "boxB",
+          "property": "velocity.x",
+          "unit": "px/s"
+        }
+      ]
+    }
+  ],
+  "graphs": [
+    {
+      "title": "Velocity vs Time",
+      "yAxisRange": { "min": -10, "max": 10 },
+      "lines": [
+        {
+          "label": "Box A Velocity",
+          "targetObj": "boxA",
+          "property": "velocity.x",
+          "color": "#ff6bff"
+        },
+        {
+          "label": "Box B Velocity",
+          "targetObj": "boxB",
+          "property": "velocity.x",
+          "color": "#4ecdc4"
+        }
+      ]
+    }
+  ]
+}
