@@ -6,7 +6,7 @@
 import { writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { SimulationConfigSchema } from '../src/schemas/simulation';
+import { SimulationConfigSchema } from '../src/schemas/simulation.ts';
 import * as zod from 'zod';
 
 const __filename = fileURLToPath(import.meta.url);

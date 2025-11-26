@@ -18,6 +18,8 @@ const ObjectRenderer = forwardRef<Matter.Body, ObjectConfig>(function ObjectRend
     restitution = 0.8,
     frictionAir = 0,
     friction = 0,
+    frictionStatic = 0,
+    inertia = 0,
     isStatic = false,
   },
   ref
@@ -40,6 +42,8 @@ const ObjectRenderer = forwardRef<Matter.Body, ObjectConfig>(function ObjectRend
     object.restitution = restitution;
     object.frictionAir = frictionAir;
     object.friction = friction;
+    object.frictionStatic = frictionStatic;
+    // object.inertia = inertia;
     object.isStatic = isStatic;
 
     // Set initial velocity
