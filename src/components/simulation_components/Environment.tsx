@@ -13,8 +13,6 @@ function Environment({ walls = [], gravity = 0.001 }: EnvironmentProps) {
 
   engine.gravity.scale = gravity;
 
-  console.log('gravity', gravity);
-
   useEffect(() => {
     const { Bodies, Composite } = Matter;
     const createdBodies: Matter.Body[] = [];

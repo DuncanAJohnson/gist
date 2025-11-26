@@ -1,0 +1,504 @@
+{
+  "description": "Physics simulation configuration for an 800x600 pixel canvas using Matter.js engine.\n\nCOORDINATE SYSTEM:\n- Origin (0, 0) is at TOP-LEFT corner\n- X increases to the right (max 800)\n- Y increases DOWNWARD (max 600)\n- Negative Y velocity = upward motion\n\nGUIDELINES:\n- Keep simulations simple: 1-3 objects, focus on 1-2 physics concepts\n- Always include at least one control for interactivity\n- Use outputs to show current state, graphs to show history\n- Match graph line colors to object colors for visual consistency\n- Use clear, educational labels\n\nGOOD COLOR CHOICES:\n- \"#ff6bff\" (pink/magenta)\n- \"#4ecdc4\" (teal/cyan)\n- \"#ff6b6b\" (coral/red)\n- \"#95e1d3\" (mint green)\n- \"#ffa07a\" (light salmon)\n\nEXAMPLE 1 - Vertical Ball Toss:\n{\n  \"title\": \"Toss Ball\",\n  \"description\": \"Toss a ball vertically and observe acceleration versus velocity\",\n  \"environment\": {\n    \"walls\": [],\n    \"gravity\": 0.001\n  },\n  \"objects\": [\n    {\n      \"id\": \"ball\",\n      \"x\": 400,\n      \"y\": 500,\n      \"body\": {\n        \"type\": \"circle\",\n        \"radius\": 30,\n        \"color\": \"#ff6bff\"\n      },\n      \"velocity\": {\n        \"x\": 0,\n        \"y\": -20\n      },\n      \"restitution\": 0.8,\n      \"frictionAir\": 0\n    }\n  ],\n  \"controls\": [\n    {\n      \"type\": \"slider\",\n      \"label\": \"Initial Velocity\",\n      \"targetObj\": \"ball\",\n      \"property\": \"velocity.y\",\n      \"min\": -30,\n      \"max\": 0,\n      \"step\": 0.1,\n      \"defaultValue\": -20\n    }\n  ],\n  \"outputs\": [\n    {\n      \"title\": \"Ball Outputs\",\n      \"values\": [\n        {\n          \"label\": \"Velocity\",\n          \"targetObj\": \"ball\",\n          \"property\": \"velocity.y\",\n          \"unit\": \"px/s\"\n        },\n        {\n          \"label\": \"Acceleration\",\n          \"targetObj\": \"ball\",\n          \"property\": \"acceleration.y\",\n          \"unit\": \"px/s²\"\n        }\n      ]\n    }\n  ],\n  \"graphs\": [\n    {\n      \"type\": \"line\",\n      \"title\": \"Velocity and Acceleration Over Time\",\n      \"yAxisRange\": {\n        \"min\": -20,\n        \"max\": 20\n      },\n      \"lines\": [\n        {\n          \"label\": \"Velocity\",\n          \"targetObj\": \"ball\",\n          \"property\": \"velocity.y\",\n          \"color\": \"#ff6bff\"\n        },\n        {\n          \"label\": \"Acceleration\",\n          \"targetObj\": \"ball\",\n          \"property\": \"acceleration.y\",\n          \"color\": \"#4ecdc4\"\n        }\n      ]\n    }\n  ]\n}\n\nEXAMPLE 2 - Two Boxes Collision:\n{\n  \"title\": \"Two Boxes Collision\",\n  \"description\": \"Adjust the velocities to see the boxes move and collide\",\n  \"environment\": {\n    \"walls\": [\n      \"left\",\n      \"right\",\n      \"bottom\"\n    ]\n  },\n  \"objects\": [\n    {\n      \"id\": \"boxA\",\n      \"x\": 150,\n      \"y\": 100,\n      \"body\": {\n        \"type\": \"rectangle\",\n        \"width\": 60,\n        \"height\": 60,\n        \"color\": \"#ff6bff\"\n      },\n      \"velocity\": {\n        \"x\": 5,\n        \"y\": 0\n      },\n      \"restitution\": 0.8,\n      \"frictionAir\": 0\n    },\n    {\n      \"id\": \"boxB\",\n      \"x\": 650,\n      \"y\": 200,\n      \"body\": {\n        \"type\": \"rectangle\",\n        \"width\": 60,\n        \"height\": 60,\n        \"color\": \"#4ecdc4\"\n      },\n      \"velocity\": {\n        \"x\": -5,\n        \"y\": 0\n      },\n      \"restitution\": 0.8,\n      \"frictionAir\": 0\n    }\n  ],\n  \"controls\": [\n    {\n      \"type\": \"slider\",\n      \"label\": \"Box A Velocity\",\n      \"targetObj\": \"boxA\",\n      \"property\": \"velocity.x\",\n      \"min\": -10,\n      \"max\": 10,\n      \"step\": 0.1,\n      \"defaultValue\": 5\n    },\n    {\n      \"type\": \"slider\",\n      \"label\": \"Box B Velocity\",\n      \"targetObj\": \"boxB\",\n      \"property\": \"velocity.x\",\n      \"min\": -10,\n      \"max\": 10,\n      \"step\": 0.1,\n      \"defaultValue\": -5\n    }\n  ],\n  \"outputs\": [\n    {\n      \"title\": \"Box A Outputs\",\n      \"values\": [\n        {\n          \"label\": \"Velocity X\",\n          \"targetObj\": \"boxA\",\n          \"property\": \"velocity.x\",\n          \"unit\": \"px/s\"\n        },\n        {\n          \"label\": \"Velocity Y\",\n          \"targetObj\": \"boxA\",\n          \"property\": \"velocity.y\",\n          \"unit\": \"px/s\"\n        }\n      ]\n    },\n    {\n      \"title\": \"Box B Outputs\",\n      \"values\": [\n        {\n          \"label\": \"Velocity X\",\n          \"targetObj\": \"boxB\",\n          \"property\": \"velocity.x\",\n          \"unit\": \"px/s\"\n        },\n        {\n          \"label\": \"Velocity Y\",\n          \"targetObj\": \"boxB\",\n          \"property\": \"velocity.y\",\n          \"unit\": \"px/s\"\n        }\n      ]\n    }\n  ],\n  \"graphs\": [\n    {\n      \"type\": \"line\",\n      \"title\": \"Horizontal Velocity Over Time\",\n      \"yAxisRange\": {\n        \"min\": -10,\n        \"max\": 10\n      },\n      \"lines\": [\n        {\n          \"label\": \"Box A Velocity X\",\n          \"targetObj\": \"boxA\",\n          \"property\": \"velocity.x\",\n          \"color\": \"#ff6bff\"\n        },\n        {\n          \"label\": \"Box B Velocity X\",\n          \"targetObj\": \"boxB\",\n          \"property\": \"velocity.x\",\n          \"color\": \"#4ecdc4\"\n        }\n      ]\n    }\n  ]\n}",
+  "type": "object",
+  "properties": {
+    "title": {
+      "description": "Short, clear title for the simulation. Should indicate the physics concept. Examples: \"Toss Ball\", \"Two Boxes Collision\", \"Pendulum Motion\"",
+      "type": "string"
+    },
+    "description": {
+      "description": "Brief educational description for students explaining what they can learn or observe. Keep it engaging.",
+      "type": "string"
+    },
+    "environment": {
+      "description": "Environment settings. Controls canvas boundaries and gravity.",
+      "type": "object",
+      "properties": {
+        "walls": {
+          "description": "Array of walls to include. Options: \"left\", \"right\", \"top\", \"bottom\". Empty array [] = no walls (objects can exit canvas). Use walls to contain objects or create bounce surfaces.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "left",
+              "right",
+              "top",
+              "bottom"
+            ]
+          }
+        },
+        "gravity": {
+          "description": "Gravity strength. Default: 0.001 (realistic fall). Set to 0 for top-down simulations or zero-gravity. Higher values = faster falling.",
+          "default": 0.001,
+          "type": "number"
+        }
+      },
+      "required": [
+        "walls",
+        "gravity"
+      ],
+      "additionalProperties": false
+    },
+    "objects": {
+      "description": "Array of physics objects in the simulation. 1-3 objects recommended.",
+      "default": [],
+      "type": "array",
+      "items": {
+        "description": "A physics object in the simulation. Configure shape, position, velocity, and physics properties.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Unique identifier for this object (e.g., \"ball\", \"boxA\", \"platform\"). Used by controls, outputs, and graphs to reference this object.",
+            "type": "string"
+          },
+          "x": {
+            "description": "Initial X position in pixels (0-800). Center of canvas is 400. Leave margins from edges.",
+            "type": "number"
+          },
+          "y": {
+            "description": "Initial Y position in pixels (0-600). Center of canvas is 300. Y increases DOWNWARD.",
+            "type": "number"
+          },
+          "body": {
+            "description": "Shape configuration for a physics body. Choose from: rectangle, circle, polygon, or vertex (custom shape).",
+            "oneOf": [
+              {
+                "description": "Rectangular body shape. Use for boxes, platforms, walls.",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "rectangle"
+                    ]
+                  },
+                  "width": {
+                    "description": "Width in pixels (40-100 recommended for visibility)",
+                    "type": "number"
+                  },
+                  "height": {
+                    "description": "Height in pixels (40-100 recommended for visibility)",
+                    "type": "number"
+                  },
+                  "color": {
+                    "description": "Hex color (e.g., \"#ff6bff\"). Good choices: \"#ff6bff\" (pink), \"#4ecdc4\" (teal), \"#ff6b6b\" (coral), \"#95e1d3\" (mint)",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "width",
+                  "height"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "description": "Circular body shape. Use for balls, wheels, planets.",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "circle"
+                    ]
+                  },
+                  "radius": {
+                    "description": "Radius in pixels (20-50 recommended for visibility)",
+                    "type": "number"
+                  },
+                  "color": {
+                    "description": "Hex color (e.g., \"#ff6bff\"). Good choices: \"#ff6bff\" (pink), \"#4ecdc4\" (teal), \"#ff6b6b\" (coral), \"#95e1d3\" (mint)",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "radius"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "description": "Regular polygon body shape. Use for triangles, pentagons, hexagons.",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "polygon"
+                    ]
+                  },
+                  "sides": {
+                    "description": "Number of sides (3 = triangle, 5 = pentagon, 6 = hexagon, etc.)",
+                    "type": "number"
+                  },
+                  "radius": {
+                    "description": "Radius from center to vertices in pixels",
+                    "type": "number"
+                  },
+                  "color": {
+                    "description": "Hex color (e.g., \"#ff6bff\")",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "sides",
+                  "radius"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "description": "Custom polygon defined by vertices. Use for irregular shapes, ramps, custom obstacles.",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "vertex"
+                    ]
+                  },
+                  "vertices": {
+                    "description": "Array of {x, y} points defining the polygon vertices in order",
+                    "type": "array",
+                    "items": {
+                      "description": "2D vector for position, velocity, or acceleration. Coordinate system: origin (0,0) at TOP-LEFT, X increases right, Y increases DOWNWARD.",
+                      "type": "object",
+                      "properties": {
+                        "x": {
+                          "description": "X component. For velocity: positive = rightward, negative = leftward. For position: 0-800 range.",
+                          "type": "number"
+                        },
+                        "y": {
+                          "description": "Y component. For velocity: positive = downward, negative = upward. For position: 0-600 range.",
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "x",
+                        "y"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "color": {
+                    "description": "Hex color (e.g., \"#ff6bff\")",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type",
+                  "vertices"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "velocity": {
+            "description": "Initial velocity {x, y} in px/frame. Typical range: -30 to 30. Negative Y = upward motion.",
+            "type": "object",
+            "properties": {
+              "x": {
+                "description": "X component. For velocity: positive = rightward, negative = leftward. For position: 0-800 range.",
+                "type": "number"
+              },
+              "y": {
+                "description": "Y component. For velocity: positive = downward, negative = upward. For position: 0-600 range.",
+                "type": "number"
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ],
+            "additionalProperties": false
+          },
+          "acceleration": {
+            "description": "Initial acceleration {x, y}. Usually not set directly; gravity provides Y acceleration.",
+            "type": "object",
+            "properties": {
+              "x": {
+                "description": "X component. For velocity: positive = rightward, negative = leftward. For position: 0-800 range.",
+                "type": "number"
+              },
+              "y": {
+                "description": "Y component. For velocity: positive = downward, negative = upward. For position: 0-600 range.",
+                "type": "number"
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ],
+            "additionalProperties": false
+          },
+          "restitution": {
+            "description": "Bounciness (0-1). 0 = no bounce, 1 = perfect bounce, 0.8 = realistic. Default: 0.8",
+            "type": "number"
+          },
+          "frictionAir": {
+            "description": "Air resistance (0-1). 0 = no drag, 0.01-0.05 = light damping, 0.1 = high drag. Default: 0",
+            "type": "number"
+          },
+          "friction": {
+            "description": "Surface friction (0-1). Affects sliding against other objects. Default: 0.1",
+            "type": "number"
+          },
+          "isStatic": {
+            "description": "If true, object is immovable (good for floors, walls, platforms). Default: false",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "x",
+          "y",
+          "body"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "controls": {
+      "description": "Interactive controls (sliders, toggles) for students to adjust parameters. Include at least one for interactivity.",
+      "default": [],
+      "type": "array",
+      "items": {
+        "description": "Interactive control for students to adjust simulation parameters. Sliders for numeric values, toggles for booleans.",
+        "oneOf": [
+          {
+            "description": "Slider control for adjusting numeric properties. Allows students to experiment with different values.",
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "slider"
+                ]
+              },
+              "label": {
+                "description": "Display label shown to users (e.g., \"Initial Velocity\", \"Box A Speed\")",
+                "type": "string"
+              },
+              "targetObj": {
+                "description": "ID of the object to control (must match an object's id)",
+                "type": "string"
+              },
+              "property": {
+                "description": "Property path to control. Options: \"velocity.x\", \"velocity.y\", \"position.x\", \"position.y\"",
+                "type": "string"
+              },
+              "min": {
+                "description": "Minimum slider value. Velocity: typically -30. Position X: 0. Position Y: 0.",
+                "type": "number"
+              },
+              "max": {
+                "description": "Maximum slider value. Velocity: typically 30. Position X: 800. Position Y: 600.",
+                "type": "number"
+              },
+              "step": {
+                "description": "Slider increment. Use 0.1 for fine control, 1 for coarse control.",
+                "type": "number"
+              },
+              "defaultValue": {
+                "description": "Initial value when simulation loads. Should match the object's initial property value.",
+                "type": "number"
+              }
+            },
+            "required": [
+              "type",
+              "label",
+              "targetObj",
+              "property",
+              "min",
+              "max",
+              "step",
+              "defaultValue"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "description": "Toggle control for boolean properties.",
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "toggle"
+                ]
+              },
+              "label": {
+                "description": "Display label shown to users",
+                "type": "string"
+              },
+              "targetObj": {
+                "description": "ID of the object to control (must match an object's id)",
+                "type": "string"
+              },
+              "property": {
+                "description": "Property path to toggle. Example: \"isStatic\"",
+                "type": "string"
+              },
+              "defaultValue": {
+                "description": "Initial toggle state",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "type",
+              "label",
+              "targetObj",
+              "property",
+              "defaultValue"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "outputs": {
+      "description": "Real-time value displays. Group by object. Show velocity, acceleration, position as relevant.",
+      "default": [],
+      "type": "array",
+      "items": {
+        "description": "A group of output values, typically for one object. Groups values visually.",
+        "type": "object",
+        "properties": {
+          "title": {
+            "description": "Group title (e.g., \"Ball Outputs\", \"Box A Properties\")",
+            "type": "string"
+          },
+          "values": {
+            "description": "Array of values to display in this group",
+            "type": "array",
+            "items": {
+              "description": "A single value to display in real-time.",
+              "type": "object",
+              "properties": {
+                "label": {
+                  "description": "Display label (e.g., \"Velocity\", \"Position X\", \"Acceleration\")",
+                  "type": "string"
+                },
+                "targetObj": {
+                  "description": "ID of the object to read from (must match an object's id)",
+                  "type": "string"
+                },
+                "property": {
+                  "description": "Property path to display. Options: \"velocity.x\", \"velocity.y\", \"acceleration.x\", \"acceleration.y\", \"position.x\", \"position.y\"",
+                  "type": "string"
+                },
+                "unit": {
+                  "description": "Unit label (e.g., \"px/s\", \"px/s²\", \"px\", \"m/s\")",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "label",
+                "targetObj",
+                "property"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "values"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "graphs": {
+      "description": "Time-series graphs to visualize property changes. Great for comparing related quantities.",
+      "default": [],
+      "type": "array",
+      "items": {
+        "description": "Graph configuration. Currently supports line graphs for time-series data.",
+        "oneOf": [
+          {
+            "description": "Time-series line graph. X-axis is time, Y-axis shows property values. Great for comparing velocity vs acceleration.",
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "line"
+                ]
+              },
+              "title": {
+                "description": "Graph title (e.g., \"Velocity Over Time\", \"Position vs Time\")",
+                "type": "string"
+              },
+              "yAxisRange": {
+                "description": "Y-axis range. X-axis is always time.",
+                "type": "object",
+                "properties": {
+                  "min": {
+                    "description": "Minimum Y-axis value. Set to encompass expected values with padding.",
+                    "type": "number"
+                  },
+                  "max": {
+                    "description": "Maximum Y-axis value. Set to encompass expected values with padding.",
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "min",
+                  "max"
+                ],
+                "additionalProperties": false
+              },
+              "lines": {
+                "description": "Array of lines to plot. Use contrasting colors for multiple lines.",
+                "type": "array",
+                "items": {
+                  "description": "Configuration for a single line on a graph.",
+                  "type": "object",
+                  "properties": {
+                    "label": {
+                      "description": "Line label for the legend (e.g., \"Velocity Y\", \"Box A Position\")",
+                      "type": "string"
+                    },
+                    "color": {
+                      "description": "Line color as hex (e.g., \"#ff6bff\"). Match object colors for visual consistency.",
+                      "type": "string"
+                    },
+                    "targetObj": {
+                      "description": "ID of the object to track (must match an object's id)",
+                      "type": "string"
+                    },
+                    "property": {
+                      "description": "Property path to plot. Options: \"velocity.x\", \"velocity.y\", \"acceleration.x\", \"acceleration.y\", \"position.x\", \"position.y\"",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "label",
+                    "color",
+                    "targetObj",
+                    "property"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "type",
+              "title",
+              "yAxisRange",
+              "lines"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "title",
+    "description",
+    "environment",
+    "objects",
+    "controls",
+    "outputs",
+    "graphs"
+  ],
+  "additionalProperties": false
+}

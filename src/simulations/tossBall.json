@@ -2,17 +2,15 @@
   "title": "Toss Ball",
   "description": "Toss a ball vertically and observe acceleration versus velocity",
   "environment": {
-    "walls": []
+    "walls": [],
+    "gravity": 0.001
   },
   "objects": [
     {
       "id": "ball",
-      "shape": "circle",
       "x": 400,
       "y": 500,
-      "width": 60,
-      "height": 60,
-      "color": "#ff6bff",
+      "body": { "type": "circle", "radius": 30, "color": "#ff6bff" },
       "velocity": { "x": 0, "y": -20 },
       "restitution": 0.8,
       "frictionAir": 0
@@ -51,6 +49,7 @@
   ],
   "graphs": [
     {
+      "type": "line",
       "title": "Velocity and Acceleration Over Time",
       "yAxisRange": { "min": -20, "max": 20 },
       "lines": [
@@ -70,4 +69,3 @@
     }
   ]
 }
-

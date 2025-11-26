@@ -6,13 +6,45 @@ Converts legacy message format to new Responses API format internally.
 
 import modal
 import json
+import os
 from gist_instructions import instructions
 
 # Create Modal app
 app = modal.App("gist-openai-stream")
 
-# Define the image with dependencies
-image = modal.Image.debian_slim().pip_install("openai", "fastapi[standard]")
+# Get absolute path to schema file for including in the image
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_schema_local_path = os.path.join(_current_dir, 'simulation_schema.json')
+
+# Define the image with dependencies and include the schema file
+image = modal.Image.debian_slim().pip_install("openai", "fastapi[standard]").add_local_file(
+    local_path=_schema_local_path,
+    remote_path="/root/simulation_schema.json"
+)
+
+# Path to schema in the Modal container
+SCHEMA_REMOTE_PATH = "/root/simulation_schema.json"
+
+# Cache for loaded schema
+_schema_instructions_cache = None
+
+
+def get_schema_instructions():
+    """Load and cache the schema instructions from the bundled file."""
+    global _schema_instructions_cache
+    if _schema_instructions_cache is None:
+        with open(SCHEMA_REMOTE_PATH, 'r') as f:
+            simulation_schema = json.load(f)
+        _schema_instructions_cache = f"""
+## JSON SCHEMA
+
+The simulation configuration must conform to this JSON Schema. The schema includes detailed descriptions and examples for each field:
+
+```json
+{json.dumps(simulation_schema, indent=2)}
+```
+"""
+    return _schema_instructions_cache
 
 
 @app.function(
@@ -42,7 +74,8 @@ async def chat_completion(
     
     try:
         input_messages = []
-        combined_instructions = instructions  # Start with base instructions
+        # Combine base instructions with schema documentation
+        combined_instructions = instructions + "\n\n" + get_schema_instructions()
         
         for msg in messages:
             if msg["role"] == "system":
@@ -139,4 +172,3 @@ async def chat_endpoint(request: dict):
             "Access-Control-Allow-Headers": "Content-Type",
         }
     )
-
