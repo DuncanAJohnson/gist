@@ -49,6 +49,9 @@ const ObjectRenderer = forwardRef<Matter.Body, ObjectConfig>(function ObjectRend
     // Set initial velocity
     Matter.Body.setVelocity(object, velocity);
 
+    // Set initial inertia
+    Matter.Body.setInertia (object,inertia);
+
     // Initialize acceleration property
     (object as any).acceleration = acceleration;
 
