@@ -311,7 +311,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           <Panel title="Controls" className="col-start-1 row-start-1">
           {controls.map((control) => (
             <ControlRenderer
-              key={control.property}
+              key={`${control.targetObj}.${control.property}`}
               control={control}
               value={controlValues[control.label]}
               onChange={(value: number | boolean) => handleControlChange(control, value as number)}
