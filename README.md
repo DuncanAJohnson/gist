@@ -1,4 +1,4 @@
-# Generative (Physics) Simulations
+# Generative (Physics) Simulations -- Bill's dev branch
 
 Enter in a prompt and an interactive simulation with controls, objects, outputs, and graphs will appear! Currently, only very basic simulations are possible, and our goal is to expand the possibilities.
 

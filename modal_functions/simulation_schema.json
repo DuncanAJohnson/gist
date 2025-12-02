@@ -243,6 +243,14 @@
             "description": "Surface friction (0-1). Affects sliding against other objects. Default: 0.1",
             "type": "number"
           },
+          "frictionStatic": {
+            "description": "Static surface friction (0-10). As in a Coulomb friction model, static friction affects friction resistance when an object is at rest. Default: 0.5",
+            "type": "number"
+          },
+          "inertia": {
+            "description": "inertia is the second moment of area in two dimensions, affects rotation. Set to 1e10 for to prevent body rotation. Default: 0",
+            "type": "number"
+          },
           "isStatic": {
             "description": "If true, object is immovable (good for floors, walls, platforms). Default: false",
             "type": "boolean"

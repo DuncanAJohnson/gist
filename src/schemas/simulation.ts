@@ -4,8 +4,8 @@ import { z } from 'zod';
 // Example Configurations (imported from simulation files)
 // ============================================
 
-import tossBallJson from '../simulations/tossBall.json';
-import twoBoxesJson from '../simulations/twoBoxes.json';
+import tossBallJson from '../simulations/tossBall.json' with { type: 'json' };
+import twoBoxesJson from '../simulations/twoBoxes.json' with { type: 'json' };
 
 // Export for use in other components (e.g., front page examples)
 export const exampleTossBall = tossBallJson as SimulationConfig;
@@ -79,6 +79,8 @@ export const ObjectConfigSchema = z.object({
   restitution: z.number().optional().describe('Bounciness (0-1). 0 = no bounce, 1 = perfect bounce, 0.8 = realistic. Default: 0.8'),
   frictionAir: z.number().optional().describe('Air resistance (0-1). 0 = no drag, 0.01-0.05 = light damping, 0.1 = high drag. Default: 0'),
   friction: z.number().optional().describe('Surface friction (0-1). Affects sliding against other objects. Default: 0.1'),
+  frictionStatic: z.number().optional().describe('Static surface friction (0-10). As in a Coulomb friction model, static friction affects friction resistance when an object is at rest. Default: 0.5'),
+  inertia: z.number().optional().describe('inertia is the second moment of area in two dimensions, affects rotation. Set to 1e10 for to prevent body rotation. Default: 0'),
   isStatic: z.boolean().optional().describe('If true, object is immovable (good for floors, walls, platforms). Default: false'),
 }).describe('A physics object in the simulation. Configure shape, position, velocity, and physics properties.');
 
