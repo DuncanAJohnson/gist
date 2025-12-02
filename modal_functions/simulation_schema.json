@@ -194,7 +194,7 @@
             ]
           },
           "velocity": {
-            "description": "Initial velocity {x, y} in px/frame. Typical range: -30 to 30. Negative Y = upward motion.",
+            "description": "Initial linear velocity {x, y} in px/frame. Typical range: -30 to 30. Negative Y = upward motion.",
             "type": "object",
             "properties": {
               "x": {
@@ -213,7 +213,7 @@
             "additionalProperties": false
           },
           "acceleration": {
-            "description": "Initial acceleration {x, y}. Usually not set directly; gravity provides Y acceleration.",
+            "description": "Initial linear acceleration {x, y}. Usually not set directly; gravity provides Y acceleration.",
             "type": "object",
             "properties": {
               "x": {
@@ -254,6 +254,14 @@
           "isStatic": {
             "description": "If true, object is immovable (good for floors, walls, platforms). Default: false",
             "type": "boolean"
+          },
+          "mass": {
+            "description": "Mass of the object. Default: 1",
+            "type": "number"
+          },
+          "angularVelocity": {
+            "description": "Initial angular velocity in radians/frame. Default: 0",
+            "type": "number"
           }
         },
         "required": [

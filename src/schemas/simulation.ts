@@ -74,14 +74,16 @@ export const ObjectConfigSchema = z.object({
   x: z.number().describe('Initial X position in pixels (0-800). Center of canvas is 400. Leave margins from edges.'),
   y: z.number().describe('Initial Y position in pixels (0-600). Center of canvas is 300. Y increases DOWNWARD.'),
   body: BodyConfigSchema,
-  velocity: Vector2DSchema.optional().describe('Initial velocity {x, y} in px/frame. Typical range: -30 to 30. Negative Y = upward motion.'),
-  acceleration: Vector2DSchema.optional().describe('Initial acceleration {x, y}. Usually not set directly; gravity provides Y acceleration.'),
+  velocity: Vector2DSchema.optional().describe('Initial linear velocity {x, y} in px/frame. Typical range: -30 to 30. Negative Y = upward motion.'),
+  acceleration: Vector2DSchema.optional().describe('Initial linear acceleration {x, y}. Usually not set directly; gravity provides Y acceleration.'),
   restitution: z.number().optional().describe('Bounciness (0-1). 0 = no bounce, 1 = perfect bounce, 0.8 = realistic. Default: 0.8'),
   frictionAir: z.number().optional().describe('Air resistance (0-1). 0 = no drag, 0.01-0.05 = light damping, 0.1 = high drag. Default: 0'),
   friction: z.number().optional().describe('Surface friction (0-1). Affects sliding against other objects. Default: 0.1'),
   frictionStatic: z.number().optional().describe('Static surface friction (0-10). As in a Coulomb friction model, static friction affects friction resistance when an object is at rest. Default: 0.5'),
   inertia: z.number().optional().describe('inertia is the second moment of area in two dimensions, affects rotation. Set to 1e10 for to prevent body rotation. Default: 0'),
   isStatic: z.boolean().optional().describe('If true, object is immovable (good for floors, walls, platforms). Default: false'),
+  mass: z.number().optional().describe('Mass of the object. Default: 1'),
+  angularVelocity: z.number().optional().describe('Initial angular velocity in radians/frame. Default: 0'),
 }).describe('A physics object in the simulation. Configure shape, position, velocity, and physics properties.');
 
 export type ObjectConfig = z.infer<typeof ObjectConfigSchema>;
