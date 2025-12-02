@@ -262,6 +262,10 @@
           "angularVelocity": {
             "description": "Initial angular velocity in radians/frame. Default: 0",
             "type": "number"
+          },
+          "angle": {
+            "description": "Initial angle in radians. Default: 0",
+            "type": "number"
           }
         },
         "required": [

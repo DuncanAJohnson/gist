@@ -84,6 +84,7 @@ export const ObjectConfigSchema = z.object({
   isStatic: z.boolean().optional().describe('If true, object is immovable (good for floors, walls, platforms). Default: false'),
   mass: z.number().optional().describe('Mass of the object. Default: 1'),
   angularVelocity: z.number().optional().describe('Initial angular velocity in radians/frame. Default: 0'),
+  angle: z.number().optional().describe('Initial angle in radians. Default: 0'),
 }).describe('A physics object in the simulation. Configure shape, position, velocity, and physics properties.');
 
 export type ObjectConfig = z.infer<typeof ObjectConfigSchema>;

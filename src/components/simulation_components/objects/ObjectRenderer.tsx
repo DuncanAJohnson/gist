@@ -22,6 +22,7 @@ const ObjectRenderer = forwardRef<Matter.Body, ObjectConfig>(function ObjectRend
     inertia = 0,
     isStatic = false,
     angularVelocity = 0,
+    angle = 0,
     mass = 1,
   },
   ref
@@ -62,9 +63,14 @@ const ObjectRenderer = forwardRef<Matter.Body, ObjectConfig>(function ObjectRend
       Matter.Body.setAngularVelocity(object,angularVelocity);
     }
 
-    // // Set initial mass
+    // Set initial mass
     if (mass !== undefined) {
       Matter.Body.setMass(object,mass);
+    }
+
+    // Set initial angle
+    if (angle !== undefined) {
+      Matter.Body.setAngle(object,angle);
     }
 
     // Initialize acceleration property
