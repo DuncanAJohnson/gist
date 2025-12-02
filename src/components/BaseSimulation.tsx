@@ -66,8 +66,8 @@ function BaseSimulation({
       onInit(engine, render);
     }
 
-    // Run the renderer
-    Matter.Render.run(render);
+    // Note: Render.run() removed to eliminate dual animation loop
+    // Rendering now handled manually via Render.world() in updateLoop
 
     // Save initial state for reset
     setTimeout(() => {
@@ -80,29 +80,104 @@ function BaseSimulation({
       }));
     }, 100);
 
-    // Manual animation loop using Engine.update
+    // Manual animation loop using Engine.update with fixed time step
+    const FIXED_TIME_STEP = 1000 / 60; // 16.67ms for 60 FPS
+    const MAX_DELTA = FIXED_TIME_STEP * 3; // Cap at 3 frames to prevent spiral of death
+
+    // Debug logging configuration
+    const ENABLE_DEBUG = true; // Easy toggle for all debug logging
+    const DEBUG_FRAME_COUNT = 30; // Log first 30 frames when running
+
     let lastTime = performance.now();
+    let accumulator = 0;
     let animationFrameId: number;
-    
+    let frameCount = 0; // Track total frame number
+    let debugFrameCounter = 0; // Track running frame number for debug logs
+
     const updateLoop = (currentTime: number) => {
-      const delta = currentTime - lastTime;
+      let delta = currentTime - lastTime;
       lastTime = currentTime;
-      
+      frameCount++;
+
       // Only step the simulation if running
       if (isRunningRef.current) {
-        Matter.Engine.update(engine, delta);
-        // Increment simulation time (convert milliseconds to seconds)
-        simulationTimeRef.current += delta / 1000;
+        debugFrameCounter++; // Increment only when running
+
+        // Debug: Log first N frames when RUNNING
+        if (ENABLE_DEBUG && debugFrameCounter <= DEBUG_FRAME_COUNT) {
+          const isDeltaCapped = delta > MAX_DELTA;
+          console.log(
+            `[RUNNING Frame ${debugFrameCounter}/${frameCount}] ` +
+            `delta: ${delta.toFixed(2)}ms` +
+            `${isDeltaCapped ? ' (CAPPED to ' + MAX_DELTA.toFixed(2) + 'ms)' : ''}, ` +
+            `accumulator: ${accumulator.toFixed(2)}ms`
+          );
+        }
+
+        // Cap delta to prevent large jumps (e.g., initial frame, tab switching)
+        if (delta > MAX_DELTA) {
+          delta = MAX_DELTA;
+        }
+
+        // Add frame time to accumulator (only when running!)
+        accumulator += delta;
+        let stepsThisFrame = 0;
+
+        // Run physics updates in fixed time steps
+        while (accumulator >= FIXED_TIME_STEP) {
+          // Call user update callback BEFORE physics step (for force application, etc.)
+          if (onUpdate) {
+            onUpdate(engine, simulationTimeRef.current);
+          }
+
+          // Step physics with fixed time step
+          Matter.Engine.update(engine, FIXED_TIME_STEP);
+
+          // Increment simulation time
+          simulationTimeRef.current += FIXED_TIME_STEP / 1000;
+          accumulator -= FIXED_TIME_STEP;
+          stepsThisFrame++;
+        }
+
+        // Debug: Log physics steps and object positions for initial frames
+        if (ENABLE_DEBUG && debugFrameCounter <= DEBUG_FRAME_COUNT && stepsThisFrame > 0) {
+          console.log(
+            `[RUNNING Frame ${debugFrameCounter}] ` +
+            `Executed ${stepsThisFrame} physics step(s), ` +
+            `remaining accumulator: ${accumulator.toFixed(2)}ms`
+          );
+
+          // Log positions of all dynamic bodies
+          const dynamicBodies = engine.world.bodies.filter(b => !b.isStatic);
+          if (dynamicBodies.length > 0) {
+            console.log(`[RUNNING Frame ${debugFrameCounter}] Object positions:`);
+            dynamicBodies.forEach(body => {
+              console.log(
+                `  - Body ${body.id}: ` +
+                `pos(${body.position.x.toFixed(1)}, ${body.position.y.toFixed(1)}), ` +
+                `vel(${body.velocity.x.toFixed(2)}, ${body.velocity.y.toFixed(2)})`
+              );
+            });
+          }
+        }
+      } else {
+        // PAUSED state - log periodically
+        if (ENABLE_DEBUG && frameCount % 60 === 0) {
+          console.log(`[PAUSED Frame ${frameCount}] Waiting... (delta: ${delta.toFixed(2)}ms)`);
+        }
+
+        // When paused, still call onUpdate for output display
+        if (onUpdate) {
+          onUpdate(engine, simulationTimeRef.current);
+        }
       }
-      
-      // Call user update callback with engine and current simulation time
-      if (onUpdate) {
-        onUpdate(engine, simulationTimeRef.current);
-      }
-      
+
+      // Render current state (always render, even when paused)
+      Matter.Render.world(render);
+
       animationFrameId = requestAnimationFrame(updateLoop);
     };
-    
+
     animationFrameId = requestAnimationFrame(updateLoop);
 
     // Expose control methods
@@ -127,6 +202,8 @@ function BaseSimulation({
           });
           isRunningRef.current = false;
           simulationTimeRef.current = 0;
+          accumulator = 0; // Clear accumulated time
+          debugFrameCounter = 0; // Reset for fresh debug logs
         },
       });
     }
