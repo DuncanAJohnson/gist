@@ -118,3 +118,24 @@ export async function updateChangesMade(simulationId: number): Promise<void> {
   });
 }
 
+/**
+ * Creates feedback for a simulation in the database
+ * @param simulationId - The ID of the simulation to provide feedback for
+ * @param feedback - The feedback text
+ */
+export async function createSimulationFeedback(
+  simulationId: number,
+  feedback: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('simulation_feedback')
+    .insert({
+      simulation_id: simulationId,
+      feedback: feedback,
+    });
+
+  if (error) {
+    throw new Error(`Failed to create feedback: ${error.message}`);
+  }
+}
+
