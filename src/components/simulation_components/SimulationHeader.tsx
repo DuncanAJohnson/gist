@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import SimulationControls from './SimulationControls';
 import CreateSimulation from '../CreateSimulation';
+import FeedbackModal from './FeedbackModal';
 
 interface SimulationHeaderProps {
   title?: string;
@@ -24,13 +25,17 @@ function SimulationHeader({
   onReset,
   onEdit,
   onTweakJSON,
+  simulationId,
   currentJSON,
 }: SimulationHeaderProps) {
   const [showEditPopup, setShowEditPopup] = useState(false);
+  const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  const feedbackButtonRef = useRef<HTMLButtonElement>(null);
+  const feedbackPopupRef = useRef<HTMLDivElement>(null);
 
-  // Close popup when clicking outside
+  // Close popups when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -42,13 +47,22 @@ function SimulationHeader({
       ) {
         setShowEditPopup(false);
       }
+      if (
+        showFeedbackPopup &&
+        feedbackPopupRef.current &&
+        !feedbackPopupRef.current.contains(event.target as Node) &&
+        feedbackButtonRef.current &&
+        !feedbackButtonRef.current.contains(event.target as Node)
+      ) {
+        setShowFeedbackPopup(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showEditPopup]);
+  }, [showEditPopup, showFeedbackPopup]);
 
   const handleJSONExtracted = (json: any) => {
     if (onEdit) {
@@ -81,7 +95,7 @@ function SimulationHeader({
         </div>
       </div>
       
-      {/* Right side - Controls and Edit button */}
+      {/* Right side - Controls, Feedback, and Edit button */}
       <div className="flex flex-row items-center justify-center gap-4 px-8 py-4 relative">
         <SimulationControls
           isRunning={isRunning}
@@ -89,6 +103,29 @@ function SimulationHeader({
           onPause={onPause}
           onReset={onReset}
         />
+        {simulationId && (
+          <>
+            <button
+              ref={feedbackButtonRef}
+              onClick={() => setShowFeedbackPopup(!showFeedbackPopup)}
+              className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium text-sm"
+            >
+              Give Feedback
+            </button>
+            {showFeedbackPopup && (
+              <div
+                ref={feedbackPopupRef}
+                className="absolute top-full right-0 mt-2 z-50"
+                style={{ transform: 'translateX(0)' }}
+              >
+                <FeedbackModal
+                  simulationId={simulationId}
+                  onClose={() => setShowFeedbackPopup(false)}
+                />
+              </div>
+            )}
+          </>
+        )}
         {onEdit && (
           <>
             <button

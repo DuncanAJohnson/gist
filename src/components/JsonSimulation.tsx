@@ -1,12 +1,14 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Matter from 'matter-js';
 import BaseSimulation from './BaseSimulation';
 import Environment from './simulation_components/Environment';
 import Panel from './simulation_components/Panel';
+import Scale from './simulation_components/Scale';
 import SimulationHeader from './simulation_components/SimulationHeader';
 import JsonEditor from './JsonEditor';
 import { createSimulation, updateChangesMade } from '../lib/simulationService';
+import { UnitConverter, type UnitType } from '../lib/unitConversion';
 // Controls
 import ControlRenderer from './simulation_components/controls/ControlRenderer';
 import type { ControlConfig, ToggleConfig, SliderConfig } from './simulation_components/controls/types';
@@ -25,7 +27,9 @@ interface SimulationConfig {
   description?: string;
   environment: {
     walls: string[];
-    gravity: number;
+    gravity?: number;
+    unit?: UnitType;
+    pixelsPerUnit?: number;
   };
   objects?: Array<ObjectConfig>;
   controls?: Array<ControlConfig>;
@@ -57,6 +61,61 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   } = config;
 
   const [showJsonEditor, setShowJsonEditor] = useState(false);
+
+  // Create unit converter from environment config
+  const unitConverter = useMemo(() => {
+    return new UnitConverter(
+      environment.unit ?? 'm',
+      environment.pixelsPerUnit ?? 10,
+    );
+  }, [environment.unit, environment.pixelsPerUnit]);
+
+  // Convert objects from real-world units to pixels for rendering
+  const pixelObjects = useMemo(() => {
+    return objects.map((obj): ObjectConfig => {
+      const pixelObj: ObjectConfig = {
+        ...obj,
+        x: unitConverter.toPixelsX(obj.x),
+        y: unitConverter.toPixelsY(obj.y),
+      };
+
+      // Convert velocity if present
+      if (obj.velocity) {
+        pixelObj.velocity = unitConverter.toPixelsVelocityAcceleration(obj.velocity);
+      }
+
+      // Convert acceleration if present
+      if (obj.acceleration) {
+        pixelObj.acceleration = unitConverter.toPixelsVelocityAcceleration(obj.acceleration);
+      }
+
+      // Convert body dimensions
+      if (obj.body) {
+        const body = { ...obj.body };
+        if (body.type === 'circle' && 'radius' in body) {
+          (body as any).radius = unitConverter.toPixelsDimension((body as any).radius);
+        } else if (body.type === 'rectangle' && 'width' in body && 'height' in body) {
+          (body as any).width = unitConverter.toPixelsDimension((body as any).width);
+          (body as any).height = unitConverter.toPixelsDimension((body as any).height);
+        } else if (body.type === 'polygon' && 'radius' in body) {
+          (body as any).radius = unitConverter.toPixelsDimension((body as any).radius);
+        } else if (body.type === 'vertex' && 'vertices' in body) {
+          (body as any).vertices = (body as any).vertices.map((v: { x: number; y: number }) => 
+            unitConverter.toPixelsPosition(v)
+          );
+        }
+        pixelObj.body = body;
+      }
+
+      return pixelObj;
+    });
+  }, [objects, unitConverter]);
+
+  // Convert gravity from real-world units to Matter.js scale
+  const matterGravityScale = useMemo(() => {
+    const gravity = environment.gravity ?? 9.8;
+    return unitConverter.toMatterGravityScale(gravity);
+  }, [environment.gravity, unitConverter]);
 
   // Store refs to all objects by their ID
   const objRefs = useRef<Record<string, Matter.Body>>({});
@@ -118,7 +177,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     return Math.abs(value) < 0.01 ? 0 : value;
   };
 
-  // Handle control changes
+  // Handle control changes - value is in real-world units, convert to pixels for Matter.js
   const handleControlChange = useCallback((control: typeof controls[0], value: number) => {
     setControlValues((prev) => ({
       ...prev,
@@ -129,33 +188,44 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     const obj = objRefs.current[control.targetObj];
     if (obj && control.property) {
       if (control.property.startsWith('velocity.')) {
-        // Special handling for velocity
+        // Special handling for velocity - convert from real units to pixels
         const axis = control.property.split('.')[1] as 'x' | 'y';
+        const pixelValue = axis === 'x' 
+          ? unitConverter.toPixelsVelocityAccelerationX(value)
+          : unitConverter.toPixelsVelocityAccelerationY(value);
         const currentVelocity = obj.velocity;
         const newVelocity = {
-          x: axis === 'x' ? value : currentVelocity.x,
-          y: axis === 'y' ? value : currentVelocity.y,
+          x: axis === 'x' ? pixelValue : currentVelocity.x,
+          y: axis === 'y' ? pixelValue : currentVelocity.y,
         };
         Matter.Body.setVelocity(obj, newVelocity);
       } else if (control.property.startsWith('position.')) {
-        // Special handling for position
+        // Special handling for position - convert from real units to pixels
         const axis = control.property.split('.')[1] as 'x' | 'y';
+        const pixelValue = axis === 'x'
+          ? unitConverter.toPixelsX(value)
+          : unitConverter.toPixelsY(value);
         const currentPosition = obj.position;
         const newPosition = {
-          x: axis === 'x' ? value : currentPosition.x,
-          y: axis === 'y' ? value : currentPosition.y,
+          x: axis === 'x' ? pixelValue : currentPosition.x,
+          y: axis === 'y' ? pixelValue : currentPosition.y,
         };
         Matter.Body.setPosition(obj, newPosition);
       } else {
-        // Generic property update
+        // Generic property update (no conversion needed for non-spatial properties)
         setNestedValue(obj, control.property, value);
       }
     }
-  }, []);
+  }, [unitConverter]);
+
+  // Helper to convert a pixel value to real-world units based on property type
+  const convertPixelToRealUnit = useCallback((property: string, pixelValue: number): number => {
+    return unitConverter.fromPixelsProperty(property, pixelValue);
+  }, [unitConverter]);
 
   // Update loop to read output values and graph data
   const handleUpdate = useCallback((_engine: Matter.Engine, time: number) => {
-    // Calculate acceleration for all bodies
+    // Calculate acceleration for all bodies (in pixel space)
     const deltaTime = time - prevTimeRef.current;
     if (deltaTime > 0) {
       // Use objects from the config to iterate through bodies
@@ -165,7 +235,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         
         const prevVelocity = prevVelocitiesRef.current[objectConfig.id];
         if (prevVelocity) {
-          // Calculate acceleration as change in velocity over time
+          // Calculate acceleration as change in velocity over time (still in pixels)
           const acceleration = {
             x: (body.velocity.x - prevVelocity.x) / deltaTime,
             y: (body.velocity.y - prevVelocity.y) / deltaTime,
@@ -182,6 +252,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     }
     prevTimeRef.current = time;
 
+    // Collect output values and convert from pixels to real-world units
     const newOutputValues: Record<string, number> = {};
     
     outputs.forEach((group) => {
@@ -189,14 +260,16 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         const obj = objRefs.current[output.targetObj];
         if (obj) {
           const key = `${output.targetObj}.${output.property}`;
-          newOutputValues[key] = getNestedValue(obj, output.property);
+          const pixelValue = getNestedValue(obj, output.property);
+          // Convert from pixels to real-world units
+          newOutputValues[key] = convertPixelToRealUnit(output.property, pixelValue);
         }
       });
     });
 
     setOutputValues(newOutputValues);
 
-    // Collect graph data
+    // Collect graph data and convert from pixels to real-world units
     if (graphs.length > 0 && isRunningRef.current) {
       setGraphData((prevData) => {
         return prevData.map((data, graphIndex) => {
@@ -208,8 +281,10 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
             graph.lines.forEach((line: LineConfig) => {
               const obj = objRefs.current[line.targetObj];
               if (obj) {
-                const value = getNestedValue(obj, line.property);
-                dataPoint[line.label] = clampToZero(value);
+                const pixelValue = getNestedValue(obj, line.property);
+                // Convert from pixels to real-world units
+                const realValue = convertPixelToRealUnit(line.property, pixelValue);
+                dataPoint[line.label] = clampToZero(realValue);
               }
             });
           }
@@ -218,7 +293,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         });
       });
     }
-  }, [outputs, graphs]);
+  }, [outputs, graphs, convertPixelToRealUnit]);
 
   const handleEdit = async (editedJSON: any) => {
     if (!simulationId) return;
@@ -299,8 +374,6 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           }, 0);
         }}
       />
-
-      
       
       <BaseSimulation
         onUpdate={handleUpdate}
@@ -311,7 +384,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           <Panel title="Controls" className="col-start-1 row-start-1">
           {controls.map((control) => (
             <ControlRenderer
-              key={control.label}
+              key={`${control.targetObj}.${control.property}`}
               control={control}
               value={controlValues[control.label]}
               onChange={(value: number | boolean) => handleControlChange(control, value as number)}
@@ -320,16 +393,22 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         </Panel>
         )}
 
-        {/* Environment */}
-        <Environment walls={environment.walls} gravity={environment.gravity} />
+        {/* Scale */}
+        <Scale
+          pixelsPerUnit={environment.pixelsPerUnit ?? 10}
+          unit={environment.unit ?? 'm'}
+        />
+
+        {/* Environment - use converted gravity scale */}
+        <Environment walls={environment.walls} gravity={matterGravityScale} />
         
-        {/* Objects */}
-        {objects.map((object) => (
+        {/* Objects - render with pixel-converted values */}
+        {pixelObjects.map((object, index) => (
           <ObjectRenderer
-            key={object.id}
+            key={objects[index].id}
             ref={(ref) => {
               if (ref) {
-                objRefs.current[object.id] = ref;
+                objRefs.current[objects[index].id] = ref;
               }
             }}
             {...object}

@@ -45,7 +45,7 @@ function JsonEditor({ initialJSON, onSave, onClose }: JsonEditorProps) {
               onClick={onClose}
               className="text-white hover:text-gray-200 text-2xl leading-none"
             >
-              ×
+              x
             </button>
           </div>
 

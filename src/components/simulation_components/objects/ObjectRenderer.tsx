@@ -19,8 +19,11 @@ const ObjectRenderer = forwardRef<Matter.Body, ObjectConfig>(function ObjectRend
     frictionAir = 0,
     friction = 0,
     frictionStatic = 0,
-    inertia = 0,
+    // inertia = 0,
     isStatic = false,
+    angularVelocity = 0,
+    angle = 0,
+    mass = 1,
   },
   ref
 ) {
@@ -43,17 +46,37 @@ const ObjectRenderer = forwardRef<Matter.Body, ObjectConfig>(function ObjectRend
     object.frictionAir = frictionAir;
     object.friction = friction;
     object.frictionStatic = frictionStatic;
-    // object.inertia = inertia;
     object.isStatic = isStatic;
 
     // Set initial velocity
-    Matter.Body.setVelocity(object, velocity);
+    if (velocity !== undefined) {
+      Matter.Body.setVelocity(object, velocity);
+    }
 
-    // Set initial inertia
-    // Matter.Body.setInertia (object, inertia);
+    // Set initial inertia - TODO, inertia is not working as expected
+    // if (inertia !== undefined) {
+    //   Matter.Body.setInertia(object,inertia);
+    // }
+
+    // Set initial angular velocity
+    if (angularVelocity !== undefined) {
+      Matter.Body.setAngularVelocity(object,angularVelocity);
+    }
+
+    // Set initial mass
+    if (mass !== undefined) {
+      Matter.Body.setMass(object,mass);
+    }
+
+    // Set initial angle
+    if (angle !== undefined) {
+      Matter.Body.setAngle(object,angle);
+    }
 
     // Initialize acceleration property
-    (object as any).acceleration = acceleration;
+    if (acceleration !== undefined) {
+      (object as any).acceleration = acceleration;
+    }
 
     // Add to world
     Matter.Composite.add(engine.world, object);

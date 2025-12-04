@@ -39,14 +39,14 @@ function CreateSimulation({
     }
   }, [isOpen]);
 
-  // Fake loading progress that takes ~60 seconds
+  // Fake loading progress that takes ~30 seconds
   useEffect(() => {
     if (!isStreaming) {
       setProgress(0);
       return;
     }
 
-    const duration = 60000; // 60 seconds in milliseconds
+    const duration = 30000; // 30 seconds in milliseconds
     const startTime = Date.now();
     const updateInterval = 50; // Update every 50ms for smooth animation
 

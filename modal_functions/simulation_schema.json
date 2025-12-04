@@ -1,5 +1,5 @@
 {
-  "description": "Physics simulation configuration for an 800x600 pixel canvas using Matter.js engine.\n\nCOORDINATE SYSTEM:\n- Origin (0, 0) is at TOP-LEFT corner\n- X increases to the right (max 800)\n- Y increases DOWNWARD (max 600)\n- Negative Y velocity = upward motion\n\nGUIDELINES:\n- Keep simulations simple: 1-3 objects, focus on 1-2 physics concepts\n- Always include at least one control for interactivity\n- Use outputs to show current state, graphs to show history\n- Match graph line colors to object colors for visual consistency\n- Use clear, educational labels\n\nGOOD COLOR CHOICES:\n- \"#ff6bff\" (pink/magenta)\n- \"#4ecdc4\" (teal/cyan)\n- \"#ff6b6b\" (coral/red)\n- \"#95e1d3\" (mint green)\n- \"#ffa07a\" (light salmon)\n\nEXAMPLE 1 - Vertical Ball Toss:\n{\n  \"title\": \"Toss Ball\",\n  \"description\": \"Toss a ball vertically and observe acceleration versus velocity\",\n  \"environment\": {\n    \"walls\": [],\n    \"gravity\": 0.001\n  },\n  \"objects\": [\n    {\n      \"id\": \"ball\",\n      \"x\": 400,\n      \"y\": 500,\n      \"body\": {\n        \"type\": \"circle\",\n        \"radius\": 30,\n        \"color\": \"#ff6bff\"\n      },\n      \"velocity\": {\n        \"x\": 0,\n        \"y\": -20\n      },\n      \"restitution\": 0.8,\n      \"frictionAir\": 0\n    }\n  ],\n  \"controls\": [\n    {\n      \"type\": \"slider\",\n      \"label\": \"Initial Velocity\",\n      \"targetObj\": \"ball\",\n      \"property\": \"velocity.y\",\n      \"min\": -30,\n      \"max\": 0,\n      \"step\": 0.1,\n      \"defaultValue\": -20\n    }\n  ],\n  \"outputs\": [\n    {\n      \"title\": \"Ball Outputs\",\n      \"values\": [\n        {\n          \"label\": \"Velocity\",\n          \"targetObj\": \"ball\",\n          \"property\": \"velocity.y\",\n          \"unit\": \"px/s\"\n        },\n        {\n          \"label\": \"Acceleration\",\n          \"targetObj\": \"ball\",\n          \"property\": \"acceleration.y\",\n          \"unit\": \"px/s²\"\n        }\n      ]\n    }\n  ],\n  \"graphs\": [\n    {\n      \"type\": \"line\",\n      \"title\": \"Velocity and Acceleration Over Time\",\n      \"yAxisRange\": {\n        \"min\": -20,\n        \"max\": 20\n      },\n      \"lines\": [\n        {\n          \"label\": \"Velocity\",\n          \"targetObj\": \"ball\",\n          \"property\": \"velocity.y\",\n          \"color\": \"#ff6bff\"\n        },\n        {\n          \"label\": \"Acceleration\",\n          \"targetObj\": \"ball\",\n          \"property\": \"acceleration.y\",\n          \"color\": \"#4ecdc4\"\n        }\n      ]\n    }\n  ]\n}\n\nEXAMPLE 2 - Two Boxes Collision:\n{\n  \"title\": \"Two Boxes Collision\",\n  \"description\": \"Adjust the velocities to see the boxes move and collide\",\n  \"environment\": {\n    \"walls\": [\n      \"left\",\n      \"right\",\n      \"bottom\"\n    ]\n  },\n  \"objects\": [\n    {\n      \"id\": \"boxA\",\n      \"x\": 150,\n      \"y\": 100,\n      \"body\": {\n        \"type\": \"rectangle\",\n        \"width\": 60,\n        \"height\": 60,\n        \"color\": \"#ff6bff\"\n      },\n      \"velocity\": {\n        \"x\": 5,\n        \"y\": 0\n      },\n      \"restitution\": 0.8,\n      \"frictionAir\": 0\n    },\n    {\n      \"id\": \"boxB\",\n      \"x\": 650,\n      \"y\": 200,\n      \"body\": {\n        \"type\": \"rectangle\",\n        \"width\": 60,\n        \"height\": 60,\n        \"color\": \"#4ecdc4\"\n      },\n      \"velocity\": {\n        \"x\": -5,\n        \"y\": 0\n      },\n      \"restitution\": 0.8,\n      \"frictionAir\": 0\n    }\n  ],\n  \"controls\": [\n    {\n      \"type\": \"slider\",\n      \"label\": \"Box A Velocity\",\n      \"targetObj\": \"boxA\",\n      \"property\": \"velocity.x\",\n      \"min\": -10,\n      \"max\": 10,\n      \"step\": 0.1,\n      \"defaultValue\": 5\n    },\n    {\n      \"type\": \"slider\",\n      \"label\": \"Box B Velocity\",\n      \"targetObj\": \"boxB\",\n      \"property\": \"velocity.x\",\n      \"min\": -10,\n      \"max\": 10,\n      \"step\": 0.1,\n      \"defaultValue\": -5\n    }\n  ],\n  \"outputs\": [\n    {\n      \"title\": \"Box A Outputs\",\n      \"values\": [\n        {\n          \"label\": \"Velocity X\",\n          \"targetObj\": \"boxA\",\n          \"property\": \"velocity.x\",\n          \"unit\": \"px/s\"\n        },\n        {\n          \"label\": \"Velocity Y\",\n          \"targetObj\": \"boxA\",\n          \"property\": \"velocity.y\",\n          \"unit\": \"px/s\"\n        }\n      ]\n    },\n    {\n      \"title\": \"Box B Outputs\",\n      \"values\": [\n        {\n          \"label\": \"Velocity X\",\n          \"targetObj\": \"boxB\",\n          \"property\": \"velocity.x\",\n          \"unit\": \"px/s\"\n        },\n        {\n          \"label\": \"Velocity Y\",\n          \"targetObj\": \"boxB\",\n          \"property\": \"velocity.y\",\n          \"unit\": \"px/s\"\n        }\n      ]\n    }\n  ],\n  \"graphs\": [\n    {\n      \"type\": \"line\",\n      \"title\": \"Horizontal Velocity Over Time\",\n      \"yAxisRange\": {\n        \"min\": -10,\n        \"max\": 10\n      },\n      \"lines\": [\n        {\n          \"label\": \"Box A Velocity X\",\n          \"targetObj\": \"boxA\",\n          \"property\": \"velocity.x\",\n          \"color\": \"#ff6bff\"\n        },\n        {\n          \"label\": \"Box B Velocity X\",\n          \"targetObj\": \"boxB\",\n          \"property\": \"velocity.x\",\n          \"color\": \"#4ecdc4\"\n        }\n      ]\n    }\n  ]\n}",
+  "description": "Physics simulation configuration using real-world units with Matter.js engine.\n\nCOORDINATE SYSTEM (Real-World Physics):\n- Origin (0, 0) is at BOTTOM-LEFT corner\n- X increases to the right\n- Y increases UPWARD (like standard physics)\n- Positive Y velocity = upward motion\n\nUNITS & SCALE:\n- Default: unit=\"m\" (meters), pixelsPerUnit=100 → 8m x 6m canvas\n- For larger simulations: reduce pixelsPerUnit (e.g., 8 → 100m x 75m canvas)\n- For smaller simulations: increase pixelsPerUnit or use \"cm\"\n- Gravity default: 9.8 m/s² (Earth gravity)\n\nGUIDELINES:\n- Keep simulations simple: 1-3 objects, focus on 1-2 physics concepts\n- Always include at least one control for interactivity\n- Use outputs to show current state, graphs to show history\n- Match graph line colors to object colors for visual consistency\n- Use clear, educational labels\n- All values (positions, velocities, sizes) are in the configured unit\n\nGOOD COLOR CHOICES:\n- \"#ff6bff\" (pink/magenta)\n- \"#4ecdc4\" (teal/cyan)\n- \"#ff6b6b\" (coral/red)\n- \"#95e1d3\" (mint green)\n- \"#ffa07a\" (light salmon)\n\nEXAMPLE 1 - Vertical Ball Toss:\n{\n  \"title\": \"Toss Ball\",\n  \"description\": \"Toss a ball vertically and observe acceleration versus velocity\",\n  \"environment\": {\n    \"walls\": [],\n    \"gravity\": 9.8,\n    \"unit\": \"m\",\n    \"pixelsPerUnit\": 10\n  },\n  \"objects\": [\n    {\n      \"id\": \"ball\",\n      \"x\": 40,\n      \"y\": 10,\n      \"body\": {\n        \"type\": \"circle\",\n        \"radius\": 3,\n        \"color\": \"#ff6bff\"\n      },\n      \"velocity\": {\n        \"x\": 0,\n        \"y\": 20\n      },\n      \"restitution\": 0.8,\n      \"frictionAir\": 0\n    }\n  ],\n  \"controls\": [\n    {\n      \"type\": \"slider\",\n      \"label\": \"Initial Velocity\",\n      \"targetObj\": \"ball\",\n      \"property\": \"velocity.y\",\n      \"min\": 0,\n      \"max\": 30,\n      \"step\": 0.01,\n      \"defaultValue\": 20\n    }\n  ],\n  \"outputs\": [\n    {\n      \"title\": \"Ball Outputs\",\n      \"values\": [\n        {\n          \"label\": \"Velocity\",\n          \"targetObj\": \"ball\",\n          \"property\": \"velocity.y\",\n          \"unit\": \"m/s\"\n        },\n        {\n          \"label\": \"Acceleration\",\n          \"targetObj\": \"ball\",\n          \"property\": \"acceleration.y\",\n          \"unit\": \"m/s²\"\n        }\n      ]\n    }\n  ],\n  \"graphs\": [\n    {\n      \"type\": \"line\",\n      \"title\": \"Velocity and Acceleration Over Time\",\n      \"yAxisRange\": {\n        \"min\": -30,\n        \"max\": 30\n      },\n      \"yAxisLabel\": \"Value (m/s, m/s²)\",\n      \"lines\": [\n        {\n          \"label\": \"Velocity\",\n          \"targetObj\": \"ball\",\n          \"property\": \"velocity.y\",\n          \"color\": \"#ff6bff\"\n        },\n        {\n          \"label\": \"Acceleration\",\n          \"targetObj\": \"ball\",\n          \"property\": \"acceleration.y\",\n          \"color\": \"#4ecdc4\"\n        }\n      ]\n    }\n  ]\n}\n\nEXAMPLE 2 - Two Boxes Collision:\n{\n  \"title\": \"Two Boxes Collision\",\n  \"description\": \"Adjust the velocities to see the boxes move and collide\",\n  \"environment\": {\n    \"walls\": [\n      \"left\",\n      \"right\",\n      \"bottom\"\n    ],\n    \"gravity\": 9.8,\n    \"unit\": \"m\",\n    \"pixelsPerUnit\": 10\n  },\n  \"objects\": [\n    {\n      \"id\": \"boxA\",\n      \"x\": 15,\n      \"y\": 50,\n      \"body\": {\n        \"type\": \"rectangle\",\n        \"width\": 6,\n        \"height\": 6,\n        \"color\": \"#ff6bff\"\n      },\n      \"velocity\": {\n        \"x\": 5,\n        \"y\": 0\n      },\n      \"restitution\": 0.8,\n      \"frictionAir\": 0\n    },\n    {\n      \"id\": \"boxB\",\n      \"x\": 65,\n      \"y\": 40,\n      \"body\": {\n        \"type\": \"rectangle\",\n        \"width\": 6,\n        \"height\": 6,\n        \"color\": \"#4ecdc4\"\n      },\n      \"velocity\": {\n        \"x\": -5,\n        \"y\": 0\n      },\n      \"restitution\": 0.8,\n      \"frictionAir\": 0\n    }\n  ],\n  \"controls\": [\n    {\n      \"type\": \"slider\",\n      \"label\": \"Box A Velocity\",\n      \"targetObj\": \"boxA\",\n      \"property\": \"velocity.x\",\n      \"min\": -30,\n      \"max\": 30,\n      \"step\": 0.1,\n      \"defaultValue\": 5\n    },\n    {\n      \"type\": \"slider\",\n      \"label\": \"Box B Velocity\",\n      \"targetObj\": \"boxB\",\n      \"property\": \"velocity.x\",\n      \"min\": -30,\n      \"max\": 30,\n      \"step\": 0.1,\n      \"defaultValue\": -5\n    }\n  ],\n  \"outputs\": [\n    {\n      \"title\": \"Box A Outputs\",\n      \"values\": [\n        {\n          \"label\": \"Velocity X\",\n          \"targetObj\": \"boxA\",\n          \"property\": \"velocity.x\",\n          \"unit\": \"m/s\"\n        },\n        {\n          \"label\": \"Velocity Y\",\n          \"targetObj\": \"boxA\",\n          \"property\": \"velocity.y\",\n          \"unit\": \"m/s\"\n        }\n      ]\n    },\n    {\n      \"title\": \"Box B Outputs\",\n      \"values\": [\n        {\n          \"label\": \"Velocity X\",\n          \"targetObj\": \"boxB\",\n          \"property\": \"velocity.x\",\n          \"unit\": \"m/s\"\n        },\n        {\n          \"label\": \"Velocity Y\",\n          \"targetObj\": \"boxB\",\n          \"property\": \"velocity.y\",\n          \"unit\": \"m/s\"\n        }\n      ]\n    }\n  ],\n  \"graphs\": [\n    {\n      \"type\": \"line\",\n      \"title\": \"Horizontal Velocity Over Time\",\n      \"yAxisRange\": {\n        \"min\": -1,\n        \"max\": 1\n      },\n      \"yAxisLabel\": \"Velocity (m/s)\",\n      \"lines\": [\n        {\n          \"label\": \"Box A Velocity X\",\n          \"targetObj\": \"boxA\",\n          \"property\": \"velocity.x\",\n          \"color\": \"#ff6bff\"\n        },\n        {\n          \"label\": \"Box B Velocity X\",\n          \"targetObj\": \"boxB\",\n          \"property\": \"velocity.x\",\n          \"color\": \"#4ecdc4\"\n        }\n      ]\n    }\n  ]\n}",
   "type": "object",
   "properties": {
     "title": {
@@ -11,7 +11,7 @@
       "type": "string"
     },
     "environment": {
-      "description": "Environment settings. Controls canvas boundaries and gravity.",
+      "description": "Environment settings. Controls units, scale, boundaries, and gravity. Uses real-world physics coordinates: origin at bottom-left, Y increases upward.",
       "type": "object",
       "properties": {
         "walls": {
@@ -28,14 +28,33 @@
           }
         },
         "gravity": {
-          "description": "Gravity strength. Default: 0.001 (realistic fall). Set to 0 for top-down simulations or zero-gravity. Higher values = faster falling.",
-          "default": 0.001,
+          "description": "Gravity acceleration in units/s² (downward). Default: 9.8 for Earth gravity in m/s². Set to 0 for zero-gravity. For cm/s² use 980.",
+          "default": 9.8,
+          "type": "number"
+        },
+        "unit": {
+          "description": "Unit of measurement for all positions, velocities, and sizes. Default: \"m\" (meters). Options: \"m\", \"cm\", \"km\", \"ft\", \"in\".",
+          "default": "m",
+          "type": "string",
+          "enum": [
+            "m",
+            "cm",
+            "km",
+            "ft",
+            "in"
+          ]
+        },
+        "pixelsPerUnit": {
+          "description": "Scale factor: how many pixels equal one unit. Default: 10 (10px = 1m, giving 80m x 60m canvas). For larger simulations, use smaller values (e.g., 8 for 100m x 75m canvas).",
+          "default": 10,
           "type": "number"
         }
       },
       "required": [
         "walls",
-        "gravity"
+        "gravity",
+        "unit",
+        "pixelsPerUnit"
       ],
       "additionalProperties": false
     },
@@ -44,7 +63,7 @@
       "default": [],
       "type": "array",
       "items": {
-        "description": "A physics object in the simulation. Configure shape, position, velocity, and physics properties.",
+        "description": "A physics object in the simulation. Configure shape, position, velocity, and physics properties. Uses real-world units with Y-up coordinate system.",
         "type": "object",
         "properties": {
           "id": {
@@ -52,11 +71,11 @@
             "type": "string"
           },
           "x": {
-            "description": "Initial X position in pixels (0-800). Center of canvas is 400. Leave margins from edges.",
+            "description": "Initial X position in configured units. With default settings (pixelsPerUnit=10, unit=\"m\"), canvas is 80m wide. X=0 is left edge.",
             "type": "number"
           },
           "y": {
-            "description": "Initial Y position in pixels (0-600). Center of canvas is 300. Y increases DOWNWARD.",
+            "description": "Initial Y position in configured units. With default settings, (pixelsPerUnit=10, unit=\"m\"), canvas is 60m tall. Y=0 is bottom edge, Y increases upward.",
             "type": "number"
           },
           "body": {
@@ -73,11 +92,11 @@
                     ]
                   },
                   "width": {
-                    "description": "Width in pixels (40-100 recommended for visibility)",
+                    "description": "Width in configured units (with default pixelsPerUnit=10 and unit=\"m\", 4-8m recommended for visibility)",
                     "type": "number"
                   },
                   "height": {
-                    "description": "Height in pixels (40-100 recommended for visibility)",
+                    "description": "Height in configured units (with default pixelsPerUnit=10 and unit=\"m\", 4-8m recommended for visibility)",
                     "type": "number"
                   },
                   "color": {
@@ -103,7 +122,7 @@
                     ]
                   },
                   "radius": {
-                    "description": "Radius in pixels (20-50 recommended for visibility)",
+                    "description": "Radius in configured units (with default pixelsPerUnit=10 and unit=\"m\", 2-4m recommended for visibility)",
                     "type": "number"
                   },
                   "color": {
@@ -132,7 +151,7 @@
                     "type": "number"
                   },
                   "radius": {
-                    "description": "Radius from center to vertices in pixels",
+                    "description": "Radius from center to vertices in configured units (with default pixelsPerUnit=10 and unit=\"m\", 2-4m recommended for visibility)",
                     "type": "number"
                   },
                   "color": {
@@ -161,15 +180,15 @@
                     "description": "Array of {x, y} points defining the polygon vertices in order",
                     "type": "array",
                     "items": {
-                      "description": "2D vector for position, velocity, or acceleration. Coordinate system: origin (0,0) at TOP-LEFT, X increases right, Y increases DOWNWARD.",
+                      "description": "2D vector for position, velocity, or acceleration. Coordinate system: origin (0,0) at BOTTOM-LEFT, X increases right, Y increases upward (real-world physics coordinates).",
                       "type": "object",
                       "properties": {
                         "x": {
-                          "description": "X component. For velocity: positive = rightward, negative = leftward. For position: 0-800 range.",
+                          "description": "X component. For velocity: positive = rightward, negative = leftward. For position: depends on pixelsPerUnit scale.",
                           "type": "number"
                         },
                         "y": {
-                          "description": "Y component. For velocity: positive = downward, negative = upward. For position: 0-600 range.",
+                          "description": "Y component. For velocity: positive = downward, negative = upward. For position: Y increases upward from origin at bottom-left.",
                           "type": "number"
                         }
                       },
@@ -194,15 +213,15 @@
             ]
           },
           "velocity": {
-            "description": "Initial velocity {x, y} in px/frame. Typical range: -30 to 30. Negative Y = upward motion.",
+            "description": "Initial linear velocity {x, y} in units/second. Positive Y = upward motion. Typical range: -30 to 30 m/s.",
             "type": "object",
             "properties": {
               "x": {
-                "description": "X component. For velocity: positive = rightward, negative = leftward. For position: 0-800 range.",
+                "description": "X component. For velocity: positive = rightward, negative = leftward. For position: depends on pixelsPerUnit scale.",
                 "type": "number"
               },
               "y": {
-                "description": "Y component. For velocity: positive = downward, negative = upward. For position: 0-600 range.",
+                "description": "Y component. For velocity: positive = downward, negative = upward. For position: Y increases upward from origin at bottom-left.",
                 "type": "number"
               }
             },
@@ -213,15 +232,15 @@
             "additionalProperties": false
           },
           "acceleration": {
-            "description": "Initial acceleration {x, y}. Usually not set directly; gravity provides Y acceleration.",
+            "description": "Initial linear acceleration {x, y} in units/s². Usually not set directly; gravity provides Y acceleration.",
             "type": "object",
             "properties": {
               "x": {
-                "description": "X component. For velocity: positive = rightward, negative = leftward. For position: 0-800 range.",
+                "description": "X component. For velocity: positive = rightward, negative = leftward. For position: depends on pixelsPerUnit scale.",
                 "type": "number"
               },
               "y": {
-                "description": "Y component. For velocity: positive = downward, negative = upward. For position: 0-600 range.",
+                "description": "Y component. For velocity: positive = downward, negative = upward. For position: Y increases upward from origin at bottom-left.",
                 "type": "number"
               }
             },
@@ -254,6 +273,18 @@
           "isStatic": {
             "description": "If true, object is immovable (good for floors, walls, platforms). Default: false",
             "type": "boolean"
+          },
+          "mass": {
+            "description": "Mass of the object in kg. Default: 1",
+            "type": "number"
+          },
+          "angularVelocity": {
+            "description": "Initial angular velocity in radians/second. Default: 0",
+            "type": "number"
+          },
+          "angle": {
+            "description": "Initial angle in radians. Default: 0",
+            "type": "number"
           }
         },
         "required": [
@@ -273,7 +304,7 @@
         "description": "Interactive control for students to adjust simulation parameters. Sliders for numeric values, toggles for booleans.",
         "oneOf": [
           {
-            "description": "Slider control for adjusting numeric properties. Allows students to experiment with different values.",
+            "description": "Slider control for adjusting numeric properties. Values are in real-world units (meters, etc.) with Y-up coordinates.",
             "type": "object",
             "properties": {
               "type": {
@@ -295,19 +326,19 @@
                 "type": "string"
               },
               "min": {
-                "description": "Minimum slider value. Velocity: typically -30. Position X: 0. Position Y: 0.",
+                "description": "Minimum slider value in configured units. Velocity: typically -30 to 30 m/s. Position X: 0 to canvas width. Position Y: 0 to canvas height.",
                 "type": "number"
               },
               "max": {
-                "description": "Maximum slider value. Velocity: typically 30. Position X: 800. Position Y: 600.",
+                "description": "Maximum slider value in configured units. With default settings: Position X max ~80m, Position Y max ~60m.",
                 "type": "number"
               },
               "step": {
-                "description": "Slider increment. Use 0.1 for fine control, 1 for coarse control.",
+                "description": "Slider increment in configured units. Use 0.01 for fine control, 0.1 for coarse control.",
                 "type": "number"
               },
               "defaultValue": {
-                "description": "Initial value when simulation loads. Should match the object's initial property value.",
+                "description": "Initial value when simulation loads in configured units. Should match the object's initial property value.",
                 "type": "number"
               }
             },
@@ -378,7 +409,7 @@
             "description": "Array of values to display in this group",
             "type": "array",
             "items": {
-              "description": "A single value to display in real-time.",
+              "description": "A single value to display in real-time. Values are automatically converted to real-world units.",
               "type": "object",
               "properties": {
                 "label": {
@@ -394,7 +425,7 @@
                   "type": "string"
                 },
                 "unit": {
-                  "description": "Unit label (e.g., \"px/s\", \"px/s²\", \"px\", \"m/s\")",
+                  "description": "Unit label for display (e.g., \"m/s\", \"m/s²\", \"m\"). Will use the configured unit type. Leave blank to auto-generate based on property and environment unit.",
                   "type": "string"
                 }
               },
@@ -421,7 +452,7 @@
         "description": "Graph configuration. Currently supports line graphs for time-series data.",
         "oneOf": [
           {
-            "description": "Time-series line graph. X-axis is time, Y-axis shows property values. Great for comparing velocity vs acceleration.",
+            "description": "Time-series line graph. X-axis is time, Y-axis shows property values in real-world units. Great for comparing velocity vs acceleration.",
             "type": "object",
             "properties": {
               "type": {
@@ -435,15 +466,15 @@
                 "type": "string"
               },
               "yAxisRange": {
-                "description": "Y-axis range. X-axis is always time.",
+                "description": "Y-axis range in configured units. X-axis is always time in seconds.",
                 "type": "object",
                 "properties": {
                   "min": {
-                    "description": "Minimum Y-axis value. Set to encompass expected values with padding.",
+                    "description": "Minimum Y-axis value in configured units (e.g., -2 for -2 m/s). Set to encompass expected values with padding.",
                     "type": "number"
                   },
                   "max": {
-                    "description": "Maximum Y-axis value. Set to encompass expected values with padding.",
+                    "description": "Maximum Y-axis value in configured units (e.g., 2 for 2 m/s). Set to encompass expected values with padding.",
                     "type": "number"
                   }
                 },
@@ -453,11 +484,15 @@
                 ],
                 "additionalProperties": false
               },
+              "yAxisLabel": {
+                "description": "Y-axis label with units (e.g., \"Velocity (m/s)\", \"Position (m)\"). If not provided, defaults to \"Value\".",
+                "type": "string"
+              },
               "lines": {
                 "description": "Array of lines to plot. Use contrasting colors for multiple lines.",
                 "type": "array",
                 "items": {
-                  "description": "Configuration for a single line on a graph.",
+                  "description": "Configuration for a single line on a graph. Values are automatically converted to real-world units.",
                   "type": "object",
                   "properties": {
                     "label": {

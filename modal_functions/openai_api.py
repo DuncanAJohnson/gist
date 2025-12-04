@@ -92,6 +92,9 @@ async def chat_completion(
             "model": model,
             "input": input_messages,
             "max_output_tokens": max_tokens,
+            "reasoning": {
+                "effort": "low",
+            },
             "stream": False,
             "text": {
                 "format": {
