@@ -53,10 +53,10 @@ const ObjectRenderer = forwardRef<Matter.Body, ObjectConfig>(function ObjectRend
       Matter.Body.setVelocity(object, velocity);
     }
 
-    // Set initial inertia
-    if (inertia !== undefined) {
-      Matter.Body.setInertia(object,inertia);
-    }
+    // Set initial inertia - TODO, inertia is not working as expected
+    // if (inertia !== undefined) {
+    //   Matter.Body.setInertia(object,inertia);
+    // }
 
     // Set initial angular velocity
     if (angularVelocity !== undefined) {
