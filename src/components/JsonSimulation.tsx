@@ -4,6 +4,7 @@ import Matter from 'matter-js';
 import BaseSimulation from './BaseSimulation';
 import Environment from './simulation_components/Environment';
 import Panel from './simulation_components/Panel';
+import Scale from './simulation_components/Scale';
 import SimulationHeader from './simulation_components/SimulationHeader';
 import JsonEditor from './JsonEditor';
 import { createSimulation, updateChangesMade } from '../lib/simulationService';
@@ -65,7 +66,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   const unitConverter = useMemo(() => {
     return new UnitConverter(
       environment.unit ?? 'm',
-      environment.pixelsPerUnit ?? 100,
+      environment.pixelsPerUnit ?? 10,
     );
   }, [environment.unit, environment.pixelsPerUnit]);
 
@@ -391,6 +392,12 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           ))}
         </Panel>
         )}
+
+        {/* Scale */}
+        <Scale
+          pixelsPerUnit={environment.pixelsPerUnit ?? 10}
+          unit={environment.unit ?? 'm'}
+        />
 
         {/* Environment - use converted gravity scale */}
         <Environment walls={environment.walls} gravity={matterGravityScale} />
