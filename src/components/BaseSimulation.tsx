@@ -85,7 +85,7 @@ function BaseSimulation({
     const MAX_DELTA = FIXED_TIME_STEP * 3; // Cap at 3 frames to prevent spiral of death
 
     // Debug logging configuration
-    const ENABLE_DEBUG = false; // Easy toggle for all debug logging
+    const ENABLE_DEBUG = true; // Easy toggle for all debug logging
     const DEBUG_FRAME_COUNT = 30; // Log first 30 frames when running
 
     let lastTime = performance.now();

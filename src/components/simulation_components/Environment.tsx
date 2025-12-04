@@ -5,12 +5,14 @@ import { BASE_SIMULATION_WIDTH, BASE_SIMULATION_HEIGHT } from '../BaseSimulation
 
 interface EnvironmentProps {
   walls?: string[];
+  /** Matter.js gravity scale (pre-converted from real-world units). Default: ~0.00098 (Earth gravity at 100px/m) */
   gravity?: number;
 }
 
-function Environment({ walls = [], gravity = 0.001 }: EnvironmentProps) {
+function Environment({ walls = [], gravity = 0.00098 }: EnvironmentProps) {
   const engine = usePhysics();
 
+  // Set gravity scale directly (already converted from real-world units)
   engine.gravity.scale = gravity;
 
   useEffect(() => {

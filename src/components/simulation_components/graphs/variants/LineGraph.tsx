@@ -13,7 +13,7 @@ import { registerGraph } from '../registry';
 import type { LineGraphConfig, GraphRenderProps } from '../types';
 
 function LineGraph({ config, data }: GraphRenderProps<LineGraphConfig>) {
-  const { title, yAxisRange, lines } = config;
+  const { title, yAxisRange, yAxisLabel, lines } = config;
 
   // Calculate actual y-axis domain (extend beyond initial range if needed)
   const yDomain = useMemo(() => {
@@ -69,7 +69,7 @@ function LineGraph({ config, data }: GraphRenderProps<LineGraphConfig>) {
           />
           <YAxis
             domain={yDomain}
-            label={{ value: 'Value', angle: -90, position: 'insideLeft' }}
+            label={{ value: yAxisLabel || 'Value', angle: -90, position: 'insideLeft' }}
             tickFormatter={(value: number) => value.toFixed(1)}
           />
           <Tooltip
