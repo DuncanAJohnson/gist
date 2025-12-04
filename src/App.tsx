@@ -3,13 +3,10 @@ import Navigation from './components/Navigation'
 import Home from './pages/Home'
 import TwoBoxesSimulation from './simulations/TwoBoxesSimulation'
 import TossBallSimulation from './simulations/TossBallSimulation'
-import CreateSimulation from './components/CreateSimulation'
 import DynamicSimulation from './pages/DynamicSimulation'
-import { CreateSimulationProvider, useCreateSimulation } from './contexts/CreateSimulationContext'
+import { CreateSimulationProvider } from './contexts/CreateSimulationContext'
 
 function AppContent() {
-  const { isOpen, closeModal } = useCreateSimulation();
-
   return (
     <>
       <Navigation />
@@ -20,7 +17,6 @@ function AppContent() {
         <Route path="/simulation/dynamic" element={<DynamicSimulation />} />
         <Route path="/simulation/:id" element={<DynamicSimulation />} />
       </Routes>
-      <CreateSimulation isOpen={isOpen} onClose={closeModal} />
     </>
   )
 }

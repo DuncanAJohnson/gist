@@ -373,8 +373,6 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           }, 0);
         }}
       />
-
-      
       
       <BaseSimulation
         onUpdate={handleUpdate}
