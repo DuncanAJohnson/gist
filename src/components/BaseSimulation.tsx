@@ -27,6 +27,8 @@ function BaseSimulation({
   const sceneRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<Matter.Engine | null>(null);
   const renderRef = useRef<Matter.Render | null>(null);
+  const mouseRef = useRef<Matter.Mouse | null>(null);
+  const mouseConstraintRef = useRef<Matter.MouseConstraint | null>(null);
   const [engineReady, setEngineReady] = useState(false);
   const isRunningRef = useRef(false);
   const initialBodiesRef = useRef<Array<{
@@ -57,6 +59,65 @@ function BaseSimulation({
       },
     });
     renderRef.current = render;
+
+    // Create mouse tracking for drag functionality
+    const mouse = Matter.Mouse.create(render.canvas);
+    mouseRef.current = mouse;
+
+    // Create mouse constraint for dragging objects
+    const mouseConstraint = Matter.MouseConstraint.create(engine, {
+      mouse: mouse,
+      constraint: {
+        stiffness: 0.2,
+        damping: 0.1,
+        render: {
+          visible: false
+        }
+      }
+    });
+    mouseConstraintRef.current = mouseConstraint;
+
+    // Add mouse constraint to world
+    Matter.Composite.add(engine.world, mouseConstraint);
+
+    // Keep mouse in sync with render pixel ratio (important for retina displays)
+    render.mouse = mouse;
+
+    // Cursor change handlers for drag feedback
+    const handleMouseMove = () => {
+      const canvas = render.canvas;
+      // Check if currently dragging
+      if (mouseConstraint.body) {
+        canvas.style.cursor = 'grabbing';
+        return;
+      }
+      // Check if hovering over a non-static body
+      const bodies = Matter.Composite.allBodies(engine.world).filter(b => !b.isStatic);
+      const hoveredBodies = Matter.Query.point(bodies, mouse.position);
+      canvas.style.cursor = hoveredBodies.length > 0 ? 'grab' : 'default';
+    };
+
+    const handleMouseDown = () => {
+      if (mouseConstraint.body) {
+        render.canvas.style.cursor = 'grabbing';
+      }
+    };
+
+    const handleMouseUp = () => {
+      render.canvas.style.cursor = 'default';
+      // Trigger a check to update cursor if still hovering
+      handleMouseMove();
+    };
+
+    const handleMouseLeave = () => {
+      render.canvas.style.cursor = 'default';
+    };
+
+    // Add cursor event listeners
+    render.canvas.addEventListener('mousemove', handleMouseMove);
+    render.canvas.addEventListener('mousedown', handleMouseDown);
+    render.canvas.addEventListener('mouseup', handleMouseUp);
+    render.canvas.addEventListener('mouseleave', handleMouseLeave);
 
     // Mark engine as ready so children can use it
     setEngineReady(true);
@@ -166,6 +227,16 @@ function BaseSimulation({
           console.log(`[PAUSED Frame ${frameCount}] Waiting... (delta: ${delta.toFixed(2)}ms)`);
         }
 
+        // If dragging while paused, still need to update physics for the constraint
+        if (mouseConstraint.body) {
+          // Apply a single physics step to update the dragged body position
+          Matter.Engine.update(engine, FIXED_TIME_STEP);
+
+          // Zero out velocity so object doesn't drift when released
+          Matter.Body.setVelocity(mouseConstraint.body, { x: 0, y: 0 });
+          Matter.Body.setAngularVelocity(mouseConstraint.body, 0);
+        }
+
         // When paused, still call onUpdate for output display
         if (onUpdate) {
           onUpdate(engine, simulationTimeRef.current);
@@ -210,6 +281,19 @@ function BaseSimulation({
 
     // Cleanup
     return () => {
+      // Remove mouse event listeners
+      render.canvas.removeEventListener('mousemove', handleMouseMove);
+      render.canvas.removeEventListener('mousedown', handleMouseDown);
+      render.canvas.removeEventListener('mouseup', handleMouseUp);
+      render.canvas.removeEventListener('mouseleave', handleMouseLeave);
+
+      // Remove mouse constraint from world
+      if (mouseConstraintRef.current) {
+        Matter.Composite.remove(engine.world, mouseConstraintRef.current);
+        mouseConstraintRef.current = null;
+      }
+      mouseRef.current = null;
+
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
       }
