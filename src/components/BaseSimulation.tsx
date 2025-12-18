@@ -83,6 +83,28 @@ function BaseSimulation({
     // Keep mouse in sync with render pixel ratio (important for retina displays)
     render.mouse = mouse;
 
+    // Track shift key state for speed boost feature
+    let shiftKeyDown = false;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Shift') {
+        shiftKeyDown = true;
+        // Disable mouse constraint while shift is held
+        mouseConstraint.collisionFilter.mask = 0;
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === 'Shift') {
+        shiftKeyDown = false;
+        // Re-enable mouse constraint
+        mouseConstraint.collisionFilter.mask = 0xFFFFFFFF;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+
     // Cursor change handlers for drag feedback
     const handleMouseMove = () => {
       const canvas = render.canvas;
@@ -97,7 +119,28 @@ function BaseSimulation({
       canvas.style.cursor = hoveredBodies.length > 0 ? 'grab' : 'default';
     };
 
-    const handleMouseDown = () => {
+    const SPEED_BOOST = 10; // Velocity boost magnitude
+
+    const handleMouseDown = (event: MouseEvent) => {
+      // Check for shift+click speed boost
+      if (event.shiftKey) {
+        const bodies = Matter.Composite.allBodies(engine.world).filter(b => !b.isStatic);
+        const clickedBodies = Matter.Query.point(bodies, mouse.position);
+
+        if (clickedBodies.length > 0) {
+          const body = clickedBodies[0];
+          // Determine if click is on left or right side of object center
+          const clickedOnLeft = mouse.position.x < body.position.x;
+          // Apply velocity boost in opposite direction
+          const boostDirection = clickedOnLeft ? 1 : -1;
+          Matter.Body.setVelocity(body, {
+            x: body.velocity.x + (SPEED_BOOST * boostDirection),
+            y: body.velocity.y
+          });
+          return; // Don't initiate drag when shift-clicking
+        }
+      }
+
       if (mouseConstraint.body) {
         render.canvas.style.cursor = 'grabbing';
       }
@@ -281,6 +324,10 @@ function BaseSimulation({
 
     // Cleanup
     return () => {
+      // Remove keyboard event listeners
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keyup', handleKeyUp);
+
       // Remove mouse event listeners
       render.canvas.removeEventListener('mousemove', handleMouseMove);
       render.canvas.removeEventListener('mousedown', handleMouseDown);
