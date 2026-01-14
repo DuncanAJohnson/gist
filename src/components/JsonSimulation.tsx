@@ -21,6 +21,8 @@ import type { ObjectConfig } from './simulation_components/objects/types';
 // Outputs
 import { OutputGroup } from './simulation_components/Output';
 import type { OutputGroupConfig } from '../schemas/simulation';
+// Data Download
+import DataDownload from './simulation_components/DataDownload';
 
 interface SimulationConfig {
   title?: string;
@@ -448,6 +450,13 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
                 />
               ))}
             </div>
+          </Panel>
+        )}
+
+        {/* Data Download */}
+        {graphs.length > 0 && (
+          <Panel title="Download Data" className="col-start-3 row-start-2">
+            <DataDownload graphs={graphs} graphData={graphData} />
           </Panel>
         )}
       </BaseSimulation>
