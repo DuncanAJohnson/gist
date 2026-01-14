@@ -12,7 +12,7 @@ import {
 import { registerGraph } from '../registry';
 import type { LineGraphConfig, GraphRenderProps } from '../types';
 
-function LineGraph({ config, data }: GraphRenderProps<LineGraphConfig>) {
+function LineGraph({ config, data, compact = false }: GraphRenderProps<LineGraphConfig>) {
   const { title, yAxisRange, yAxisLabel, lines } = config;
 
   // Calculate actual y-axis domain (extend beyond initial range if needed)
@@ -55,10 +55,10 @@ function LineGraph({ config, data }: GraphRenderProps<LineGraphConfig>) {
   }, [data]);
 
   return (
-    <div className="bg-white rounded-lg p-4 shadow-md min-w-[400px]">
-      {title && <h3 className="m-0 mb-4 text-gray-800 text-base font-semibold text-center">{title}</h3>}
-      <ResponsiveContainer width="100%" height={400}>
-        <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+    <div className={`bg-white rounded-lg shadow-md ${compact ? 'p-2 min-w-[280px]' : 'p-4 min-w-[400px]'}`}>
+      {title && <h3 className={`m-0 text-gray-800 font-semibold text-center ${compact ? 'mb-2 text-sm' : 'mb-4 text-base'}`}>{title}</h3>}
+      <ResponsiveContainer width="100%" height={compact ? 250 : 400}>
+        <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 20 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
             dataKey="time"

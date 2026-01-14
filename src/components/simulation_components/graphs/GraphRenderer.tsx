@@ -7,9 +7,10 @@ import './variants';
 interface Props {
   config: GraphConfig;
   data: DataPoint[];
+  compact?: boolean;
 }
 
-function GraphRenderer({ config, data }: Props) {
+function GraphRenderer({ config, data, compact = false }: Props) {
   const Component = getGraphComponent(config.type);
 
   if (!Component) {
@@ -17,7 +18,7 @@ function GraphRenderer({ config, data }: Props) {
     return null;
   }
 
-  return <Component config={config} data={data} />;
+  return <Component config={config} data={data} compact={compact} />;
 }
 
 export default GraphRenderer;

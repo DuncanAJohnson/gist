@@ -1,4 +1,8 @@
-import { BASE_SIMULATION_HEIGHT, BASE_SIMULATION_WIDTH } from '../components/BaseSimulation';
+import { 
+  SIMULATION_WIDTH, 
+  SIMULATION_HEIGHT, 
+  WALL_THICKNESS 
+} from '../components/BaseSimulation';
 
 /**
  * Supported unit types for the simulation
@@ -31,23 +35,26 @@ export const UNIT_ABBREV: Record<UnitType, string> = {
  * UnitConverter handles conversions between real-world units and Matter.js pixels.
  * 
  * Coordinate systems:
- * - Real-world (JSON config): Origin at bottom-left, Y increases upward
- * - Matter.js (pixels): Origin at top-left, Y increases downward
+ * - Real-world (JSON config): Origin at bottom-left of usable space, Y increases upward
+ * - Matter.js (pixels): Origin at top-left of canvas, Y increases downward
  * 
- * The conversion uses pixelsPerUnit to scale values and flips Y-axis for positions/velocities.
+ * The usable simulation space is offset by WALL_THICKNESS from the canvas edges.
+ * The conversion uses pixelsPerUnit to scale values, adds wall offset, and flips Y-axis.
  */
 export class UnitConverter {
   public readonly unit: UnitType;
   public readonly pixelsPerUnit: number;
-  private readonly canvasWidth: number;
-  private readonly canvasHeight: number;
+  private readonly simulationWidth: number;
+  private readonly simulationHeight: number;
+  private readonly wallOffset: number;
   private readonly frameRate: number;
 
-  constructor(unit: UnitType = 'm', pixelsPerUnit: number = 100, canvasWidth: number = BASE_SIMULATION_WIDTH, canvasHeight: number = BASE_SIMULATION_HEIGHT, frameRate: number = 60) {
+  constructor(unit: UnitType = 'm', pixelsPerUnit: number = 100, simulationWidth: number = SIMULATION_WIDTH, simulationHeight: number = SIMULATION_HEIGHT, frameRate: number = 60) {
     this.unit = unit;
     this.pixelsPerUnit = pixelsPerUnit;
-    this.canvasWidth = canvasWidth;
-    this.canvasHeight = canvasHeight;
+    this.simulationWidth = simulationWidth;
+    this.simulationHeight = simulationHeight;
+    this.wallOffset = WALL_THICKNESS;
     this.frameRate = frameRate;
   }
 
@@ -59,12 +66,12 @@ export class UnitConverter {
   }
 
   /**
-   * Get canvas dimensions in the configured unit
+   * Get usable simulation dimensions in the configured unit
    */
-  getCanvasDimensions(): { width: number; height: number } {
+  getSimulationDimensions(): { width: number; height: number } {
     return {
-      width: this.canvasWidth / this.pixelsPerUnit,
-      height: this.canvasHeight / this.pixelsPerUnit,
+      width: this.simulationWidth / this.pixelsPerUnit,
+      height: this.simulationHeight / this.pixelsPerUnit,
     };
   }
 
@@ -73,33 +80,36 @@ export class UnitConverter {
   // ==========================================
 
   /**
-   * Convert X position from real-world units to pixels
-   * (simple scale, no flip)
+   * Convert X position from real-world units to canvas pixels
+   * (scale + wall offset: simulation x=0 is at canvas x=wallOffset)
    */
   toPixelsX(value: number): number {
-    return value * this.pixelsPerUnit;
+    return value * this.pixelsPerUnit + this.wallOffset;
   }
 
   /**
-   * Convert X position from pixels to real-world units
+   * Convert X position from canvas pixels to real-world units
    */
   fromPixelsX(pixels: number): number {
-    return pixels / this.pixelsPerUnit;
+    return (pixels - this.wallOffset) / this.pixelsPerUnit;
   }
 
   /**
-   * Convert Y position from real-world units to pixels
-   * (scale + Y-axis flip: bottom-left origin to top-left origin)
+   * Convert Y position from real-world units to canvas pixels
+   * (scale + Y-axis flip + wall offset: simulation y=0 is at the bottom of usable space)
    */
   toPixelsY(value: number): number {
-    return this.canvasHeight - (value * this.pixelsPerUnit);
+    // Bottom of usable space in canvas coords is: wallOffset + simulationHeight
+    // Simulation y=0 → canvas y = wallOffset + simulationHeight
+    // Simulation y increases → canvas y decreases
+    return this.wallOffset + this.simulationHeight - (value * this.pixelsPerUnit);
   }
 
   /**
-   * Convert Y position from pixels to real-world units
+   * Convert Y position from canvas pixels to real-world units
    */
   fromPixelsY(pixels: number): number {
-    return (this.canvasHeight - pixels) / this.pixelsPerUnit;
+    return (this.wallOffset + this.simulationHeight - pixels) / this.pixelsPerUnit;
   }
 
   /**

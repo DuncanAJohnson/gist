@@ -105,6 +105,26 @@
           "color": "#4ecdc4"
         }
       ]
+    },
+    {
+      "type": "line",
+      "title": "Horizontal Position Over Time",
+      "yAxisRange": { "min": -1, "max": 1 },
+      "yAxisLabel": "Position (m)",
+      "lines": [
+        {
+          "label": "Box A Position X",
+          "targetObj": "boxA",
+          "property": "position.x",
+          "color": "#ff6bff"
+        },
+        {
+          "label": "Box B Position X",
+          "targetObj": "boxB",
+          "property": "position.x",
+          "color": "#4ecdc4"
+        }
+      ]
     }
   ]
 }

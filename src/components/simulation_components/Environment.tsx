@@ -1,7 +1,11 @@
 import { useEffect } from 'react';
 import Matter from 'matter-js';
 import { usePhysics } from '../../contexts/PhysicsContext';
-import { BASE_SIMULATION_WIDTH, BASE_SIMULATION_HEIGHT } from '../BaseSimulation';
+import { 
+  CANVAS_WIDTH, 
+  CANVAS_HEIGHT, 
+  WALL_THICKNESS 
+} from '../BaseSimulation';
 
 interface EnvironmentProps {
   walls?: string[];
@@ -19,15 +23,18 @@ function Environment({ walls = [], gravity = 0.00098 }: EnvironmentProps) {
     const { Bodies, Composite } = Matter;
     const createdBodies: Matter.Body[] = [];
 
-    const wallThickness = 40;
+    // Walls are positioned at the outer edges of the canvas,
+    // so the usable simulation space (0,0) to (SIMULATION_WIDTH, SIMULATION_HEIGHT)
+    // is inside the walls with (0,0) at bottom-left of the usable area.
 
     // Create walls based on the walls array
     if (walls.includes('bottom')) {
+      // Bottom wall: inner edge at y = CANVAS_HEIGHT - WALL_THICKNESS (bottom of usable space)
       const ground = Bodies.rectangle(
-        BASE_SIMULATION_WIDTH / 2,
-        BASE_SIMULATION_HEIGHT - wallThickness / 2,
-        BASE_SIMULATION_WIDTH + wallThickness,
-        wallThickness,
+        CANVAS_WIDTH / 2,
+        CANVAS_HEIGHT - WALL_THICKNESS / 2,
+        CANVAS_WIDTH,
+        WALL_THICKNESS,
         {
           isStatic: true,
           render: {
@@ -39,11 +46,12 @@ function Environment({ walls = [], gravity = 0.00098 }: EnvironmentProps) {
     }
 
     if (walls.includes('top')) {
+      // Top wall: inner edge at y = WALL_THICKNESS (top of usable space)
       const ceiling = Bodies.rectangle(
-        BASE_SIMULATION_WIDTH / 2,
-        wallThickness / 2,
-        BASE_SIMULATION_WIDTH + wallThickness,
-        wallThickness,
+        CANVAS_WIDTH / 2,
+        WALL_THICKNESS / 2,
+        CANVAS_WIDTH,
+        WALL_THICKNESS,
         {
           isStatic: true,
           render: {
@@ -55,11 +63,12 @@ function Environment({ walls = [], gravity = 0.00098 }: EnvironmentProps) {
     }
 
     if (walls.includes('left')) {
+      // Left wall: inner edge at x = WALL_THICKNESS (left of usable space)
       const leftWall = Bodies.rectangle(
-        wallThickness / 2,
-        BASE_SIMULATION_HEIGHT / 2,
-        wallThickness,
-        BASE_SIMULATION_HEIGHT,
+        WALL_THICKNESS / 2,
+        CANVAS_HEIGHT / 2,
+        WALL_THICKNESS,
+        CANVAS_HEIGHT,
         {
           isStatic: true,
           render: {
@@ -71,11 +80,12 @@ function Environment({ walls = [], gravity = 0.00098 }: EnvironmentProps) {
     }
 
     if (walls.includes('right')) {
+      // Right wall: inner edge at x = CANVAS_WIDTH - WALL_THICKNESS (right of usable space)
       const rightWall = Bodies.rectangle(
-        BASE_SIMULATION_WIDTH - wallThickness / 2,
-        BASE_SIMULATION_HEIGHT / 2,
-        wallThickness,
-        BASE_SIMULATION_HEIGHT,
+        CANVAS_WIDTH - WALL_THICKNESS / 2,
+        CANVAS_HEIGHT / 2,
+        WALL_THICKNESS,
+        CANVAS_HEIGHT,
         {
           isStatic: true,
           render: {

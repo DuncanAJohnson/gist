@@ -21,6 +21,8 @@ import type { ObjectConfig } from './simulation_components/objects/types';
 // Outputs
 import { OutputGroup } from './simulation_components/Output';
 import type { OutputGroupConfig } from '../schemas/simulation';
+// Data Download
+import DataDownload from './simulation_components/DataDownload';
 
 interface SimulationConfig {
   title?: string;
@@ -416,14 +418,22 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         ))}
 
         {/* Graphs */}
-        {graphs.map((graph, graphIndex) => (
-          <Panel key={graphIndex} className="col-start-3 row-start-1">
-            <GraphRenderer
-              config={graph}
-              data={graphData[graphIndex] || []}
-            />
+        {graphs.length > 0 && (
+          <Panel className="col-start-3 row-start-1">
+            <div className={`grid gap-8 ${
+              graphs.length <= 2 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'
+            }`}>
+              {graphs.map((graph, graphIndex) => (
+                <GraphRenderer
+                  key={graphIndex}
+                  config={graph}
+                  data={graphData[graphIndex] || []}
+                  compact={graphs.length > 1}
+                />
+              ))}
+            </div>
           </Panel>
-        ))}
+        )}
 
         {/* Outputs */}
         {outputs.length > 0 && (
@@ -440,6 +450,13 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
                 />
               ))}
             </div>
+          </Panel>
+        )}
+
+        {/* Data Download */}
+        {graphs.length > 0 && (
+          <Panel title="Download Data" className="col-start-3 row-start-2">
+            <DataDownload graphs={graphs} graphData={graphData} />
           </Panel>
         )}
       </BaseSimulation>
