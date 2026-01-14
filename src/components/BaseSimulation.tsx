@@ -15,8 +15,24 @@ interface BaseSimulationProps {
   onControlsReady?: (controls: SimulationControls) => void;
 }
 
-export const BASE_SIMULATION_WIDTH = 800;
-export const BASE_SIMULATION_HEIGHT = 600;
+// Wall thickness for environment boundaries
+export const WALL_THICKNESS = 40;
+
+// Usable simulation space dimensions (where objects can be placed)
+export const SIMULATION_WIDTH = 800;
+export const SIMULATION_HEIGHT = 600;
+
+// Total canvas dimensions (includes walls on all sides)
+export const CANVAS_WIDTH = SIMULATION_WIDTH + 2 * WALL_THICKNESS;
+export const CANVAS_HEIGHT = SIMULATION_HEIGHT + 2 * WALL_THICKNESS;
+
+// Coordinate transformation helpers:
+// Simulation (0, 0) is at the bottom-left of the usable space
+// Canvas coordinates have y increasing downward, simulation has y increasing upward
+export const simToCanvasX = (simX: number) => simX + WALL_THICKNESS;
+export const simToCanvasY = (simY: number) => CANVAS_HEIGHT - WALL_THICKNESS - simY;
+export const canvasToSimX = (canvasX: number) => canvasX - WALL_THICKNESS;
+export const canvasToSimY = (canvasY: number) => CANVAS_HEIGHT - WALL_THICKNESS - canvasY;
 
 function BaseSimulation({ 
   onInit, 
@@ -50,8 +66,8 @@ function BaseSimulation({
       element: sceneRef.current,
       engine: engine,
       options: {
-        width: BASE_SIMULATION_WIDTH,
-        height: BASE_SIMULATION_HEIGHT,
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
         wireframes: false,
         background: '#fafafa',
       },
