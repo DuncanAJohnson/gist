@@ -416,14 +416,22 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         ))}
 
         {/* Graphs */}
-        {graphs.map((graph, graphIndex) => (
-          <Panel key={graphIndex} className="col-start-3 row-start-1">
-            <GraphRenderer
-              config={graph}
-              data={graphData[graphIndex] || []}
-            />
+        {graphs.length > 0 && (
+          <Panel className="col-start-3 row-start-1">
+            <div className={`grid gap-8 ${
+              graphs.length <= 2 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'
+            }`}>
+              {graphs.map((graph, graphIndex) => (
+                <GraphRenderer
+                  key={graphIndex}
+                  config={graph}
+                  data={graphData[graphIndex] || []}
+                  compact={graphs.length > 1}
+                />
+              ))}
+            </div>
           </Panel>
-        ))}
+        )}
 
         {/* Outputs */}
         {outputs.length > 0 && (
