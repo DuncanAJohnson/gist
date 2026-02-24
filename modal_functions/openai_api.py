@@ -8,18 +8,24 @@ import modal
 import json
 import os
 from gist_instructions import instructions
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 # Create Modal app
 app = modal.App("gist-openai-stream")
 
-# Get absolute path to schema file for including in the image
+# Get absolute paths to local files for including in the image
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _schema_local_path = os.path.join(_current_dir, 'simulation_schema.json')
+_instructions_local_path = os.path.join(_current_dir, 'gist_instructions.py')
 
-# Define the image with dependencies and include the schema file
-image = modal.Image.debian_slim().pip_install("openai", "fastapi[standard]").add_local_file(
-    local_path=_schema_local_path,
-    remote_path="/root/simulation_schema.json"
+# Define the image with dependencies and include the schema and instructions files
+image = (
+    modal.Image.debian_slim()
+    .pip_install("openai", "fastapi[standard]")
+    .add_local_file(local_path=_schema_local_path, remote_path="/root/simulation_schema.json")
+    .add_local_file(local_path=_instructions_local_path, remote_path="/root/gist_instructions.py")
 )
 
 # Path to schema in the Modal container
@@ -131,11 +137,19 @@ async def chat_completion(
         }
 
 
-@app.function(
-    image=image,
-    secrets=[modal.Secret.from_name("gist-openai-key")],
+# Build FastAPI app with CORS middleware so browser preflight OPTIONS
+# requests are answered with the required headers.
+web_app = FastAPI()
+web_app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["POST", "OPTIONS"],
+    allow_headers=["*"],
 )
-@modal.fastapi_endpoint(method="POST")
+
+
+@web_app.post("/")
 async def chat_endpoint(request: dict):
     """
     HTTP endpoint for chat requests.
@@ -148,8 +162,6 @@ async def chat_endpoint(request: dict):
         "max_tokens": 10000
     }
     """
-    from fastapi.responses import JSONResponse
-    
     # Extract parameters
     messages = request.get("messages", [])
     model = request.get("model", "gpt-5-mini")
@@ -167,11 +179,13 @@ async def chat_endpoint(request: dict):
         max_tokens=max_tokens,
     )
     
-    return JSONResponse(
-        content=result,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-        }
-    )
+    return JSONResponse(content=result)
+
+
+@app.function(
+    image=image,
+    secrets=[modal.Secret.from_name("gist-openai-key")],
+)
+@modal.asgi_app()
+def fastapi_app():
+    return web_app
