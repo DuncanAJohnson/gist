@@ -23,6 +23,9 @@ import { OutputGroup } from './simulation_components/Output';
 import type { OutputGroupConfig } from '../schemas/simulation';
 // Data Download
 import DataDownload from './simulation_components/DataDownload';
+// Experimental Data
+import ExperimentalDataModal, { type ExperimentalDataConfig, type ModalFormState, DEFAULT_MODAL_FORM_STATE } from './simulation_components/ExperimentalDataModal';
+import ExperimentalDataRenderer from './simulation_components/ExperimentalDataRenderer';
 
 interface SimulationConfig {
   title?: string;
@@ -63,6 +66,15 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   } = config;
 
   const [showJsonEditor, setShowJsonEditor] = useState(false);
+
+  // Experimental data overlay state
+  const [showExperimentalModal, setShowExperimentalModal] = useState(false);
+  const [experimentalData, setExperimentalData] = useState<ExperimentalDataConfig | null>(null);
+  const [pickingPosition, setPickingPosition] = useState(false);
+  const [pickedPosition, setPickedPosition] = useState<{ x: number; y: number } | null>(null);
+  const [modalFormState, setModalFormState] = useState<ModalFormState>(DEFAULT_MODAL_FORM_STATE);
+  const [simulationTime, setSimulationTime] = useState(0);
+  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Create unit converter from environment config
   const unitConverter = useMemo(() => {
@@ -271,6 +283,9 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
     setOutputValues(newOutputValues);
 
+    // Update simulation time for experimental data renderer
+    setSimulationTime(time);
+
     // Collect graph data and convert from pixels to real-world units
     if (graphs.length > 0 && isRunningRef.current) {
       setGraphData((prevData) => {
@@ -328,6 +343,34 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     }
   };
 
+  const handlePickPosition = useCallback(() => {
+    setShowExperimentalModal(false); // hide modal but keep form state
+    setPickingPosition(true);
+  }, []);
+
+  const handleCanvasClick = useCallback((canvasX: number, canvasY: number) => {
+    if (!pickingPosition) return;
+    const realPos = unitConverter.fromPixelsPosition({ x: canvasX, y: canvasY });
+    setPickedPosition(realPos);
+    setPickingPosition(false);
+    setShowExperimentalModal(true);
+  }, [pickingPosition, unitConverter]);
+
+  const handleCanvasContainerReady = useCallback((container: HTMLDivElement) => {
+    canvasContainerRef.current = container;
+  }, []);
+
+  const handleExperimentalConfirm = useCallback((config: ExperimentalDataConfig) => {
+    setExperimentalData(config);
+    setShowExperimentalModal(false);
+    setPickedPosition(null);
+    setModalFormState(DEFAULT_MODAL_FORM_STATE);
+  }, []);
+
+  const handleModalFormStateChange = useCallback((update: Partial<ModalFormState>) => {
+    setModalFormState(prev => ({ ...prev, ...update }));
+  }, []);
+
   return (
     <div>
       {showJsonEditor && (
@@ -336,6 +379,22 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           onSave={handleSaveTweakedJSON}
           onClose={() => setShowJsonEditor(false)}
         />
+      )}
+      {showExperimentalModal && (
+        <ExperimentalDataModal
+          formState={modalFormState}
+          onFormStateChange={handleModalFormStateChange}
+          onClose={() => { setShowExperimentalModal(false); setPickedPosition(null); setModalFormState(DEFAULT_MODAL_FORM_STATE); }}
+          onConfirm={handleExperimentalConfirm}
+          onPickPosition={handlePickPosition}
+          pickedPosition={pickedPosition}
+          unitLabel={unitConverter.getUnitLabel()}
+        />
+      )}
+      {pickingPosition && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg text-sm font-medium">
+          Click on the simulation to set the starting position
+        </div>
       )}
       <SimulationHeader
         title={title}
@@ -380,6 +439,9 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
       <BaseSimulation
         onUpdate={handleUpdate}
         onControlsReady={handleControlsReady}
+        onCanvasContainerReady={handleCanvasContainerReady}
+        onCanvasClick={handleCanvasClick}
+        pickingPosition={pickingPosition}
       >
         {/* Controls */}
         {controls.length > 0 && (
@@ -395,11 +457,27 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         </Panel>
         )}
 
-        {/* Scale */}
-        <Scale
-          pixelsPerUnit={environment.pixelsPerUnit ?? 10}
-          unit={environment.unit ?? 'm'}
-        />
+        {/* Scale + Import Experimental Data */}
+        <div className="col-start-1 row-start-2 justify-self-end flex flex-col gap-3 items-end">
+          <Scale
+            pixelsPerUnit={environment.pixelsPerUnit ?? 10}
+            unit={environment.unit ?? 'm'}
+          />
+          <button
+            onClick={() => setShowExperimentalModal(true)}
+            className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-sm font-medium shadow-md"
+          >
+            Import Experimental Data
+          </button>
+          {experimentalData && (
+            <button
+              onClick={() => setExperimentalData(null)}
+              className="px-3 py-1.5 text-red-500 hover:text-red-700 text-xs"
+            >
+              Clear Experimental Data
+            </button>
+          )}
+        </div>
 
         {/* Environment - use converted gravity scale */}
         <Environment walls={environment.walls} gravity={matterGravityScale} />
@@ -458,6 +536,15 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           <Panel title="Download Data" className="col-start-3 row-start-2">
             <DataDownload graphs={graphs} graphData={graphData} />
           </Panel>
+        )}
+        {/* Experimental Data Overlay */}
+        {experimentalData && (
+          <ExperimentalDataRenderer
+            config={experimentalData}
+            simulationTime={simulationTime}
+            unitConverter={unitConverter}
+            canvasContainer={canvasContainerRef.current}
+          />
         )}
       </BaseSimulation>
     </div>

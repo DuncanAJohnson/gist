@@ -13,6 +13,9 @@ interface BaseSimulationProps {
   onUpdate?: (engine: Matter.Engine, time: number) => void;
   children?: ReactNode;
   onControlsReady?: (controls: SimulationControls) => void;
+  onCanvasContainerReady?: (container: HTMLDivElement) => void;
+  onCanvasClick?: (canvasX: number, canvasY: number) => void;
+  pickingPosition?: boolean;
 }
 
 // Wall thickness for environment boundaries
@@ -34,11 +37,14 @@ export const simToCanvasY = (simY: number) => CANVAS_HEIGHT - WALL_THICKNESS - s
 export const canvasToSimX = (canvasX: number) => canvasX - WALL_THICKNESS;
 export const canvasToSimY = (canvasY: number) => CANVAS_HEIGHT - WALL_THICKNESS - canvasY;
 
-function BaseSimulation({ 
-  onInit, 
-  onUpdate, 
-  children, 
-  onControlsReady 
+function BaseSimulation({
+  onInit,
+  onUpdate,
+  children,
+  onControlsReady,
+  onCanvasContainerReady,
+  onCanvasClick,
+  pickingPosition,
 }: BaseSimulationProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<Matter.Engine | null>(null);
@@ -76,6 +82,11 @@ function BaseSimulation({
 
     // Mark engine as ready so children can use it
     setEngineReady(true);
+
+    // Expose canvas container to parent
+    if (onCanvasContainerReady) {
+      onCanvasContainerReady(sceneRef.current);
+    }
 
     // Call initialization callback
     if (onInit) {
@@ -235,11 +246,29 @@ function BaseSimulation({
       render.textures = {};
       setEngineReady(false);
     };
-  }, [onInit, onUpdate, onControlsReady]);
+  }, [onInit, onUpdate, onControlsReady, onCanvasContainerReady]);
+
+  // Handle canvas clicks for position picking
+  useEffect(() => {
+    if (!pickingPosition || !onCanvasClick || !sceneRef.current) return;
+
+    const container = sceneRef.current;
+    const handleClick = (e: MouseEvent) => {
+      const canvas = container.querySelector('canvas');
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const canvasX = e.clientX - rect.left;
+      const canvasY = e.clientY - rect.top;
+      onCanvasClick(canvasX, canvasY);
+    };
+
+    container.addEventListener('click', handleClick);
+    return () => container.removeEventListener('click', handleClick);
+  }, [pickingPosition, onCanvasClick]);
 
   return (
     <div className="grid grid-cols-[1fr_auto_1fr] grid-rows-[auto_auto] gap-8 items-start px-8 py-8 max-w-[1800px] mx-auto">
-      <div className="col-start-2 row-start-1 rounded-lg shadow-md overflow-hidden" ref={sceneRef}>
+      <div className={`col-start-2 row-start-1 rounded-lg shadow-md overflow-hidden ${pickingPosition ? 'cursor-crosshair' : ''}`} ref={sceneRef}>
         {/* Canvas will be rendered here */}
       </div>
       {engineReady && engineRef.current && (
