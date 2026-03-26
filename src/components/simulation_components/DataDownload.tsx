@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import type { GraphConfig, LineConfig, DataPoint } from '../../schemas/simulation';
 
 interface DataDownloadProps {
@@ -39,6 +39,17 @@ function DataDownload({ graphs, graphData }: DataDownloadProps) {
   const [selectedObject, setSelectedObject] = useState<string>(objects[0] || '');
   const [selectedLines, setSelectedLines] = useState<Set<string>>(new Set());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Get lines for the selected object
   const linesForObject = useMemo(() => {
@@ -142,7 +153,7 @@ function DataDownload({ graphs, graphData }: DataDownloadProps) {
       </div>
 
       {/* Line Selector (Multi-select Dropdown) */}
-      <div className="relative">
+      <div className="relative" ref={dropdownRef}>
         <label className="block text-sm mb-1 text-gray-600">Data Lines</label>
         <button
           type="button"
