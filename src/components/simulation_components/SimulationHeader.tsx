@@ -14,6 +14,9 @@ interface SimulationHeaderProps {
   onTweakJSON?: () => void;
   simulationId?: number;
   currentJSON?: any;
+  maxDuration: number | null;
+  onMaxDurationChange: (v: number | null) => void;
+  stopped: boolean;
 }
 
 function SimulationHeader({
@@ -27,6 +30,9 @@ function SimulationHeader({
   onTweakJSON,
   simulationId,
   currentJSON,
+  maxDuration,
+  onMaxDurationChange,
+  stopped,
 }: SimulationHeaderProps) {
   const [showEditPopup, setShowEditPopup] = useState(false);
   const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
@@ -102,6 +108,9 @@ function SimulationHeader({
           onPlay={onPlay}
           onPause={onPause}
           onReset={onReset}
+          maxDuration={maxDuration}
+          onMaxDurationChange={onMaxDurationChange}
+          stopped={stopped}
         />
         {simulationId && (
           <>

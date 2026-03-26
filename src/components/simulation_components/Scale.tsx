@@ -30,7 +30,7 @@ function Scale({ pixelsPerUnit, unit }: ScaleProps) {
   const fullValue = formatValue(realWorldValue);
 
   return (
-    <Panel className="col-start-1 row-start-2 justify-self-end">
+    <Panel>
       <div className="flex flex-col items-center gap-1" style={{ width: SCALE_WIDTH_PIXELS }}>
         {/* Scale bar */}
         <div className="relative w-full h-6">
