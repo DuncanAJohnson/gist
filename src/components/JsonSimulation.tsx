@@ -408,6 +408,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           onPickPosition={handlePickPosition}
           pickedPosition={pickedPosition}
           unitLabel={unitConverter.getUnitLabel()}
+          graphs={graphs}
         />
       )}
       {pickingPosition && (
@@ -524,15 +525,29 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
             <div className={`grid gap-8 ${
               graphs.length <= 2 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'
             }`}>
-              {graphs.map((graph, graphIndex) => (
-                <GraphRenderer
-                  key={graphIndex}
-                  config={graph}
-                  data={graphData[graphIndex] || []}
-                  compact={graphs.length > 1}
-                  maxDuration={maxDuration}
-                />
-              ))}
+              {graphs.map((graph, graphIndex) => {
+                const isOverlayTarget = experimentalData?.graphOverlayIndex === graphIndex;
+                const overlayData = isOverlayTarget && experimentalData
+                  ? experimentalData.data
+                      .map(p => {
+                        const field = experimentalData.graphOverlayYField;
+                        const value = field === 'x' ? p.x : p.y;
+                        return value !== undefined ? { time: p.time, value } : null;
+                      })
+                      .filter((p): p is { time: number; value: number } => p !== null)
+                  : undefined;
+                return (
+                  <GraphRenderer
+                    key={graphIndex}
+                    config={graph}
+                    data={graphData[graphIndex] || []}
+                    compact={graphs.length > 1}
+                    maxDuration={maxDuration}
+                    overlayData={overlayData}
+                    overlayColor={isOverlayTarget ? experimentalData?.color : undefined}
+                  />
+                );
+              })}
             </div>
           </Panel>
         )}

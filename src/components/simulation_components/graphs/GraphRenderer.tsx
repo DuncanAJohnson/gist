@@ -1,5 +1,5 @@
 import { getGraphComponent } from './registry';
-import type { GraphConfig, DataPoint } from './types';
+import type { GraphConfig, DataPoint, OverlayPoint } from './types';
 
 // Ensure all variants are registered
 import './variants';
@@ -9,9 +9,11 @@ interface Props {
   data: DataPoint[];
   compact?: boolean;
   maxDuration?: number | null;
+  overlayData?: OverlayPoint[];
+  overlayColor?: string;
 }
 
-function GraphRenderer({ config, data, compact = false, maxDuration }: Props) {
+function GraphRenderer({ config, data, compact = false, maxDuration, overlayData, overlayColor }: Props) {
   const Component = getGraphComponent(config.type ?? 'line');
 
   if (!Component) {
@@ -19,7 +21,7 @@ function GraphRenderer({ config, data, compact = false, maxDuration }: Props) {
     return null;
   }
 
-  return <Component config={config} data={data} compact={compact} maxDuration={maxDuration} />;
+  return <Component config={config} data={data} compact={compact} maxDuration={maxDuration} overlayData={overlayData} overlayColor={overlayColor} />;
 }
 
 export default GraphRenderer;

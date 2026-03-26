@@ -10,6 +10,8 @@ export interface ExperimentalDataConfig {
   positiveY: 'up' | 'down';
   hasX: boolean;
   hasY: boolean;
+  graphOverlayIndex: number | null;
+  graphOverlayYField: 'x' | 'y' | null;
 }
 
 export interface ColumnMapping {
@@ -27,6 +29,8 @@ export interface ModalFormState {
   shape: 'circle' | 'rectangle';
   color: string;
   opacity: number;
+  graphOverlayIndex: number | null;
+  graphOverlayYField: 'x' | 'y';
 }
 
 export const DEFAULT_MODAL_FORM_STATE: ModalFormState = {
@@ -38,6 +42,8 @@ export const DEFAULT_MODAL_FORM_STATE: ModalFormState = {
   shape: 'circle',
   color: '#ff6bff',
   opacity: 0.7,
+  graphOverlayIndex: null,
+  graphOverlayYField: 'y',
 };
 
 interface ExperimentalDataModalProps {
@@ -48,6 +54,7 @@ interface ExperimentalDataModalProps {
   onPickPosition: () => void;
   pickedPosition: { x: number; y: number } | null;
   unitLabel: string;
+  graphs?: Array<{ title?: string }>;
 }
 
 function ExperimentalDataModal({
@@ -58,8 +65,9 @@ function ExperimentalDataModal({
   onPickPosition,
   pickedPosition,
   unitLabel,
+  graphs = [],
 }: ExperimentalDataModalProps) {
-  const { csvRows, headers, columnMapping, positiveX, positiveY, shape, color, opacity } = formState;
+  const { csvRows, headers, columnMapping, positiveX, positiveY, shape, color, opacity, graphOverlayIndex, graphOverlayYField } = formState;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasCsv = csvRows.length > 0;
 
@@ -105,6 +113,11 @@ function ExperimentalDataModal({
 
     data.sort((a, b) => a.time - b.time);
 
+    // Auto-select the available field if only one position column is mapped
+    const resolvedOverlayYField = graphOverlayIndex !== null
+      ? (!hasY ? 'x' : !hasX ? 'y' : graphOverlayYField)
+      : null;
+
     onConfirm({
       data,
       origin: pickedPosition,
@@ -115,12 +128,15 @@ function ExperimentalDataModal({
       positiveY,
       hasX,
       hasY,
+      graphOverlayIndex,
+      graphOverlayYField: resolvedOverlayYField,
     });
   };
 
   const hasX = columnMapping.x !== null;
   const hasY = columnMapping.y !== null;
-  const canConfirm = csvRows.length > 0 && (hasX || hasY) && pickedPosition !== null;
+  // Can confirm if: CSV loaded + at least one position column + (position picked OR graph overlay chosen)
+  const canConfirm = csvRows.length > 0 && (hasX || hasY) && (pickedPosition !== null || graphOverlayIndex !== null);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -259,9 +275,44 @@ function ExperimentalDataModal({
               </div>
             </div>
 
+            {/* Graph Overlay */}
+            {graphs.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-2">Graph Overlay <span className="font-normal text-gray-400">(optional)</span></h3>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500">Overlay on:</span>
+                    <select
+                      value={graphOverlayIndex ?? 'none'}
+                      onChange={(e) => onFormStateChange({ graphOverlayIndex: e.target.value === 'none' ? null : parseInt(e.target.value) })}
+                      className="border border-gray-300 rounded px-2 py-1.5 text-sm"
+                    >
+                      <option value="none">None</option>
+                      {graphs.map((g, i) => (
+                        <option key={i} value={i}>{g.title ?? `Graph ${i + 1}`}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {graphOverlayIndex !== null && hasX && hasY && (
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-gray-500">Y-axis data:</span>
+                      <select
+                        value={graphOverlayYField}
+                        onChange={(e) => onFormStateChange({ graphOverlayYField: e.target.value as 'x' | 'y' })}
+                        className="border border-gray-300 rounded px-2 py-1.5 text-sm"
+                      >
+                        <option value="x">X position column</option>
+                        <option value="y">Y position column</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Origin Position */}
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Starting Position on Simulation</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Starting Position on Simulation <span className="font-normal text-gray-400">(optional)</span></h3>
               <div className="flex items-center gap-3">
                 <button
                   onClick={onPickPosition}
