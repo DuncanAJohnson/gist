@@ -6,4 +6,5 @@ export interface GraphRenderProps<T extends GraphConfig = GraphConfig> {
   config: T;
   data: DataPoint[];
   compact?: boolean;
+  maxDuration?: number | null;
 }

@@ -166,7 +166,7 @@ function ExperimentalDataModal({
                     </tr>
                   </thead>
                   <tbody>
-                    {csvRows.slice(0, 5).map((row, i) => (
+                    {csvRows.slice(0, 10).map((row, i) => (
                       <tr key={i} className="border-t border-gray-100">
                         {row.map((cell, j) => (
                           <td key={j} className="px-2 py-1 text-gray-700">{cell}</td>

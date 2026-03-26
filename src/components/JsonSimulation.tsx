@@ -156,7 +156,13 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
   // State for simulation controls
   const [simulationControls, setSimulationControls] = useState<SimulationControls | null>(null);
+  const simulationControlsRef = useRef<SimulationControls | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+
+  // State for duration limit
+  const [maxDuration, setMaxDuration] = useState<number | null>(null);
+  const maxDurationRef = useRef<number | null>(null);
+  const [stopped, setStopped] = useState(false);
 
   // State for graph data - one array per graph
   const [graphData, setGraphData] = useState<DataPoint[][]>(() => graphs.map(() => []));
@@ -168,9 +174,15 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     isRunningRef.current = isRunning;
   }, [isRunning]);
 
+  // Keep maxDurationRef in sync
+  useEffect(() => {
+    maxDurationRef.current = maxDuration;
+  }, [maxDuration]);
+
   // Callback when simulation controls are ready
   const handleControlsReady = useCallback((controls: SimulationControls) => {
     setSimulationControls(controls);
+    simulationControlsRef.current = controls;
   }, []);
 
   // Helper function to get nested property value
@@ -239,6 +251,13 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
   // Update loop to read output values and graph data
   const handleUpdate = useCallback((_engine: Matter.Engine, time: number) => {
+    // Check if we've hit the duration limit
+    if (maxDurationRef.current !== null && time >= maxDurationRef.current && isRunningRef.current) {
+      simulationControlsRef.current?.pause();
+      setIsRunning(false);
+      setStopped(true);
+    }
+
     // Calculate acceleration for all bodies (in pixel space)
     const deltaTime = time - prevTimeRef.current;
     if (deltaTime > 0) {
@@ -404,6 +423,9 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         currentJSON={config}
         onEdit={simulationId ? handleEdit : undefined}
         onTweakJSON={simulationId ? handleTweakJSON : undefined}
+        maxDuration={maxDuration}
+        onMaxDurationChange={setMaxDuration}
+        stopped={stopped}
         onPlay={() => {
           // Clear graph data if we just reset
           if (shouldClearGraphDataRef.current) {
@@ -420,6 +442,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         onReset={() => {
           simulationControls?.reset();
           setIsRunning(false);
+          setStopped(false);
           // Mark that we should clear graph data on next play
           shouldClearGraphDataRef.current = true;
           // Reset acceleration tracking
@@ -507,6 +530,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
                   config={graph}
                   data={graphData[graphIndex] || []}
                   compact={graphs.length > 1}
+                  maxDuration={maxDuration}
                 />
               ))}
             </div>

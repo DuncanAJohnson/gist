@@ -12,7 +12,7 @@ import {
 import { registerGraph } from '../registry';
 import type { LineGraphConfig, GraphRenderProps } from '../types';
 
-function LineGraph({ config, data, compact = false }: GraphRenderProps<LineGraphConfig>) {
+function LineGraph({ config, data, compact = false, maxDuration }: GraphRenderProps<LineGraphConfig>) {
   const { title, yAxisRange, yAxisLabel, lines } = config;
 
   // Calculate actual y-axis domain (extend beyond initial range if needed)
@@ -44,15 +44,17 @@ function LineGraph({ config, data, compact = false }: GraphRenderProps<LineGraph
     return [yAxisRange.min, yAxisRange.max];
   }, [data, yAxisRange, lines]);
 
-  // Calculate x-axis domain (always show at least 0-5s, compress as needed)
+  // Calculate x-axis domain: use maxDuration if set, otherwise grow with data
   const xDomain = useMemo(() => {
+    if (maxDuration != null) {
+      return [0, maxDuration];
+    }
     if (!data || data.length === 0) {
       return [0, 5];
     }
-
     const maxTime = data[data.length - 1].time;
     return [0, Math.max(5, maxTime)];
-  }, [data]);
+  }, [data, maxDuration]);
 
   return (
     <div className={`bg-white rounded-lg shadow-md ${compact ? 'p-2 min-w-[280px]' : 'p-4 min-w-[400px]'}`}>
