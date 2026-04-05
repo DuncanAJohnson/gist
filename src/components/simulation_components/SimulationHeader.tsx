@@ -2,6 +2,15 @@ import { useState, useRef, useEffect } from 'react';
 import SimulationControls from './SimulationControls';
 import CreateSimulation from '../CreateSimulation';
 import FeedbackModal from './FeedbackModal';
+import {
+  getSimulationMeta,
+  publishSimulation,
+  unpublishSimulation,
+  endorseSimulation,
+  unendorseSimulation,
+  getEndorsedSimulationIds,
+} from '../../lib/simulationService';
+import { getBrowserId } from '../../lib/browserId';
 
 interface SimulationHeaderProps {
   title?: string;
@@ -41,6 +50,39 @@ function SimulationHeader({
   const feedbackButtonRef = useRef<HTMLButtonElement>(null);
   const feedbackPopupRef = useRef<HTMLDivElement>(null);
 
+  const [published, setPublished] = useState(false);
+  const [endorsed, setEndorsed] = useState(false);
+  const [endorsementCount, setEndorsementCount] = useState(0);
+  const [metaLoaded, setMetaLoaded] = useState(false);
+
+  // Load publish/endorse state when simulationId changes
+  useEffect(() => {
+    if (!simulationId) {
+      setMetaLoaded(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const browserId = getBrowserId();
+        const [meta, endorsedIds] = await Promise.all([
+          getSimulationMeta(simulationId),
+          getEndorsedSimulationIds(browserId),
+        ]);
+        if (cancelled) return;
+        setPublished(meta.published);
+        setEndorsementCount(meta.endorsement_count);
+        setEndorsed(endorsedIds.has(simulationId));
+        setMetaLoaded(true);
+      } catch (err) {
+        console.error('Failed to load simulation meta:', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [simulationId]);
+
   // Close popups when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -77,6 +119,35 @@ function SimulationHeader({
     setShowEditPopup(false);
   };
 
+  const handleTogglePublish = async () => {
+    if (!simulationId) return;
+    const next = !published;
+    setPublished(next);
+    try {
+      if (next) await publishSimulation(simulationId);
+      else await unpublishSimulation(simulationId);
+    } catch (err) {
+      console.error('Failed to toggle publish:', err);
+      setPublished(!next);
+    }
+  };
+
+  const handleToggleEndorse = async () => {
+    if (!simulationId) return;
+    const next = !endorsed;
+    setEndorsed(next);
+    setEndorsementCount((c) => c + (next ? 1 : -1));
+    try {
+      const browserId = getBrowserId();
+      if (next) await endorseSimulation(simulationId, browserId);
+      else await unendorseSimulation(simulationId, browserId);
+    } catch (err) {
+      console.error('Failed to toggle endorsement:', err);
+      setEndorsed(!next);
+      setEndorsementCount((c) => c + (next ? -1 : 1));
+    }
+  };
+
   return (
     <div className="flex flex-row bg-gray-50 rounded-lg shadow-sm justify-between items-center relative">
       {/* Left side - Tweak JSON button */}
@@ -100,7 +171,7 @@ function SimulationHeader({
           </div>
         </div>
       </div>
-      
+
       {/* Right side - Controls, Feedback, and Edit button */}
       <div className="flex flex-row items-center justify-center gap-4 px-8 py-4 relative">
         <SimulationControls
@@ -112,6 +183,32 @@ function SimulationHeader({
           onMaxDurationChange={onMaxDurationChange}
           stopped={stopped}
         />
+        {simulationId && metaLoaded && (
+          <>
+            <button
+              onClick={handleToggleEndorse}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                endorsed
+                  ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+              aria-label={endorsed ? 'Remove endorsement' : 'Endorse'}
+            >
+              <span aria-hidden>{endorsed ? '♥' : '♡'}</span>
+              <span>{endorsementCount}</span>
+            </button>
+            <button
+              onClick={handleTogglePublish}
+              className={`px-4 py-2 rounded-lg transition-colors font-medium text-sm ${
+                published
+                  ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  : 'bg-green-600 text-white hover:bg-green-700'
+              }`}
+            >
+              {published ? 'Published ✓' : 'Publish'}
+            </button>
+          </>
+        )}
         {simulationId && (
           <>
             <button
@@ -142,7 +239,7 @@ function SimulationHeader({
               onClick={() => setShowEditPopup(!showEditPopup)}
               className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm"
             >
-              Edit
+              Remix
             </button>
             {showEditPopup && (
               <div
@@ -167,4 +264,3 @@ function SimulationHeader({
 }
 
 export default SimulationHeader;
-

@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Navigation from './components/Navigation'
 import Home from './pages/Home'
+import Library from './pages/Library'
 import TwoBoxesSimulation from './simulations/TwoBoxesSimulation'
 import TossBallSimulation from './simulations/TossBallSimulation'
 import DynamicSimulation from './pages/DynamicSimulation'
@@ -12,6 +13,7 @@ function AppContent() {
       <Navigation />
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/library" element={<Library />} />
         <Route path="/simulation/two-boxes" element={<TwoBoxesSimulation />} />
         <Route path="/simulation/toss-ball" element={<TossBallSimulation />} />
         <Route path="/simulation/dynamic" element={<DynamicSimulation />} />

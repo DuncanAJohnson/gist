@@ -1,28 +1,39 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import CreateSimulation from '../components/CreateSimulation';
-import { getAllSimulations, createSimulation, SimulationListItem } from '../lib/simulationService';
+import {
+  getTopEndorsedThisWeek,
+  createSimulation,
+  endorseSimulation,
+  unendorseSimulation,
+  getEndorsedSimulationIds,
+  SimulationListItem,
+} from '../lib/simulationService';
 import SimulationListItemComponent from '../components/SimulationListItem';
-import tossBallConfig from '../simulations/tossBall.json';
-import twoBoxesConfig from '../simulations/twoBoxes.json';
+import { getBrowserId } from '../lib/browserId';
 
 function Home() {
   const navigate = useNavigate();
-  const [showModal, setShowModal] = useState(false);
-  const [simulations, setSimulations] = useState<SimulationListItem[]>([]);
+  const [topSimulations, setTopSimulations] = useState<SimulationListItem[]>([]);
+  const [endorsedIds, setEndorsedIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadSimulations();
+    loadTop();
   }, []);
 
-  const loadSimulations = async () => {
+  const loadTop = async () => {
     try {
       setLoading(true);
-      const data = await getAllSimulations();
-      setSimulations(data);
+      const browserId = getBrowserId();
+      const [sims, endorsed] = await Promise.all([
+        getTopEndorsedThisWeek(3),
+        getEndorsedSimulationIds(browserId),
+      ]);
+      setTopSimulations(sims);
+      setEndorsedIds(endorsed);
     } catch (error) {
-      console.error('Failed to load simulations:', error);
+      console.error('Failed to load top simulations:', error);
     } finally {
       setLoading(false);
     }
@@ -31,7 +42,6 @@ function Home() {
   const handleJSONExtracted = async (json: any) => {
     try {
       const simulationId = await createSimulation(json, true, null);
-      setShowModal(false);
       navigate(`/simulation/${simulationId}`);
     } catch (error) {
       console.error('Failed to save simulation:', error);
@@ -39,156 +49,86 @@ function Home() {
     }
   };
 
-  // Static simulation items for TossBall and TwoBoxes
-  const staticSimulations: SimulationListItem[] = useMemo(() => [
-    {
-      id: 'toss-ball' as any,
-      title: tossBallConfig.title || 'Toss Ball',
-      description: tossBallConfig.description || null,
-      created_at: new Date('2024-01-01').toISOString(),
-      parent_id: null,
-      changes_made: null,
-    },
-    {
-      id: 'two-boxes' as any,
-      title: twoBoxesConfig.title || 'Two Boxes Collision',
-      description: twoBoxesConfig.description || null,
-      created_at: new Date('2024-01-01').toISOString(),
-      parent_id: null,
-      changes_made: null,
-    },
-  ], []);
-
-  // Group simulations by day and sort within each day by time descending
-  const groupedSimulations = useMemo(() => {
-    const groups: Record<string, SimulationListItem[]> = {};
-    
-    simulations.forEach((sim) => {
-      const date = new Date(sim.created_at);
-      const dayKey = date.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      });
-      
-      if (!groups[dayKey]) {
-        groups[dayKey] = [];
+  const handleToggleEndorse = async (simulationId: number, nowEndorsed: boolean) => {
+    const browserId = getBrowserId();
+    // Optimistic update
+    setEndorsedIds((prev) => {
+      const next = new Set(prev);
+      if (nowEndorsed) next.add(simulationId);
+      else next.delete(simulationId);
+      return next;
+    });
+    setTopSimulations((prev) =>
+      prev.map((s) =>
+        s.id === simulationId
+          ? { ...s, endorsement_count: s.endorsement_count + (nowEndorsed ? 1 : -1) }
+          : s
+      )
+    );
+    try {
+      if (nowEndorsed) {
+        await endorseSimulation(simulationId, browserId);
+      } else {
+        await unendorseSimulation(simulationId, browserId);
       }
-      groups[dayKey].push(sim);
-    });
-
-    // Sort simulations within each day by time descending (newest first)
-    Object.keys(groups).forEach((dayKey) => {
-      groups[dayKey].sort((a, b) => {
-        const timeA = new Date(a.created_at).getTime();
-        const timeB = new Date(b.created_at).getTime();
-        return timeB - timeA;
-      });
-    });
-
-    return groups;
-  }, [simulations]);
+    } catch (error) {
+      console.error('Failed to toggle endorsement:', error);
+      // Revert on failure
+      loadTop();
+    }
+  };
 
   return (
-    <div className="max-w-7xl mx-auto px-8 py-8">
-      <div className="text-center mb-12 mt-4">
-        <h1 className="text-4xl text-gray-800 mb-4 font-semibold">
-          Generative Interactive Simulations for Teaching
+    <div className="max-w-4xl mx-auto px-8 py-12">
+      {/* Hero prompt */}
+      <div className="text-center mb-8 mt-4">
+        <h1 className="text-4xl text-gray-800 mb-8 font-semibold">
+          What physics concept do you want to simulate today?
         </h1>
-        <p className="text-xl text-gray-600">
-          Create and share interactive simulations for teaching physics.
-        </p>
-      </div>
-
-      {/* Sample Simulations Section */}
-      {/* <div className="mb-12">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-6">Sample Simulations</h2>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-8">
-          <Link 
-            to="/simulation/two-boxes" 
-            className="bg-white rounded-xl p-8 shadow-md no-underline text-inherit transition-all duration-200 flex flex-col hover:-translate-y-1 hover:shadow-xl"
-          >
-            <div className="text-5xl mb-4">📦</div>
-            <h2 className="text-2xl text-gray-800 mb-2">Two Boxes Collision</h2>
-            <p className="text-gray-600 leading-relaxed flex-grow">
-              Watch two boxes move toward each other and collide. 
-              Control their velocities with interactive sliders.
-            </p>
-            <div className="flex gap-2 mt-4">
-              <span className="bg-gray-100 px-3 py-1 rounded-xl text-sm text-gray-600">
-                Collision
-              </span>
-              <span className="bg-gray-100 px-3 py-1 rounded-xl text-sm text-gray-600">
-                Velocity
-              </span>
-            </div>
-          </Link>
-          <Link 
-            to="/simulation/toss-ball" 
-            className="bg-white rounded-xl p-8 shadow-md no-underline text-inherit transition-all duration-200 flex flex-col hover:-translate-y-1 hover:shadow-xl"
-          >
-            <div className="text-5xl mb-4">⚾</div>
-            <h2 className="text-2xl text-gray-800 mb-2">Toss Ball</h2>
-            <p className="text-gray-600 leading-relaxed flex-grow">
-              Toss a ball vertically and observe acceleration versus velocity.
-            </p>
-          </Link>
-        </div>
-      </div> */}
-
-      {/* Static Sample Simulations */}
-      <div className="mb-8">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-6">Sample Simulations</h2>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-200">
-          {staticSimulations.map((sim) => (
-            <SimulationListItemComponent key={sim.id} simulation={sim} />
-          ))}
+        <div className="max-w-2xl mx-auto">
+          <CreateSimulation
+            isOpen={true}
+            onClose={() => {}}
+            onJSONExtracted={handleJSONExtracted}
+            compact={true}
+          />
         </div>
       </div>
 
-      {/* Create New Simulation */}
-      <div className="mb-8 text-center">
-        <button
-          onClick={() => setShowModal(true)}
-          className="bg-primary text-white px-6 py-3 rounded-lg hover:opacity-90 transition-opacity font-medium text-lg"
-        >
-          Create New Simulation
-        </button>
-      </div>
-
-      {/* Database Simulations */}
-      <div>
-        <h2 className="text-2xl font-semibold text-gray-800 mb-6">Simulation Library</h2>
+      {/* Top 3 This Week */}
+      <div className="mt-16">
+        <div className="flex items-baseline justify-between mb-4">
+          <h2 className="text-2xl font-semibold text-gray-800">
+            Top Endorsed This Week
+          </h2>
+          <Link
+            to="/library"
+            className="text-primary hover:underline text-sm font-medium"
+          >
+            Browse all published simulations →
+          </Link>
+        </div>
         {loading ? (
-          <div className="text-center text-gray-500 py-8">Loading simulations...</div>
-        ) : simulations.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">No simulations yet. Create one to get started!</div>
+          <div className="text-center text-gray-500 py-8">Loading...</div>
+        ) : topSimulations.length === 0 ? (
+          <div className="text-center text-gray-500 py-8 bg-white rounded-lg border border-gray-200">
+            No endorsed simulations yet this week. Create one and endorse it to get started!
+          </div>
         ) : (
-          <div className="space-y-8">
-            {Object.entries(groupedSimulations).map(([dayKey, daySimulations]) => (
-              <div key={dayKey}>
-                <h3 className="text-lg font-semibold text-gray-700 mb-3">{dayKey}</h3>
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-200">
-                  {daySimulations.map((sim) => (
-                    <SimulationListItemComponent key={sim.id} simulation={sim} />
-                  ))}
-                </div>
-              </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-200">
+            {topSimulations.map((sim) => (
+              <SimulationListItemComponent
+                key={sim.id}
+                simulation={sim}
+                endorsed={endorsedIds.has(sim.id)}
+                onToggleEndorse={handleToggleEndorse}
+              />
             ))}
           </div>
         )}
       </div>
-
-      {/* Modal for Creating New Simulation */}
-      <CreateSimulation
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        onJSONExtracted={handleJSONExtracted}
-      />
     </div>
   );
 }
 
 export default Home;
-

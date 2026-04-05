@@ -14,8 +14,8 @@ function Navigation() {
           Generative Interactive Simulations for Teaching
         </Link>
         <div className="flex gap-6">
-          <Link 
-            to="/" 
+          <Link
+            to="/library"
             className="text-white no-underline font-medium transition-colors duration-200 px-4 py-2 rounded hover:bg-white/10"
           >
             Simulation Library
