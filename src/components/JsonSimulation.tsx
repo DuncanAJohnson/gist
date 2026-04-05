@@ -25,7 +25,17 @@ import type { OutputGroupConfig } from '../schemas/simulation';
 import DataDownload from './simulation_components/DataDownload';
 // Experimental Data
 import ExperimentalDataModal, { type ExperimentalDataConfig, type ModalFormState, DEFAULT_MODAL_FORM_STATE } from './simulation_components/ExperimentalDataModal';
-import ExperimentalDataRenderer from './simulation_components/ExperimentalDataRenderer';
+// Render Layer
+import RenderLayer from './simulation_components/renderables/RenderLayer';
+import {
+  synthesizeWallRenderables,
+  synthesizeBodyRenderable,
+  synthesizeExperimentalRenderable,
+  buildExperimentalDataResolver,
+  toPixelRenderable,
+} from './simulation_components/renderables/synthesize';
+import type { PixelRenderable, DataPositionResolver } from './simulation_components/renderables/types';
+import type { Renderable } from '../schemas/simulation';
 
 interface SimulationConfig {
   title?: string;
@@ -40,6 +50,7 @@ interface SimulationConfig {
   controls?: Array<ControlConfig>;
   outputs?: Array<OutputGroupConfig>;
   graphs?: Array<GraphConfig>;
+  renderables?: Array<Renderable>;
 }
 
 interface JsonSimulationProps {
@@ -63,6 +74,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     controls = [],
     outputs = [],
     graphs = [],
+    renderables: configRenderables = [],
   } = config;
 
   const [showJsonEditor, setShowJsonEditor] = useState(false);
@@ -73,8 +85,8 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   const [pickingPosition, setPickingPosition] = useState(false);
   const [pickedPosition, setPickedPosition] = useState<{ x: number; y: number } | null>(null);
   const [modalFormState, setModalFormState] = useState<ModalFormState>(DEFAULT_MODAL_FORM_STATE);
-  const [simulationTime, setSimulationTime] = useState(0);
-  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
+  const simulationTimeRef = useRef(0);
+  const [canvasContainer, setCanvasContainer] = useState<HTMLDivElement | null>(null);
 
   // Create unit converter from environment config
   const unitConverter = useMemo(() => {
@@ -130,6 +142,35 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     const gravity = environment.gravity ?? 9.8;
     return unitConverter.toMatterGravityScale(gravity);
   }, [environment.gravity, unitConverter]);
+
+  // Compose renderables: user-declared + auto-synthesized (walls, default
+  // body outlines, experimental-data marker). Any physics object without an
+  // explicit body-tracking renderable gets a default one so every sim still
+  // renders correctly.
+  const pixelRenderables = useMemo<PixelRenderable[]>(() => {
+    const explicit = configRenderables.map((r) => toPixelRenderable(r, unitConverter));
+    const coveredBodyIds = new Set(
+      configRenderables
+        .filter((r) => r.source.type === 'body')
+        .map((r) => (r.source as { bodyId: string }).bodyId)
+    );
+    const defaults = objects
+      .filter((obj) => !coveredBodyIds.has(obj.id))
+      .map(synthesizeBodyRenderable);
+    const walls = synthesizeWallRenderables(environment.walls ?? []);
+    const experimental = experimentalData
+      ? [synthesizeExperimentalRenderable(experimentalData)]
+      : [];
+    return [...walls, ...defaults, ...explicit, ...experimental].sort(
+      (a, b) => a.zIndex - b.zIndex
+    );
+  }, [configRenderables, objects, environment.walls, experimentalData, unitConverter]);
+
+  const dataSources = useMemo<Record<string, DataPositionResolver>>(() => {
+    if (!experimentalData) return {};
+    const resolver = buildExperimentalDataResolver(experimentalData, unitConverter);
+    return resolver ? { experimental: resolver } : {};
+  }, [experimentalData, unitConverter]);
 
   // Store refs to all objects by their ID
   const objRefs = useRef<Record<string, Matter.Body>>({});
@@ -302,8 +343,8 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
     setOutputValues(newOutputValues);
 
-    // Update simulation time for experimental data renderer
-    setSimulationTime(time);
+    // Update simulation time (read by RenderLayer via ref)
+    simulationTimeRef.current = time;
 
     // Collect graph data and convert from pixels to real-world units
     if (graphs.length > 0 && isRunningRef.current) {
@@ -376,7 +417,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   }, [pickingPosition, unitConverter]);
 
   const handleCanvasContainerReady = useCallback((container: HTMLDivElement) => {
-    canvasContainerRef.current = container;
+    setCanvasContainer(container);
   }, []);
 
   const handleExperimentalConfirm = useCallback((config: ExperimentalDataConfig) => {
@@ -576,15 +617,14 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
             <DataDownload graphs={graphs} graphData={graphData} />
           </Panel>
         )}
-        {/* Experimental Data Overlay */}
-        {experimentalData && (
-          <ExperimentalDataRenderer
-            config={experimentalData}
-            simulationTime={simulationTime}
-            unitConverter={unitConverter}
-            canvasContainer={canvasContainerRef.current}
-          />
-        )}
+        {/* Unified render layer (replaces Matter.Render and ExperimentalDataRenderer) */}
+        <RenderLayer
+          renderables={pixelRenderables}
+          objRefs={objRefs}
+          dataSources={dataSources}
+          simulationTimeRef={simulationTimeRef}
+          canvasContainer={canvasContainer}
+        />
       </BaseSimulation>
     </div>
   );
