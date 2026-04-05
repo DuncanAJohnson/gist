@@ -20,6 +20,8 @@ export interface ColumnMapping {
   y: number | null;
 }
 
+export type DataKind = 'position' | 'velocity' | 'acceleration';
+
 export interface ModalFormState {
   csvRows: string[][];
   headers: string[];
@@ -31,6 +33,8 @@ export interface ModalFormState {
   opacity: number;
   graphOverlayIndex: number | null;
   graphOverlayYField: 'x' | 'y';
+  dataKind: DataKind;
+  subtractBias: boolean;
 }
 
 export const DEFAULT_MODAL_FORM_STATE: ModalFormState = {
@@ -44,7 +48,84 @@ export const DEFAULT_MODAL_FORM_STATE: ModalFormState = {
   opacity: 0.7,
   graphOverlayIndex: null,
   graphOverlayYField: 'y',
+  dataKind: 'position',
+  subtractBias: true,
 };
+
+// Detect the delimiter by looking at how consistently each candidate splits the first few lines.
+function detectDelimiter(text: string): RegExp | string {
+  const sample = text.split('\n').slice(0, 5).filter(l => l.trim().length > 0);
+  if (sample.length === 0) return ',';
+  const candidates: (string | RegExp)[] = ['\t', ',', ';', /\s+/];
+  let best: string | RegExp = ',';
+  let bestScore = -1;
+  for (const delim of candidates) {
+    const counts = sample.map(l => l.split(delim).length);
+    const min = Math.min(...counts);
+    if (min < 2) continue;
+    const allEqual = counts.every(c => c === counts[0]);
+    const score = allEqual ? counts[0] * 10 : min;
+    if (score > bestScore) {
+      bestScore = score;
+      best = delim;
+    }
+  }
+  return best;
+}
+
+// Trapezoidal integration. For 'position' input, returns the data unchanged.
+// For 'velocity', integrates once. For 'acceleration', integrates twice.
+// subtractBias removes the mean of each channel first — critical for phone
+// accelerometer data, which almost always has residual gravity / sensor bias
+// that would otherwise cause the double-integrated position to run away.
+function integrateToPosition(
+  raw: { time: number; x?: number; y?: number }[],
+  kind: DataKind,
+  subtractBias: boolean,
+  hasX: boolean,
+  hasY: boolean,
+): { time: number; x?: number; y?: number }[] {
+  if (kind === 'position' || raw.length === 0) return raw;
+
+  const meanX = subtractBias && hasX
+    ? raw.reduce((s, p) => s + (p.x ?? 0), 0) / raw.length : 0;
+  const meanY = subtractBias && hasY
+    ? raw.reduce((s, p) => s + (p.y ?? 0), 0) / raw.length : 0;
+
+  const getX = (i: number) => (raw[i].x ?? 0) - meanX;
+  const getY = (i: number) => (raw[i].y ?? 0) - meanY;
+
+  // integrate(input) via trapezoidal rule, starting from 0
+  const integrate = (get: (i: number) => number): number[] => {
+    const out = new Array(raw.length).fill(0);
+    for (let i = 1; i < raw.length; i++) {
+      const dt = raw[i].time - raw[i - 1].time;
+      out[i] = out[i - 1] + 0.5 * (get(i - 1) + get(i)) * dt;
+    }
+    return out;
+  };
+
+  const vx = hasX ? integrate(getX) : null;
+  const vy = hasY ? integrate(getY) : null;
+
+  if (kind === 'velocity') {
+    return raw.map((p, i) => ({
+      time: p.time,
+      ...(hasX ? { x: vx![i] } : {}),
+      ...(hasY ? { y: vy![i] } : {}),
+    }));
+  }
+
+  // acceleration → integrate velocity to get position
+  const px = vx ? integrate((i) => vx[i]) : null;
+  const py = vy ? integrate((i) => vy[i]) : null;
+
+  return raw.map((p, i) => ({
+    time: p.time,
+    ...(hasX ? { x: px![i] } : {}),
+    ...(hasY ? { y: py![i] } : {}),
+  }));
+}
 
 interface ExperimentalDataModalProps {
   formState: ModalFormState;
@@ -67,7 +148,7 @@ function ExperimentalDataModal({
   unitLabel,
   graphs = [],
 }: ExperimentalDataModalProps) {
-  const { csvRows, headers, columnMapping, positiveX, positiveY, shape, color, opacity, graphOverlayIndex, graphOverlayYField } = formState;
+  const { csvRows, headers, columnMapping, positiveX, positiveY, shape, color, opacity, graphOverlayIndex, graphOverlayYField, dataKind, subtractBias } = formState;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasCsv = csvRows.length > 0;
 
@@ -78,7 +159,8 @@ function ExperimentalDataModal({
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      const lines = text.trim().split('\n').map(line => line.split(',').map(cell => cell.trim()));
+      const delimiter = detectDelimiter(text);
+      const lines = text.trim().split('\n').map(line => line.trim().split(delimiter).map(cell => cell.trim()));
       if (lines.length < 2) return;
 
       const headerRow = lines[0];
@@ -98,7 +180,7 @@ function ExperimentalDataModal({
     const hasY = columnMapping.y !== null;
     if (!hasX && !hasY) return;
 
-    const data = csvRows.map(row => {
+    const raw = csvRows.map(row => {
       const point: { time: number; x?: number; y?: number } = {
         time: parseFloat(row[columnMapping.time]),
       };
@@ -109,9 +191,16 @@ function ExperimentalDataModal({
         point.y = parseFloat(row[columnMapping.y]);
       }
       return point;
-    }).filter(p => !isNaN(p.time));
+    }).filter(p => !isNaN(p.time) &&
+      (!hasX || (p.x !== undefined && !isNaN(p.x))) &&
+      (!hasY || (p.y !== undefined && !isNaN(p.y))));
 
-    data.sort((a, b) => a.time - b.time);
+    raw.sort((a, b) => a.time - b.time);
+
+    // If the CSV contains velocity or acceleration, integrate to get position.
+    // Trapezoidal rule with optional bias subtraction (mean) to remove DC drift
+    // (e.g. gravity leakage or sensor zero-offset in accelerometer traces).
+    const data = integrateToPosition(raw, dataKind, subtractBias, hasX, hasY);
 
     // Auto-select the available field if only one position column is mapped
     const resolvedOverlayYField = graphOverlayIndex !== null
@@ -237,6 +326,42 @@ function ExperimentalDataModal({
                   </select>
                 </div>
               </div>
+            </div>
+
+            {/* Data Kind */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">Data Type</h3>
+              <div className="flex items-center gap-4 flex-wrap">
+                <select
+                  value={dataKind}
+                  onChange={(e) => onFormStateChange({ dataKind: e.target.value as DataKind })}
+                  className="border border-gray-300 rounded px-2 py-1.5 text-sm"
+                >
+                  <option value="position">Position</option>
+                  <option value="velocity">Velocity</option>
+                  <option value="acceleration">Acceleration</option>
+                </select>
+                {dataKind !== 'position' && (
+                  <label className="flex items-center gap-2 text-sm text-gray-600">
+                    <input
+                      type="checkbox"
+                      checked={subtractBias}
+                      onChange={(e) => onFormStateChange({ subtractBias: e.target.checked })}
+                    />
+                    Subtract mean (remove bias/gravity drift)
+                  </label>
+                )}
+              </div>
+              {dataKind === 'acceleration' && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Values will be integrated twice to get position. Keep "subtract mean" on for phone accelerometer data.
+                </p>
+              )}
+              {dataKind === 'velocity' && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Values will be integrated once to get position.
+                </p>
+              )}
             </div>
 
             {/* Positive Direction */}
