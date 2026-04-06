@@ -55,6 +55,20 @@ export function synthesizeBodyRenderable(obj: ObjectConfig): PixelRenderable {
 }
 
 /**
+ * Force-arrow renderable for a physics object with showForceArrows enabled.
+ * Draws above the body outline so it's always visible.
+ */
+export function synthesizeForceArrowRenderable(obj: ObjectConfig): PixelRenderable {
+  return {
+    id: `__force_arrow_${obj.id}`,
+    source: { type: 'body', bodyId: obj.id, followAngle: false },
+    visual: { type: 'force-arrow', pixelsPerNewton: 2 },
+    opacity: 0.9,
+    zIndex: 20,
+  };
+}
+
+/**
  * Marker renderable for imported experimental data. Mirrors the legacy
  * ExperimentalDataRenderer's appearance exactly.
  */

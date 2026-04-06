@@ -25,9 +25,19 @@ export interface BodyOutlineVisual {
 }
 
 /**
+ * Internal force-arrow visual. Draws net-force arrows on a physics body
+ * using live acceleration data from the engine. Not exposed through the schema.
+ */
+export interface ForceArrowVisual {
+  type: 'force-arrow';
+  /** Pixels per Newton — controls arrow length scaling */
+  pixelsPerNewton: number;
+}
+
+/**
  * All visuals RenderLayer can draw (schema visuals + internal synthesized ones).
  */
-export type PixelVisual = Visual | MarkerVisual | BodyOutlineVisual;
+export type PixelVisual = Visual | MarkerVisual | BodyOutlineVisual | ForceArrowVisual;
 
 /**
  * A renderable converted to pixel/canvas space — what RenderLayer actually consumes.

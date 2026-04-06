@@ -92,6 +92,7 @@ export const ObjectConfigSchema = z.object({
   mass: z.number().optional().describe('Mass of the object in kg. Default: 1'),
   angularVelocity: z.number().optional().describe('Initial angular velocity in radians/second. Default: 0'),
   angle: z.number().optional().describe('Initial angle in radians. Default: 0'),
+  showForceArrows: z.boolean().optional().describe('If true, draw arrows on this object showing the net force from the physics engine. Default: false'),
 }).describe('A physics object in the simulation. Configure shape, position, velocity, and physics properties. Uses real-world units with Y-up coordinate system.');
 
 export type ObjectConfig = z.infer<typeof ObjectConfigSchema>;

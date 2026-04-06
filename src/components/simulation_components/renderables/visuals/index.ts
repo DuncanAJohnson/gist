@@ -3,3 +3,4 @@ import './Shape';
 import './Image';
 import './Marker';
 import './BodyOutline';
+import './ForceArrow';

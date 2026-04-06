@@ -30,6 +30,7 @@ import RenderLayer from './simulation_components/renderables/RenderLayer';
 import {
   synthesizeWallRenderables,
   synthesizeBodyRenderable,
+  synthesizeForceArrowRenderable,
   synthesizeExperimentalRenderable,
   buildExperimentalDataResolver,
   toPixelRenderable,
@@ -157,11 +158,14 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     const defaults = objects
       .filter((obj) => !coveredBodyIds.has(obj.id))
       .map(synthesizeBodyRenderable);
+    const forceArrows = objects
+      .filter((obj) => obj.showForceArrows)
+      .map(synthesizeForceArrowRenderable);
     const walls = synthesizeWallRenderables(environment.walls ?? []);
     const experimental = experimentalData
       ? [synthesizeExperimentalRenderable(experimentalData)]
       : [];
-    return [...walls, ...defaults, ...explicit, ...experimental].sort(
+    return [...walls, ...defaults, ...forceArrows, ...explicit, ...experimental].sort(
       (a, b) => a.zIndex - b.zIndex
     );
   }, [configRenderables, objects, environment.walls, experimentalData, unitConverter]);
