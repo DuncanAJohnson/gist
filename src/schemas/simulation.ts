@@ -92,6 +92,7 @@ export const ObjectConfigSchema = z.object({
   mass: z.number().optional().describe('Mass of the object in kg. Default: 1'),
   angularVelocity: z.number().optional().describe('Initial angular velocity in radians/second. Default: 0'),
   angle: z.number().optional().describe('Initial angle in radians. Default: 0'),
+  showForceArrows: z.boolean().optional().describe('If true, draw arrows on this object showing the net force from the physics engine. Default: false'),
 }).describe('A physics object in the simulation. Configure shape, position, velocity, and physics properties. Uses real-world units with Y-up coordinate system.');
 
 export type ObjectConfig = z.infer<typeof ObjectConfigSchema>;
@@ -178,6 +179,75 @@ export type LineGraphConfig = z.infer<typeof LineGraphConfigSchema>;
 export type GraphConfig = z.infer<typeof GraphConfigSchema>;
 
 // ============================================
+// Renderable Schemas (visual layer, decoupled from physics)
+// ============================================
+
+export const PositionSourceSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('body'),
+    bodyId: z.string().describe('ID of a physics object to follow'),
+    followAngle: z.boolean().optional().default(true).describe('If true, rotate visual with body. Default: true'),
+  }),
+  z.object({
+    type: z.literal('data'),
+    dataId: z.string().describe('ID of a data source (e.g., "experimental" for imported data)'),
+  }),
+  z.object({
+    type: z.literal('fixed'),
+    x: z.number().describe('X position in configured units (real-world, Y-up)'),
+    y: z.number().describe('Y position in configured units (real-world, Y-up)'),
+    angle: z.number().optional().default(0).describe('Angle in radians'),
+  }),
+]).describe('Where to draw a renderable. "body" tracks a physics object, "data" interpolates imported data, "fixed" is a static position.');
+
+export const ShapeVisualSchema = z.object({
+  type: z.literal('shape'),
+  shape: z.enum(['circle', 'rectangle', 'polygon']),
+  color: z.string().describe('Fill color as hex (e.g., "#ff6bff")'),
+  width: z.number().optional().describe('Width in configured units (rectangle only)'),
+  height: z.number().optional().describe('Height in configured units (rectangle only)'),
+  radius: z.number().optional().describe('Radius in configured units (circle and polygon)'),
+  sides: z.number().optional().describe('Number of sides (polygon only)'),
+  stroke: z.string().optional().describe('Stroke color as hex'),
+  strokeWidth: z.number().optional().describe('Stroke width in pixels'),
+}).describe('A shape drawn on the canvas.');
+
+export const ImageVisualSchema = z.object({
+  type: z.literal('image'),
+  src: z.string().describe('URL or data URI of the image/SVG to render'),
+  width: z.number().describe('Width in configured units'),
+  height: z.number().describe('Height in configured units'),
+}).describe('An image or SVG sprite drawn on the canvas.');
+
+export const RenderableVisualSchema = z.object({
+  type: z.literal('renderable'),
+  name: z.string().describe('Name of a bundled renderable from the manifest (e.g., "pumpkin")'),
+  width: z.number().describe('Width in configured units'),
+  height: z.number().describe('Height in configured units'),
+}).describe('A bundled image/SVG referenced by name. Use instead of "image" when a built-in asset is available.');
+
+export const VisualSchema = z.discriminatedUnion('type', [
+  ShapeVisualSchema,
+  ImageVisualSchema,
+  RenderableVisualSchema,
+]).describe('What to draw at the renderable\'s position.');
+
+export const RenderableSchema = z.object({
+  id: z.string().describe('Unique identifier for this renderable'),
+  source: PositionSourceSchema,
+  visual: VisualSchema,
+  opacity: z.number().optional().default(1).describe('Opacity (0-1). Default: 1'),
+  zIndex: z.number().optional().default(0).describe('Draw order. Higher values draw on top. Default: 0'),
+}).describe('A visual element decoupled from physics. Declare what to draw (visual) and where (source).');
+
+export type PositionSource = z.infer<typeof PositionSourceSchema>;
+export type ShapeVisual = z.infer<typeof ShapeVisualSchema>;
+export type ImageVisual = z.infer<typeof ImageVisualSchema>;
+export type RenderableVisual = z.infer<typeof RenderableVisualSchema>;
+export type Visual = z.infer<typeof VisualSchema>;
+export type Renderable = z.infer<typeof RenderableSchema>;
+
+// ============================================
 // Environment Config Schema
 // ============================================
 
@@ -237,6 +307,7 @@ export const SimulationConfigSchema = z.object({
   controls: z.array(ControlConfigSchema).optional().default([]).describe('Interactive controls (sliders, toggles) for students to adjust parameters. Include at least one for interactivity.'),
   outputs: z.array(OutputGroupConfigSchema).optional().default([]).describe('Real-time value displays. Group by object. Show velocity, acceleration, position as relevant.'),
   graphs: z.array(GraphConfigSchema).optional().default([]).describe('Time-series graphs to visualize property changes. Great for comparing related quantities.'),
+  renderables: z.array(RenderableSchema).optional().default([]).describe('Visual elements decoupled from physics bodies. Use to attach images/sprites to objects, or add purely visual overlays. Objects without an explicit renderable get a default shape renderable auto-generated from their body config.'),
 }).describe(schemaDescription);
 
 export type SimulationConfig = z.infer<typeof SimulationConfigSchema>;

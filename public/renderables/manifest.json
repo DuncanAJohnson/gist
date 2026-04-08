@@ -1,0 +1,9 @@
+{
+  "renderables": [
+    {
+      "name": "pumpkin",
+      "file": "pumpkin.svg",
+      "description": "An orange pumpkin"
+    }
+  ]
+}

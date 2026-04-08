@@ -9,7 +9,7 @@ interface SimulationControls {
 }
 
 interface BaseSimulationProps {
-  onInit?: (engine: Matter.Engine, render: Matter.Render) => void;
+  onInit?: (engine: Matter.Engine) => void;
   onUpdate?: (engine: Matter.Engine, time: number) => void;
   children?: ReactNode;
   onControlsReady?: (controls: SimulationControls) => void;
@@ -48,7 +48,6 @@ function BaseSimulation({
 }: BaseSimulationProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<Matter.Engine | null>(null);
-  const renderRef = useRef<Matter.Render | null>(null);
   const [engineReady, setEngineReady] = useState(false);
   const isRunningRef = useRef(false);
   const initialBodiesRef = useRef<Array<{
@@ -67,18 +66,11 @@ function BaseSimulation({
     const engine = Matter.Engine.create();
     engineRef.current = engine;
 
-    // Create renderer
-    const render = Matter.Render.create({
-      element: sceneRef.current,
-      engine: engine,
-      options: {
-        width: CANVAS_WIDTH,
-        height: CANVAS_HEIGHT,
-        wireframes: false,
-        background: '#fafafa',
-      },
-    });
-    renderRef.current = render;
+    // Size the scene container. The RenderLayer will attach an overlay canvas
+    // to it for all visual rendering (Matter.Render is no longer used).
+    sceneRef.current.style.width = `${CANVAS_WIDTH}px`;
+    sceneRef.current.style.height = `${CANVAS_HEIGHT}px`;
+    sceneRef.current.style.backgroundColor = '#fafafa';
 
     // Mark engine as ready so children can use it
     setEngineReady(true);
@@ -90,11 +82,8 @@ function BaseSimulation({
 
     // Call initialization callback
     if (onInit) {
-      onInit(engine, render);
+      onInit(engine);
     }
-
-    // Note: Render.run() removed to eliminate dual animation loop
-    // Rendering now handled manually via Render.world() in updateLoop
 
     // Save initial state for reset
     setTimeout(() => {
@@ -199,9 +188,6 @@ function BaseSimulation({
         }
       }
 
-      // Render current state (always render, even when paused)
-      Matter.Render.world(render);
-
       animationFrameId = requestAnimationFrame(updateLoop);
     };
 
@@ -240,10 +226,7 @@ function BaseSimulation({
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
       }
-      Matter.Render.stop(render);
       Matter.Engine.clear(engine);
-      render.canvas.remove();
-      render.textures = {};
       setEngineReady(false);
     };
   }, [onInit, onUpdate, onControlsReady, onCanvasContainerReady]);
@@ -254,9 +237,7 @@ function BaseSimulation({
 
     const container = sceneRef.current;
     const handleClick = (e: MouseEvent) => {
-      const canvas = container.querySelector('canvas');
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
+      const rect = container.getBoundingClientRect();
       const canvasX = e.clientX - rect.left;
       const canvasY = e.clientY - rect.top;
       onCanvasClick(canvasX, canvasY);
