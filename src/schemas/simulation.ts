@@ -219,9 +219,17 @@ export const ImageVisualSchema = z.object({
   height: z.number().describe('Height in configured units'),
 }).describe('An image or SVG sprite drawn on the canvas.');
 
+export const RenderableVisualSchema = z.object({
+  type: z.literal('renderable'),
+  name: z.string().describe('Name of a bundled renderable from the manifest (e.g., "pumpkin")'),
+  width: z.number().describe('Width in configured units'),
+  height: z.number().describe('Height in configured units'),
+}).describe('A bundled image/SVG referenced by name. Use instead of "image" when a built-in asset is available.');
+
 export const VisualSchema = z.discriminatedUnion('type', [
   ShapeVisualSchema,
   ImageVisualSchema,
+  RenderableVisualSchema,
 ]).describe('What to draw at the renderable\'s position.');
 
 export const RenderableSchema = z.object({
@@ -235,6 +243,7 @@ export const RenderableSchema = z.object({
 export type PositionSource = z.infer<typeof PositionSourceSchema>;
 export type ShapeVisual = z.infer<typeof ShapeVisualSchema>;
 export type ImageVisual = z.infer<typeof ImageVisualSchema>;
+export type RenderableVisual = z.infer<typeof RenderableVisualSchema>;
 export type Visual = z.infer<typeof VisualSchema>;
 export type Renderable = z.infer<typeof RenderableSchema>;
 

@@ -155,6 +155,12 @@ export function toPixelRenderable(
       width: unitConverter.toPixelsDimension(visual.width),
       height: unitConverter.toPixelsDimension(visual.height),
     };
+  } else if (visual.type === 'renderable') {
+    visual = {
+      ...visual,
+      width: unitConverter.toPixelsDimension(visual.width),
+      height: unitConverter.toPixelsDimension(visual.height),
+    };
   }
 
   return {

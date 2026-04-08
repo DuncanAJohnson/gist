@@ -1,17 +1,6 @@
 import { registerVisual } from '../registry';
 import type { DrawContext, PixelVisual } from '../types';
-
-const imageCache = new Map<string, HTMLImageElement>();
-
-function loadImage(src: string): HTMLImageElement {
-  let img = imageCache.get(src);
-  if (!img) {
-    img = new Image();
-    img.src = src;
-    imageCache.set(src, img);
-  }
-  return img;
-}
+import { loadImage } from './imageCache';
 
 function drawImageVisual(drawCtx: DrawContext, visual: PixelVisual) {
   if (visual.type !== 'image') return;

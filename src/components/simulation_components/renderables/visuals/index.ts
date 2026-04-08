@@ -4,3 +4,4 @@ import './Image';
 import './Marker';
 import './BodyOutline';
 import './ForceArrow';
+import './Renderable';

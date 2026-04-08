@@ -8,12 +8,15 @@ const ARROW_LINE_WIDTH = 3;
 const MIN_ARROW_LENGTH = 8; // Don't draw arrows shorter than this
 
 /**
- * Draws a net-force arrow on a physics body.
+ * Draws a force arrow on a physics body.
  *
- * Reads (body as any).acceleration (pixel-space, set each frame by
- * JsonSimulation's handleUpdate) and body.mass to compute F = m * a.
- * The arrow is drawn from the body centre in the direction of net force,
- * with length proportional to magnitude.
+ * Combines two sources:
+ * - (body as any).gravityAcceleration — gravitational acceleration, always present
+ * - (body as any).acceleration — delta-v acceleration capturing transient forces
+ *
+ * Both are in pixel-space, set each frame by JsonSimulation's handleUpdate.
+ * Force = mass * acceleration. The arrow is drawn from the body centre in
+ * the direction of total force, with length proportional to magnitude.
  */
 function drawForceArrow(drawCtx: DrawContext, visual: PixelVisual) {
   if (visual.type !== 'force-arrow') return;
@@ -21,11 +24,23 @@ function drawForceArrow(drawCtx: DrawContext, visual: PixelVisual) {
   if (!body) return;
 
   const acc = (body as any).acceleration as { x: number; y: number } | undefined;
-  if (!acc) return;
+  const gravAcc = (body as any).gravityAcceleration as { x: number; y: number } | undefined;
+  if (!acc && !gravAcc) return;
 
   // F = m * a (acceleration is in pixels/frame², force in pixel-scaled units)
-  const fx = body.mass * acc.x;
-  const fy = body.mass * acc.y;
+  // Include both the delta-v acceleration and the gravitational acceleration.
+  // Delta-v captures transient forces (collisions, impulses) but loses gravity
+  // for resting bodies, so we add gravity explicitly.
+  let fx = 0;
+  let fy = 0;
+  if (gravAcc) {
+    fx += body.mass * gravAcc.x;
+    fy += body.mass * gravAcc.y;
+  }
+  if (acc) {
+    fx += body.mass * acc.x;
+    fy += body.mass * acc.y;
+  }
 
   const magnitude = Math.sqrt(fx * fx + fy * fy);
   const arrowLength = magnitude * visual.pixelsPerNewton;

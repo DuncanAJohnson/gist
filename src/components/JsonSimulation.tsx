@@ -324,6 +324,17 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           // First frame - initialize acceleration to zero
           (body as any).acceleration = { x: 0, y: 0 };
         }
+        // Store engine gravity so force arrows can include gravitational force.
+        // Convert to the same units as the delta-v acceleration (pixels / seconds):
+        //   Matter.js gravity adds gravity.scale * dt² to displacement per step,
+        //   so the equivalent acceleration = gravity.scale * dt_ms² / dt_seconds
+        //                                  = gravity.scale * deltaTime * 1e6
+        const gScale = _engine.gravity.scale * deltaTime * 1e6;
+        (body as any).gravityAcceleration = {
+          x: _engine.gravity.x * gScale,
+          y: _engine.gravity.y * gScale,
+        };
+
         // Update previous velocity
         prevVelocitiesRef.current[objectConfig.id] = { ...body.velocity };
       });
