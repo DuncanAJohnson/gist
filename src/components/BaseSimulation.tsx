@@ -2,10 +2,21 @@ import { useEffect, useRef, useState, ReactNode } from 'react';
 import Matter from 'matter-js';
 import { PhysicsProvider } from '../contexts/PhysicsContext';
 
-interface SimulationControls {
+export type SimulationMode = 'live' | 'precomputing' | 'replay';
+
+export interface SimulationControls {
   play: () => void;
   pause: () => void;
   reset: () => void;
+  precompute: (
+    totalFrames: number,
+    onBatch: (framesDone: number) => void
+  ) => Promise<void>;
+  startReplay: (
+    onFrame: (frameIndex: number) => void,
+    totalFrames: number
+  ) => void;
+  clearReplay: () => void;
 }
 
 interface BaseSimulationProps {
@@ -37,6 +48,12 @@ export const simToCanvasY = (simY: number) => CANVAS_HEIGHT - WALL_THICKNESS - s
 export const canvasToSimX = (canvasX: number) => canvasX - WALL_THICKNESS;
 export const canvasToSimY = (canvasY: number) => CANVAS_HEIGHT - WALL_THICKNESS - canvasY;
 
+// 30 FPS fixed timestep for both live physics and pre-computed playback.
+const FIXED_TIME_STEP = 1000 / 30;
+const FIXED_DT_SECONDS = FIXED_TIME_STEP / 1000;
+const MAX_DELTA = FIXED_TIME_STEP * 3;
+const PRECOMPUTE_BATCH = 30;
+
 function BaseSimulation({
   onInit,
   onUpdate,
@@ -50,6 +67,7 @@ function BaseSimulation({
   const engineRef = useRef<Matter.Engine | null>(null);
   const [engineReady, setEngineReady] = useState(false);
   const isRunningRef = useRef(false);
+  const modeRef = useRef<SimulationMode>('live');
   const initialBodiesRef = useRef<Array<{
     id: number;
     position: { x: number; y: number };
@@ -58,29 +76,26 @@ function BaseSimulation({
     angularVelocity: number;
   }>>([]);
   const simulationTimeRef = useRef(0);
+  const replayIndexRef = useRef(0);
+  const replayTotalRef = useRef(0);
+  const replayOnFrameRef = useRef<((frameIndex: number) => void) | null>(null);
 
   useEffect(() => {
     if (!sceneRef.current) return;
 
-    // Create engine
     const engine = Matter.Engine.create();
     engineRef.current = engine;
 
-    // Size the scene container. The RenderLayer will attach an overlay canvas
-    // to it for all visual rendering (Matter.Render is no longer used).
     sceneRef.current.style.width = `${CANVAS_WIDTH}px`;
     sceneRef.current.style.height = `${CANVAS_HEIGHT}px`;
     sceneRef.current.style.backgroundColor = '#fafafa';
 
-    // Mark engine as ready so children can use it
     setEngineReady(true);
 
-    // Expose canvas container to parent
     if (onCanvasContainerReady) {
       onCanvasContainerReady(sceneRef.current);
     }
 
-    // Call initialization callback
     if (onInit) {
       onInit(engine);
     }
@@ -96,96 +111,61 @@ function BaseSimulation({
       }));
     }, 100);
 
-    // Manual animation loop using Engine.update with fixed time step
-    const FIXED_TIME_STEP = 1000 / 60; // 16.67ms for 60 FPS
-    const MAX_DELTA = FIXED_TIME_STEP * 3; // Cap at 3 frames to prevent spiral of death
-
-    // Debug logging configuration
-    const ENABLE_DEBUG = true; // Easy toggle for all debug logging
-    const DEBUG_FRAME_COUNT = 30; // Log first 30 frames when running
-
     let lastTime = performance.now();
     let accumulator = 0;
     let animationFrameId: number;
-    let frameCount = 0; // Track total frame number
-    let debugFrameCounter = 0; // Track running frame number for debug logs
+
+    const resetBodiesToInitial = () => {
+      initialBodiesRef.current.forEach(initialBody => {
+        const body = engine.world.bodies.find(b => b.id === initialBody.id);
+        if (body) {
+          Matter.Body.setPosition(body, initialBody.position);
+          Matter.Body.setVelocity(body, initialBody.velocity);
+          Matter.Body.setAngle(body, initialBody.angle);
+          Matter.Body.setAngularVelocity(body, initialBody.angularVelocity);
+        }
+      });
+    };
 
     const updateLoop = (currentTime: number) => {
       let delta = currentTime - lastTime;
       lastTime = currentTime;
-      frameCount++;
 
-      // Only step the simulation if running
+      if (modeRef.current === 'precomputing') {
+        // Pre-compute path drives itself via its own async loop; the rAF
+        // loop here is a no-op so it can't double-step the engine.
+        animationFrameId = requestAnimationFrame(updateLoop);
+        return;
+      }
+
       if (isRunningRef.current) {
-        debugFrameCounter++; // Increment only when running
-
-        // Debug: Log first N frames when RUNNING
-        if (ENABLE_DEBUG && debugFrameCounter <= DEBUG_FRAME_COUNT) {
-          const isDeltaCapped = delta > MAX_DELTA;
-          console.log(
-            `[RUNNING Frame ${debugFrameCounter}/${frameCount}] ` +
-            `delta: ${delta.toFixed(2)}ms` +
-            `${isDeltaCapped ? ' (CAPPED to ' + MAX_DELTA.toFixed(2) + 'ms)' : ''}, ` +
-            `accumulator: ${accumulator.toFixed(2)}ms`
-          );
-        }
-
-        // Cap delta to prevent large jumps (e.g., initial frame, tab switching)
-        if (delta > MAX_DELTA) {
-          delta = MAX_DELTA;
-        }
-
-        // Add frame time to accumulator (only when running!)
+        if (delta > MAX_DELTA) delta = MAX_DELTA;
         accumulator += delta;
-        let stepsThisFrame = 0;
 
-        // Run physics updates in fixed time steps
         while (accumulator >= FIXED_TIME_STEP) {
-          // Call user update callback BEFORE physics step (for force application, etc.)
-          if (onUpdate) {
-            onUpdate(engine, simulationTimeRef.current);
+          if (modeRef.current === 'replay') {
+            const idx = replayIndexRef.current;
+            if (idx >= replayTotalRef.current) {
+              isRunningRef.current = false;
+              accumulator = 0;
+              break;
+            }
+            replayOnFrameRef.current?.(idx);
+            replayIndexRef.current = idx + 1;
+            simulationTimeRef.current += FIXED_DT_SECONDS;
+          } else {
+            if (onUpdate) {
+              onUpdate(engine, simulationTimeRef.current);
+            }
+            Matter.Engine.update(engine, FIXED_TIME_STEP);
+            simulationTimeRef.current += FIXED_DT_SECONDS;
           }
-
-          // Step physics with fixed time step
-          Matter.Engine.update(engine, FIXED_TIME_STEP);
-
-          // Increment simulation time
-          simulationTimeRef.current += FIXED_TIME_STEP / 1000;
           accumulator -= FIXED_TIME_STEP;
-          stepsThisFrame++;
         }
-
-        // Debug: Log physics steps and object positions for initial frames
-        if (ENABLE_DEBUG && debugFrameCounter <= DEBUG_FRAME_COUNT && stepsThisFrame > 0) {
-          console.log(
-            `[RUNNING Frame ${debugFrameCounter}] ` +
-            `Executed ${stepsThisFrame} physics step(s), ` +
-            `remaining accumulator: ${accumulator.toFixed(2)}ms`
-          );
-
-          // Log positions of all dynamic bodies
-          const dynamicBodies = engine.world.bodies.filter(b => !b.isStatic);
-          if (dynamicBodies.length > 0) {
-            console.log(`[RUNNING Frame ${debugFrameCounter}] Object positions:`);
-            dynamicBodies.forEach(body => {
-              console.log(
-                `  - Body ${body.id}: ` +
-                `pos(${body.position.x.toFixed(1)}, ${body.position.y.toFixed(1)}), ` +
-                `vel(${body.velocity.x.toFixed(2)}, ${body.velocity.y.toFixed(2)})`
-              );
-            });
-          }
-        }
-      } else {
-        // PAUSED state - log periodically
-        if (ENABLE_DEBUG && frameCount % 60 === 0) {
-          console.log(`[PAUSED Frame ${frameCount}] Waiting... (delta: ${delta.toFixed(2)}ms)`);
-        }
-
-        // When paused, still call onUpdate for output display
-        if (onUpdate) {
-          onUpdate(engine, simulationTimeRef.current);
-        }
+      } else if (modeRef.current === 'live' && onUpdate) {
+        // When paused in live mode, still call onUpdate so output displays
+        // reflect immediate control changes.
+        onUpdate(engine, simulationTimeRef.current);
       }
 
       animationFrameId = requestAnimationFrame(updateLoop);
@@ -193,35 +173,78 @@ function BaseSimulation({
 
     animationFrameId = requestAnimationFrame(updateLoop);
 
-    // Expose control methods
     if (onControlsReady) {
       onControlsReady({
         play: () => {
           isRunningRef.current = true;
+          // Kick the timestep so the accumulator starts from "now" and
+          // we don't burn off a giant delta.
+          lastTime = performance.now();
+          accumulator = 0;
         },
         pause: () => {
           isRunningRef.current = false;
         },
         reset: () => {
-          // Reset all bodies to initial state
-          initialBodiesRef.current.forEach(initialBody => {
-            const body = engine.world.bodies.find(b => b.id === initialBody.id);
-            if (body) {
-              Matter.Body.setPosition(body, initialBody.position);
-              Matter.Body.setVelocity(body, initialBody.velocity);
-              Matter.Body.setAngle(body, initialBody.angle);
-              Matter.Body.setAngularVelocity(body, initialBody.angularVelocity);
-            }
-          });
+          resetBodiesToInitial();
           isRunningRef.current = false;
           simulationTimeRef.current = 0;
-          accumulator = 0; // Clear accumulated time
-          debugFrameCounter = 0; // Reset for fresh debug logs
+          accumulator = 0;
+          replayIndexRef.current = 0;
+        },
+        precompute: async (totalFrames, onBatch) => {
+          resetBodiesToInitial();
+          modeRef.current = 'precomputing';
+          isRunningRef.current = false;
+          simulationTimeRef.current = 0;
+          accumulator = 0;
+
+          let done = 0;
+          while (done < totalFrames) {
+            const batchEnd = Math.min(totalFrames, done + PRECOMPUTE_BATCH);
+            for (; done < batchEnd; done++) {
+              if (onUpdate) {
+                onUpdate(engine, simulationTimeRef.current);
+              }
+              Matter.Engine.update(engine, FIXED_TIME_STEP);
+              simulationTimeRef.current += FIXED_DT_SECONDS;
+            }
+            onBatch(done);
+            if (done < totalFrames) {
+              await new Promise<void>((resolve) =>
+                requestAnimationFrame(() => resolve())
+              );
+            }
+          }
+        },
+        startReplay: (onFrame, totalFrames) => {
+          modeRef.current = 'replay';
+          replayOnFrameRef.current = onFrame;
+          replayTotalRef.current = totalFrames;
+          replayIndexRef.current = 0;
+          simulationTimeRef.current = 0;
+          accumulator = 0;
+          lastTime = performance.now();
+          // Apply frame 0 immediately so the initial pose is visible.
+          if (totalFrames > 0) {
+            onFrame(0);
+            replayIndexRef.current = 1;
+            simulationTimeRef.current = FIXED_DT_SECONDS;
+          }
+        },
+        clearReplay: () => {
+          modeRef.current = 'live';
+          replayOnFrameRef.current = null;
+          replayTotalRef.current = 0;
+          replayIndexRef.current = 0;
+          isRunningRef.current = false;
+          simulationTimeRef.current = 0;
+          accumulator = 0;
+          resetBodiesToInitial();
         },
       });
     }
 
-    // Cleanup
     return () => {
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
@@ -231,7 +254,6 @@ function BaseSimulation({
     };
   }, [onInit, onUpdate, onControlsReady, onCanvasContainerReady]);
 
-  // Handle canvas clicks for position picking
   useEffect(() => {
     if (!pickingPosition || !onCanvasClick || !sceneRef.current) return;
 

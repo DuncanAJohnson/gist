@@ -2,11 +2,11 @@ import { registerControl } from '../registry';
 import type { ControlRenderProps } from '../types';
 import type { ToggleConfig } from '../../../../schemas/simulation';
 
-  function Toggle({ control, value, onChange }: ControlRenderProps<ToggleConfig>): React.ReactElement {
+  function Toggle({ control, value, onChange, disabled }: ControlRenderProps<ToggleConfig>): React.ReactElement {
   const { label } = control;
 
   return (
-    <div className="mb-4 flex items-center justify-between">
+    <div className={`mb-4 flex items-center justify-between ${disabled ? 'opacity-50' : ''}`}>
       <label className="text-sm text-gray-800 font-medium">
         {label}
       </label>
@@ -14,8 +14,9 @@ import type { ToggleConfig } from '../../../../schemas/simulation';
         type="button"
         role="switch"
         aria-checked={value as boolean}
-        onClick={() => onChange(!(value as boolean))}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+        disabled={disabled}
+        onClick={() => { if (!disabled) onChange(!(value as boolean)); }}
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:cursor-not-allowed ${
           value ? 'bg-primary' : 'bg-gray-300'
         }`}
       >

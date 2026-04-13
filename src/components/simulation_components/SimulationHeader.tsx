@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import SimulationControls from './SimulationControls';
+import SimulationControls, { type PrecomputeState, type PrecomputeProgress } from './SimulationControls';
 import CreateSimulation from '../CreateSimulation';
 import FeedbackModal from './FeedbackModal';
 import {
@@ -23,9 +23,10 @@ interface SimulationHeaderProps {
   onTweakJSON?: () => void;
   simulationId?: number;
   currentJSON?: any;
-  maxDuration: number | null;
-  onMaxDurationChange: (v: number | null) => void;
-  stopped: boolean;
+  maxDuration: number;
+  onMaxDurationChange: (v: number) => void;
+  precomputeState: PrecomputeState;
+  precomputeProgress: PrecomputeProgress | null;
 }
 
 function SimulationHeader({
@@ -41,7 +42,8 @@ function SimulationHeader({
   currentJSON,
   maxDuration,
   onMaxDurationChange,
-  stopped,
+  precomputeState,
+  precomputeProgress,
 }: SimulationHeaderProps) {
   const [showEditPopup, setShowEditPopup] = useState(false);
   const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
@@ -181,7 +183,8 @@ function SimulationHeader({
           onReset={onReset}
           maxDuration={maxDuration}
           onMaxDurationChange={onMaxDurationChange}
-          stopped={stopped}
+          precomputeState={precomputeState}
+          precomputeProgress={precomputeProgress}
         />
         {simulationId && metaLoaded && (
           <>
