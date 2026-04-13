@@ -1,0 +1,15 @@
+<svg viewBox="0 0 64 64" version="1.1" id="svg803" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs807"></defs>
+  
+  <circle cx="16" cy="40" r="11" fill="none" stroke="#1E293B" stroke-width="2.5" id="circle785"></circle>
+  <circle cx="48" cy="40" r="11" fill="none" stroke="#1E293B" stroke-width="2.5" id="circle787"></circle>
+  <line x1="16" y1="40" x2="30" y2="24" stroke="#EF4444" stroke-width="2.5" id="line789"></line>
+  <line x1="30" y1="24" x2="38" y2="24" stroke="#EF4444" stroke-width="2.5" id="line791"></line>
+  <line x1="38" y1="24" x2="48" y2="40" stroke="#EF4444" stroke-width="2.5" id="line793"></line>
+  <line x1="30" y1="24" x2="48" y2="40" stroke="#EF4444" stroke-width="2.5" id="line795"></line>
+  <line x1="16" y1="40" x2="38" y2="24" stroke="#EF4444" stroke-width="2.5" id="line797"></line>
+  <line x1="38" y1="24" x2="46" y2="18" stroke="#1e293b" stroke-width="2" id="line799"></line>
+  <line x1="29.859112" y1="23.871048" x2="27.25428" y2="17.601709" stroke="#1e293b" stroke-width="1.38366" id="line799-9"></line>
+  <circle cx="46" cy="17" r="2" fill="#1e293b" id="circle801"></circle>
+  <rect style="fill:#86898f;stroke:#000000;stroke-width:0.5;fill-opacity:1" id="rect831" width="10.368189" height="1.6966127" x="20.359352" y="15.929308" ry="0.84830636"></rect>
+</svg>

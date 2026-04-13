@@ -9,9 +9,10 @@ import { loadImage } from './imageCache';
 const nameToPath = new Map<string, string>();
 fetch('/renderables/manifest.json')
   .then(r => r.json())
-  .then((data: { renderables: { name: string; file: string }[] }) => {
-    for (const entry of data.renderables) {
-      nameToPath.set(entry.name, `/renderables/${entry.file}`);
+  .then((data: { items: { name: string; status?: string }[] }) => {
+    for (const entry of data.items) {
+      if (entry.status && entry.status !== 'approved') continue;
+      nameToPath.set(entry.name, `/renderables/${entry.name}.svg`);
     }
   });
 

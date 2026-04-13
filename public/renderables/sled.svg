@@ -1,0 +1,11 @@
+<svg viewBox="0 0 64 64" version="1.1" id="svg12564" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs12568"></defs>
+  
+  <path d="M8 20 Q8 28 16 28 H52 Q56 28 56 24" fill="none" stroke="#B45309" stroke-width="3" stroke-linecap="round" id="path12550"></path>
+  <path d="m 8.0550459,19.761468 q 0,6 8.0000001,6" fill="none" stroke="#78350f" stroke-width="3" stroke-linecap="round" id="path12560"></path>
+  <path d="m 52.824307,28.209331 q 3.415605,0 3.415605,-4.534871" fill="none" stroke="#78350f" stroke-width="2.41009" stroke-linecap="round" id="path12562"></path>
+  <rect x="10.727829" y="22.911316" width="36" height="5.9449539" rx="2" fill="#d97706" id="rect12552" style="stroke-width:0.862044"></rect>
+  <line x1="14.727829" y1="22.911316" x2="14.727829" y2="28.85627" stroke="#92400e" stroke-width="1.72409" id="line12554"></line>
+  <line x1="30.727829" y1="22.911316" x2="30.727829" y2="28.85627" stroke="#92400e" stroke-width="1.72409" id="line12556"></line>
+  <line x1="42.727829" y1="22.911316" x2="42.727829" y2="28.85627" stroke="#92400e" stroke-width="1.72409" id="line12558"></line>
+</svg>

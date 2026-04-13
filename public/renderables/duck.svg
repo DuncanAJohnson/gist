@@ -1,0 +1,18 @@
+<svg viewBox="0 0 64 64" version="1.1" id="svg4839" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs4843"></defs>
+  
+  <g fill="none" id="g4837">
+    <ellipse cx="32" cy="40" rx="16" ry="11" fill="#f0d020" id="ellipse4813"></ellipse>
+    <ellipse cx="22" cy="26" rx="10" ry="9" fill="#f0d020" id="ellipse4815"></ellipse>
+    <ellipse cx="22" cy="26" rx="6" ry="6" fill="#f8e870" id="ellipse4817"></ellipse>
+    <ellipse cx="32" cy="40" rx="10" ry="7" fill="#f8e870" id="ellipse4819"></ellipse>
+    <path d="M12,26 Q6,24 6,28 Q8,32 14,30" fill="#e08010" id="path4821"></path>
+    <circle cx="18" cy="24" r="2" fill="#2a3a50" id="circle4823"></circle>
+    <circle cx="18" cy="24" r="0.8" fill="#f0f0f0" id="circle4825"></circle>
+    <path d="M46,38 Q56,34 58,42 Q54,46 46,44 Z" fill="#f0d020" id="path4827"></path>
+    <line x1="26" y1="51" x2="24" y2="58" stroke="#e08010" stroke-width="3" stroke-linecap="round" id="line4829"></line>
+    <line x1="36" y1="51" x2="38" y2="58" stroke="#e08010" stroke-width="3" stroke-linecap="round" id="line4831"></line>
+    <path d="M34,58 Q38,60 42,58" stroke="#e08010" stroke-width="2" fill="none" id="path4835"></path>
+    <path d="m 20.073394,58.366594 q 4,2 8,0" stroke="#e08010" stroke-width="2" fill="none" id="path4835-2"></path>
+  </g>
+</svg>

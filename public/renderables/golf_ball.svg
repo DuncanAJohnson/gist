@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <circle cx="32" cy="32" r="20" fill="#F5F5F4"/>
+  <circle cx="32" cy="32" r="20" fill="none" stroke="#6B7280" stroke-width="2"/>
+  <!-- Row 1 (top) -->
+  <circle cx="32" cy="16" r="1.5" fill="#D1D5DB"/>
+  <!-- Row 2 -->
+  <circle cx="26" cy="20" r="1.5" fill="#D1D5DB"/>
+  <circle cx="32" cy="21" r="1.5" fill="#D1D5DB"/>
+  <circle cx="38" cy="20" r="1.5" fill="#D1D5DB"/>
+  <!-- Row 3 -->
+  <circle cx="22" cy="26" r="1.5" fill="#D1D5DB"/>
+  <circle cx="29" cy="26" r="1.5" fill="#D1D5DB"/>
+  <circle cx="35" cy="26" r="1.5" fill="#D1D5DB"/>
+  <circle cx="42" cy="26" r="1.5" fill="#D1D5DB"/>
+  <!-- Row 4 (center) -->
+  <circle cx="19" cy="32" r="1.5" fill="#D1D5DB"/>
+  <circle cx="26" cy="32" r="1.5" fill="#D1D5DB"/>
+  <circle cx="32" cy="32" r="1.5" fill="#D1D5DB"/>
+  <circle cx="38" cy="32" r="1.5" fill="#D1D5DB"/>
+  <circle cx="45" cy="32" r="1.5" fill="#D1D5DB"/>
+  <!-- Row 5 -->
+  <circle cx="22" cy="38" r="1.5" fill="#D1D5DB"/>
+  <circle cx="29" cy="38" r="1.5" fill="#D1D5DB"/>
+  <circle cx="35" cy="38" r="1.5" fill="#D1D5DB"/>
+  <circle cx="42" cy="38" r="1.5" fill="#D1D5DB"/>
+  <!-- Row 6 -->
+  <circle cx="26" cy="43" r="1.5" fill="#D1D5DB"/>
+  <circle cx="32" cy="43" r="1.5" fill="#D1D5DB"/>
+  <circle cx="38" cy="43" r="1.5" fill="#D1D5DB"/>
+  <!-- Row 7 (bottom) -->
+  <circle cx="32" cy="48" r="1.5" fill="#D1D5DB"/>
+</svg>

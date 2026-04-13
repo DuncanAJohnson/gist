@@ -19,20 +19,30 @@ app = modal.App("gist-openai-stream")
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _schema_local_path = os.path.join(_current_dir, 'simulation_schema.json')
 _instructions_local_path = os.path.join(_current_dir, 'gist_instructions.py')
+_renderables_manifest_local_path = os.path.join(
+    _current_dir, '..', 'public', 'renderables', 'manifest.json'
+)
 
-# Define the image with dependencies and include the schema and instructions files
+# Define the image with dependencies and include the schema, instructions,
+# and renderables manifest files
 image = (
     modal.Image.debian_slim()
     .pip_install("openai", "fastapi[standard]")
     .add_local_file(local_path=_schema_local_path, remote_path="/root/simulation_schema.json")
     .add_local_file(local_path=_instructions_local_path, remote_path="/root/gist_instructions.py")
+    .add_local_file(
+        local_path=_renderables_manifest_local_path,
+        remote_path="/root/renderables_manifest.json",
+    )
 )
 
 # Path to schema in the Modal container
 SCHEMA_REMOTE_PATH = "/root/simulation_schema.json"
+RENDERABLES_MANIFEST_REMOTE_PATH = "/root/renderables_manifest.json"
 
 # Cache for loaded schema
 _schema_instructions_cache = None
+_renderables_instructions_cache = None
 
 
 def get_schema_instructions():
@@ -51,6 +61,34 @@ The simulation configuration must conform to this JSON Schema. The schema includ
 ```
 """
     return _schema_instructions_cache
+
+
+def get_renderables_instructions():
+    """Load and cache the list of available renderables from the manifest."""
+    global _renderables_instructions_cache
+    if _renderables_instructions_cache is None:
+        with open(RENDERABLES_MANIFEST_REMOTE_PATH, 'r') as f:
+            manifest = json.load(f)
+        lines = []
+        for item in manifest.get("items", []):
+            if item.get("status") != "approved":
+                continue
+            name = item.get("name")
+            display_name = item.get("display_name", name)
+            if not name:
+                continue
+            lines.append(f"- {name} — {display_name}")
+        listing = "\n".join(lines)
+        _renderables_instructions_cache = f"""
+## AVAILABLE RENDERABLES
+
+The following bundled SVG assets are available. When populating
+`renderables[].visual.name`, you MUST pick the left-hand `name` from this list
+verbatim. Do not invent names that are not in this list.
+
+{listing}
+"""
+    return _renderables_instructions_cache
 
 
 @app.function(
@@ -80,8 +118,14 @@ async def chat_completion(
     
     try:
         input_messages = []
-        # Combine base instructions with schema documentation
-        combined_instructions = instructions + "\n\n" + get_schema_instructions()
+        # Combine base instructions with schema documentation and renderables list
+        combined_instructions = (
+            instructions
+            + "\n\n"
+            + get_schema_instructions()
+            + "\n\n"
+            + get_renderables_instructions()
+        )
         
         for msg in messages:
             if msg["role"] == "system":

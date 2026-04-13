@@ -49,6 +49,16 @@ When a teacher requests a simulation, follow these steps:
    - Omit walls if objects should fall away (like a ball toss)
    - Bottom wall for things that should hit "ground"
 
+8. **Assign a Renderable to Every Object:**
+   - For every entry you put in `objects`, emit a matching entry in the top-level `renderables` array so each physics body has a visual sprite.
+   - Each renderable entry must use:
+     - `source`: `{ "type": "body", "bodyId": "<the object's id>" }`
+     - `visual`: `{ "type": "renderable", "name": "<manifest name>", "width": <object width>, "height": <object height> }`
+     - `width`/`height` should match the object's real-world size in the configured unit so the sprite lines up with the physics body.
+   - The `visual.name` MUST be one of the names listed in the "AVAILABLE RENDERABLES" section. Never invent a name that is not in that list.
+   - Pick the manifest item whose display name best matches the object's real-world identity (e.g., for a falling ball in a gravity demo, prefer `baseball`, `bowling_ball`, or `marble`). When nothing fits well, fall back to a generic option like `sphere`, `cylinder`, or `wooden_block`.
+   - Give each renderable a unique `id` (for example `<object_id>_visual`).
+
 ## BEST PRACTICES
 
 1. **Keep It Simple:**

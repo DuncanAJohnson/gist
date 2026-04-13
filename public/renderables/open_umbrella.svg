@@ -1,0 +1,12 @@
+<svg viewBox="0 0 64 64" version="1.1" id="svg455" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs459"></defs>
+  
+  <path d="M12 32 Q32 8 52 32 Z" fill="#475569" id="path443"></path>
+  <path d="m 12,32 c 6.666667,-9.333333 13.333333,-10.666667 20,-12 6.666667,1.333333 13.333333,2.666667 20,12" fill="none" stroke="#94a3b8" stroke-width="1.5" id="path445" style="stroke-width:0.7;stroke-dasharray:none"></path>
+  <line x1="32" y1="32" x2="32" y2="54" stroke="#94a3b8" stroke-width="2.5" id="line447"></line>
+  <path d="M32 54 Q32 60 26 60" stroke="#94a3b8" stroke-width="2.5" fill="none" stroke-linecap="round" id="path449"></path>
+  <path d="m 31.756649,56.194957 c 0,2.373371 -3.405623,3.823941 -5.778994,3.823941" stroke="#94a3b8" stroke-width="1.48336" fill="none" stroke-linecap="round" id="path449-2" style="stroke:#1d2024;stroke-opacity:1"></path>
+  <path style="fill:none;stroke:#94a3b8;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1" d="m 21.614396,31.884591 2.148015,-5.235786 1.409634,-2.148014 2.21514,-2.148015 4.765908,-2.21514 -0.06713,0.06713" id="path1291"></path>
+  <path style="fill:none;stroke:#94a3b8;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1" d="m 42.445947,32.078769 -2.148015,-5.235786 -1.409634,-2.148014 -2.21514,-2.148015 -4.765908,-2.21514 0.06713,0.06713" id="path1291-8"></path>
+  <path style="fill:none;stroke:#94a3b8;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1" d="M 31.83565,20.487536 31.91181,31.83565" id="path1839"></path>
+</svg>

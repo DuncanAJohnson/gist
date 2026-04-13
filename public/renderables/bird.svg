@@ -1,0 +1,32 @@
+<svg viewBox="0 0 64 64" version="1.1" id="svg3056" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs3060"></defs>
+  
+  <g fill="none" id="g3054">
+    
+    <path d="m 15.425077,35.327217 q -8.0000005,-6 -6.0000005,-12 4.0000005,4 10.0000005,8 z" fill="#c47818" id="path3024"></path>
+    <path d="m 16.152905,35.880734 c -7.3333331,-2 -10.1376144,-5.920489 -8.8042811,-10.587156 3.3333331,2 7.6666671,4.333333 13.0000001,7 z" fill="#e8a020" id="path3026"></path>
+    
+    <ellipse cx="30" cy="34" rx="14" ry="11" fill="#e8a020" id="ellipse3028"></ellipse>
+    
+    <ellipse cx="31" cy="38" rx="10" ry="7" fill="#f5d880" id="ellipse3030"></ellipse>
+    
+    <path d="M22,28 Q18,34 22,40 Q28,38 32,32 Q28,26 22,28 Z" fill="#c47818" id="path3032"></path>
+    
+    <circle cx="42" cy="22" r="7" fill="#e8a020" id="circle3034"></circle>
+    
+    <circle cx="44" cy="20.5" r="1.8" fill="#3a2a10" id="circle3036"></circle>
+    <circle cx="44.5" cy="20" r="0.6" fill="#fff" id="circle3038"></circle>
+    
+    <path d="M48.5,22 L54,21 L49,24 Z" fill="#c47818" id="path3040"></path>
+    
+    
+    <line x1="28" y1="44" x2="26" y2="54" stroke="#c47818" stroke-width="1.8" stroke-linecap="round" id="line3044"></line>
+    <line x1="34" y1="44" x2="35" y2="54" stroke="#c47818" stroke-width="1.8" stroke-linecap="round" id="line3046"></line>
+    
+    <path d="M23,54 L26,54 L29,54" stroke="#c47818" stroke-width="1.5" stroke-linecap="round" id="path3048"></path>
+    <path d="M32,54 L35,54 L38,54" stroke="#c47818" stroke-width="1.5" stroke-linecap="round" id="path3050"></path>
+    
+    <path d="m 38.479278,17.198194 q 2,-4 5,-1" fill="#c47818" id="path3052"></path>
+    <path style="fill:#e07830;stroke:none;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1;fill-opacity:1" d="m 39.454012,32.488898 0.753113,1.262515 0.760529,0.80168 1.209716,2.633451 -0.09786,1.174312 0.218181,0.631912 0.239873,-0.186568 0.399789,-0.772926 c 0,0 0.639663,-1.412588 0.639663,-1.545851 0,-0.133263 0.319831,-1.972293 0.319831,-1.972293 l 0.02665,-1.172715 -0.213221,-1.412588 -0.479747,-1.0128 c 0,0 -0.852883,-0.346484 -1.039452,-0.346484 -0.186568,0 -1.439241,0.479747 -1.439241,0.479747 0,0 -0.799578,0.746273 -0.906188,0.772926 -0.106611,0.02665 -0.426442,0.373136 -0.426442,0.373136 z" id="path3479"></path>
+  </g>
+</svg>
