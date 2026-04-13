@@ -48,11 +48,11 @@ export const simToCanvasY = (simY: number) => CANVAS_HEIGHT - WALL_THICKNESS - s
 export const canvasToSimX = (canvasX: number) => canvasX - WALL_THICKNESS;
 export const canvasToSimY = (canvasY: number) => CANVAS_HEIGHT - WALL_THICKNESS - canvasY;
 
-// 30 FPS fixed timestep for both live physics and pre-computed playback.
-const FIXED_TIME_STEP = 1000 / 30;
+// 60 FPS fixed timestep for both live physics and pre-computed playback.
+const FIXED_TIME_STEP = 1000 / 60;
 const FIXED_DT_SECONDS = FIXED_TIME_STEP / 1000;
 const MAX_DELTA = FIXED_TIME_STEP * 3;
-const PRECOMPUTE_BATCH = 30;
+const PRECOMPUTE_BATCH = 60;
 
 function BaseSimulation({
   onInit,
@@ -193,14 +193,50 @@ function BaseSimulation({
           replayIndexRef.current = 0;
         },
         precompute: async (totalFrames, onBatch) => {
-          resetBodiesToInitial();
+          // NOTE: caller is responsible for resetting bodies and applying
+          // current control values before calling this — we don't reset here
+          // because control-driven body edits (e.g. setVelocity) would be lost.
           modeRef.current = 'precomputing';
           isRunningRef.current = false;
           simulationTimeRef.current = 0;
           accumulator = 0;
 
+          // Snapshot the pre-compute starting pose so we can visually freeze
+          // bodies at this state between batches while physics evolves in the
+          // background. Two snapshots are maintained: `freeze` (the starting
+          // pose, restored for paint between batches) and `physicsSnap` (the
+          // live physics state, saved before yielding and reloaded after).
+          type BodySnap = {
+            body: Matter.Body;
+            position: { x: number; y: number };
+            velocity: { x: number; y: number };
+            angle: number;
+            angularVelocity: number;
+          };
+          const capture = (): BodySnap[] =>
+            engine.world.bodies.map((b) => ({
+              body: b,
+              position: { ...b.position },
+              velocity: { ...b.velocity },
+              angle: b.angle,
+              angularVelocity: b.angularVelocity,
+            }));
+          const apply = (snaps: BodySnap[]) => {
+            snaps.forEach(({ body, position, velocity, angle, angularVelocity }) => {
+              Matter.Body.setPosition(body, position);
+              Matter.Body.setVelocity(body, velocity);
+              Matter.Body.setAngle(body, angle);
+              Matter.Body.setAngularVelocity(body, angularVelocity);
+            });
+          };
+          const freeze = capture();
+          let physicsSnap = capture();
+
           let done = 0;
           while (done < totalFrames) {
+            // Restore the evolving physics state for this batch (starts equal
+            // to freeze state on the first iteration).
+            apply(physicsSnap);
             const batchEnd = Math.min(totalFrames, done + PRECOMPUTE_BATCH);
             for (; done < batchEnd; done++) {
               if (onUpdate) {
@@ -209,6 +245,9 @@ function BaseSimulation({
               Matter.Engine.update(engine, FIXED_TIME_STEP);
               simulationTimeRef.current += FIXED_DT_SECONDS;
             }
+            // Save where physics ended, then visually freeze for the yield.
+            physicsSnap = capture();
+            apply(freeze);
             onBatch(done);
             if (done < totalFrames) {
               await new Promise<void>((resolve) =>
@@ -216,6 +255,8 @@ function BaseSimulation({
               );
             }
           }
+          // Ensure bodies are in the freeze pose after the last batch too.
+          apply(freeze);
         },
         startReplay: (onFrame, totalFrames) => {
           modeRef.current = 'replay';

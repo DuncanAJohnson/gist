@@ -44,7 +44,7 @@ function SimulationControls({
         </div>
         <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
           <div
-            className="h-full bg-green-500 transition-all duration-150"
+            className="h-full bg-green-500"
             style={{ width: `${percent}%` }}
           />
         </div>
@@ -52,20 +52,12 @@ function SimulationControls({
     );
   }
 
-  const durationDisabled = precomputeState === 'ready';
-
   return (
     <div className="flex gap-2 items-center">
       {/* Duration input */}
       <div
-        className={`flex items-center gap-2 bg-gray-100 border border-gray-300 rounded-lg px-3 h-[40px] ${
-          durationDisabled ? 'opacity-60' : ''
-        }`}
-        title={
-          durationDisabled
-            ? 'Reset to change the simulation duration'
-            : 'Stop after this many seconds (minimum 1)'
-        }
+        className="flex items-center gap-2 bg-gray-100 border border-gray-300 rounded-lg px-3 h-[40px]"
+        title="Stop after this many seconds (minimum 1). Editing this invalidates the pre-computed cache."
       >
         <span className="text-sm text-gray-600 whitespace-nowrap">Simulation Duration:</span>
         <input
@@ -73,7 +65,6 @@ function SimulationControls({
           min="1"
           step="1"
           value={maxDuration}
-          disabled={durationDisabled}
           onChange={(e) => {
             const raw = e.target.value;
             if (raw === '') return;
@@ -82,7 +73,7 @@ function SimulationControls({
               onMaxDurationChange(Math.max(1, n));
             }
           }}
-          className="w-14 bg-transparent text-sm text-center focus:outline-none disabled:cursor-not-allowed"
+          className="w-14 bg-transparent text-sm text-center focus:outline-none"
         />
         <span className="text-sm text-gray-600">seconds</span>
       </div>

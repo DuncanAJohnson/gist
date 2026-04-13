@@ -219,7 +219,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   const [precomputeProgress, setPrecomputeProgress] = useState<PrecomputeProgress | null>(null);
   // 'idle' in live mode, 'precomputing' while recording, 'replay' while playing back.
   const jsonModeRef = useRef<'idle' | 'precomputing' | 'replay'>('idle');
-  const frameCacheRef = useRef<Frame[] | null>(null);
+  const frameCacheRef = useRef<{ key: string; frames: Frame[] } | null>(null);
   const recordingBufferRef = useRef<Frame[] | null>(null);
   // Tracks replay playhead so the next play click knows whether to resume or rewind.
   const replayCursorRef = useRef<number>(0);
@@ -236,8 +236,9 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
   // Replay callback: apply a recorded frame to bodies/outputs/graphs.
   const handleReplayFrame = useCallback((frameIndex: number) => {
-    const frames = frameCacheRef.current;
-    if (!frames || frameIndex >= frames.length) return;
+    const cache = frameCacheRef.current;
+    if (!cache || frameIndex >= cache.frames.length) return;
+    const frames = cache.frames;
     const frame = frames[frameIndex];
 
     // Index bodies by Matter id for this lookup.
@@ -394,10 +395,11 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
       });
     });
 
-    setOutputValues(newOutputValues);
-
-    // Update simulation time (read by RenderLayer via ref)
-    simulationTimeRef.current = time;
+    // During pre-compute, hold all visible state still — we record silently.
+    if (!isRecording) {
+      setOutputValues(newOutputValues);
+      simulationTimeRef.current = time;
+    }
 
     // Compute graph data points for this frame (real-world units)
     const perFrameGraphPoints: DataPoint[] = graphs.map((graph) => {
@@ -415,7 +417,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
       return dataPoint;
     });
 
-    if (graphs.length > 0 && (isRunningRef.current || isRecording)) {
+    if (graphs.length > 0 && isRunningRef.current && !isRecording) {
       setGraphData((prevData) =>
         prevData.map((data, graphIndex) => [...data, perFrameGraphPoints[graphIndex]])
       );
@@ -538,10 +540,15 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           const sim = simulationControlsRef.current;
           if (!sim) return;
 
-          // If a cached replay is ready: resume mid-stream, or rewind if at end.
-          if (precomputeState === 'ready' && frameCacheRef.current) {
-            const frames = frameCacheRef.current;
-            if (replayCursorRef.current >= frames.length) {
+          const currentKey = JSON.stringify({ controls: controlValues, duration: maxDuration });
+
+          // If a cached replay matches current controls/duration: resume mid-stream, or rewind if at end.
+          if (frameCacheRef.current && frameCacheRef.current.key === currentKey) {
+            const frames = frameCacheRef.current.frames;
+            if (jsonModeRef.current !== 'replay' || replayCursorRef.current >= frames.length) {
+              setGraphData(graphs.map(() => []));
+              jsonModeRef.current = 'replay';
+              setPrecomputeState('ready');
               sim.startReplay(handleReplayFrame, frames.length);
             }
             sim.play();
@@ -549,12 +556,23 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
             return;
           }
 
-          // Fresh pre-compute.
+          // Otherwise: cache is missing or stale (a control or duration was edited).
+          // Invalidate and re-run pre-compute.
+          frameCacheRef.current = null;
           const totalFrames = Math.max(1, Math.round(maxDuration * 30));
           recordingBufferRef.current = [];
           prevVelocitiesRef.current = {};
           prevTimeRef.current = 0;
           setGraphData(graphs.map(() => []));
+
+          // Reset bodies to initial state then re-apply current control values so
+          // slider/toggle edits are reflected in the pre-computed run.
+          sim.reset();
+          controls.forEach((control) => {
+            if (control.type === 'slider' || control.type === 'toggle') {
+              handleControlChange(control, controlValues[control.label]);
+            }
+          });
           jsonModeRef.current = 'precomputing';
           setPrecomputeState('precomputing');
           setPrecomputeProgress({ framesDone: 0, totalFrames, estimatedMsRemaining: 0 });
@@ -579,8 +597,9 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
             return;
           }
 
-          frameCacheRef.current = recordingBufferRef.current;
+          const recordedFrames = recordingBufferRef.current;
           recordingBufferRef.current = null;
+          frameCacheRef.current = { key: currentKey, frames: recordedFrames };
 
           // Clear visible state before replay so replay's append-frame semantics start clean.
           setGraphData(graphs.map(() => []));
@@ -588,7 +607,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           jsonModeRef.current = 'replay';
           setPrecomputeState('ready');
           setPrecomputeProgress(null);
-          sim.startReplay(handleReplayFrame, frameCacheRef.current.length);
+          sim.startReplay(handleReplayFrame, recordedFrames.length);
           sim.play();
           setIsRunning(true);
         }}
@@ -600,20 +619,24 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           const sim = simulationControlsRef.current;
           if (!sim) return;
 
-          // Fully clear cache and return to idle so controls become editable again.
-          frameCacheRef.current = null;
-          recordingBufferRef.current = null;
-          replayCursorRef.current = 0;
-          jsonModeRef.current = 'idle';
-          setPrecomputeState('idle');
-          setPrecomputeProgress(null);
-          sim.clearReplay();
+          // Reset never clears the pre-computed cache — it only rewinds playback.
+          // (Only editing a control or maxDuration invalidates the cache.)
+          if (frameCacheRef.current) {
+            setIsRunning(false);
+            setGraphData(graphs.map(() => []));
+            jsonModeRef.current = 'replay';
+            setPrecomputeState('ready');
+            sim.pause();
+            sim.startReplay(handleReplayFrame, frameCacheRef.current.frames.length);
+            return;
+          }
+
+          // No cache yet — fall back to the live-mode reset.
+          sim.reset();
           setIsRunning(false);
           setGraphData(graphs.map(() => []));
           prevVelocitiesRef.current = {};
           prevTimeRef.current = 0;
-
-          // Re-apply control values so visible pose matches the live (editable) state.
           setTimeout(() => {
             controls.forEach((control) => {
               if (control.type === 'slider') {
@@ -639,7 +662,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
               key={`${control.targetObj}.${control.property}`}
               control={control}
               value={controlValues[control.label]}
-              disabled={precomputeState !== 'idle'}
+              disabled={isRunning}
               onChange={(value: number | boolean) => handleControlChange(control, value as number)}
             />
           ))}
