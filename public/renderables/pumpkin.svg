@@ -1,0 +1,15 @@
+<svg viewBox="0 0 64 64" version="1.1" id="svg24" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs28"></defs>
+  
+  <ellipse cx="32" cy="38" rx="10" ry="16" fill="#ea580c" id="ellipse2"></ellipse>
+  <ellipse cx="22" cy="38" rx="10" ry="15" fill="#f97316" id="ellipse4"></ellipse>
+  <ellipse cx="42" cy="38" rx="10" ry="15" fill="#f97316" id="ellipse6"></ellipse>
+  <ellipse cx="15" cy="38" rx="8" ry="12" fill="#ea580c" opacity="0.8" id="ellipse8"></ellipse>
+  <ellipse cx="49" cy="38" rx="8" ry="12" fill="#ea580c" opacity="0.8" id="ellipse10"></ellipse>
+  <path id="ellipse2-8" style="fill:none;stroke:#000000;stroke-width:0.2;stroke-dasharray:none;stroke-opacity:1" d="m 32.11243,22.009602 a 10,16 0 0 0 -5.462891,2.636719 10,15 0 0 0 -4.537109,-1.636719 10,15 0 0 0 -6.072266,3.083985 8,12 0 0 0 -0.927734,-0.08398 8,12 0 0 0 -8.0000012,12 8,12 0 0 0 8.0000012,12 8,12 0 0 0 0.919922,-0.0918 10,15 0 0 0 6.080078,3.091796 10,15 0 0 0 4.521484,-1.65625 10,16 0 0 0 5.478516,2.65625 10,16 0 0 0 5.478515,-2.65625 10,15 0 0 0 4.521485,1.65625 10,15 0 0 0 6.080078,-3.091796 8,12 0 0 0 0.919922,0.0918 8,12 0 0 0 8,-12 8,12 0 0 0 -8,-12 8,12 0 0 0 -0.923828,0.08984 10,15 0 0 0 -6.076172,-3.089844 10,15 0 0 0 -4.5,1.638672 10,16 0 0 0 -5.5,-2.638673 z"></path>
+  <rect x="30" y="18" width="4" height="8" rx="2" fill="#854d0e" id="rect14"></rect>
+  <ellipse cx="38" cy="16" rx="6" ry="4" fill="#16a34a" transform="rotate(-20 38 16)" id="ellipse16"></ellipse>
+  <path d="M22 32 Q32 28 42 32" stroke="#c2410c" stroke-width="1.5" fill="none" id="path18"></path>
+  <path d="M20 38 Q32 34 44 38" stroke="#c2410c" stroke-width="1.5" fill="none" id="path20"></path>
+  <path d="M22 44 Q32 40 42 44" stroke="#c2410c" stroke-width="1.5" fill="none" id="path22"></path>
+</svg>
