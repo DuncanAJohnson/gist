@@ -2,6 +2,8 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Matter from 'matter-js';
 import BaseSimulation, { type SimulationControls as BaseSimulationControls } from './BaseSimulation';
+import { getMatterEngine } from '../physics';
+import type { PhysicsAdapter } from '../physics/types';
 import type { PrecomputeState, PrecomputeProgress } from './simulation_components/SimulationControls';
 import Environment from './simulation_components/Environment';
 import Panel from './simulation_components/Panel';
@@ -337,8 +339,9 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
   // Update loop to read output values and graph data.
   // During 'replay', playback is driven by onReplayFrame instead — short-circuit.
-  const handleUpdate = useCallback((_engine: Matter.Engine, time: number) => {
+  const handleUpdate = useCallback((adapter: PhysicsAdapter, time: number) => {
     if (jsonModeRef.current === 'replay') return;
+    const _engine = getMatterEngine(adapter);
 
     const isRecording = jsonModeRef.current === 'precomputing';
 

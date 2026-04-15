@@ -29,3 +29,16 @@ export async function createPhysicsAdapter(
 
 export type { PhysicsAdapter, PhysicsBody, BodyDef, WallDef, ShapeDescriptor, Vec2, WorldSnapshot } from './types';
 export { MatterAdapter } from './matter/MatterAdapter';
+
+/**
+ * Temporary bridge used during migration (PRs 2–3): extract the underlying
+ * Matter.js engine from a PhysicsAdapter. Throws if the adapter is not a
+ * MatterAdapter. Will be removed once all call sites use the engine-agnostic
+ * adapter API directly.
+ */
+export function getMatterEngine(adapter: PhysicsAdapter): import('matter-js').Engine {
+  if (adapter.kind !== 'matter') {
+    throw new Error(`getMatterEngine: adapter is '${adapter.kind}', expected 'matter'`);
+  }
+  return (adapter as MatterAdapter).matterEngine;
+}

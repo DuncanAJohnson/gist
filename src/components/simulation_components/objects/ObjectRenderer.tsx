@@ -1,6 +1,7 @@
 import { useEffect, forwardRef } from 'react';
 import Matter from 'matter-js';
 import { usePhysics } from '../../../contexts/PhysicsContext';
+import { getMatterEngine } from '../../../physics';
 import { getBodyFactory } from './registry';
 import type { ObjectConfig } from './types';
 
@@ -27,7 +28,8 @@ const ObjectRenderer = forwardRef<Matter.Body, ObjectConfig>(function ObjectRend
   },
   ref
 ) {
-  const engine = usePhysics();
+  const adapter = usePhysics();
+  const engine = getMatterEngine(adapter);
 
   useEffect(() => {
     if (!body) return;
@@ -102,7 +104,7 @@ const ObjectRenderer = forwardRef<Matter.Body, ObjectConfig>(function ObjectRend
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [engine, id]); // Only recreate if engine or id changes
+  }, [adapter, engine, id]); // Only recreate if engine or id changes
 
   return null; // This component doesn't render anything visible
 });

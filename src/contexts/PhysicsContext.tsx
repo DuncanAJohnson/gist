@@ -1,28 +1,27 @@
 import { createContext, useContext, ReactNode } from 'react';
-import Matter from 'matter-js';
+import type { PhysicsAdapter } from '../physics/types';
 
-const PhysicsContext = createContext<Matter.Engine | null>(null);
+const PhysicsContext = createContext<PhysicsAdapter | null>(null);
 
 interface PhysicsProviderProps {
-  engine: Matter.Engine;
+  adapter: PhysicsAdapter;
   children: ReactNode;
 }
 
-export const PhysicsProvider = ({ engine, children }: PhysicsProviderProps) => {
+export const PhysicsProvider = ({ adapter, children }: PhysicsProviderProps) => {
   return (
-    <PhysicsContext.Provider value={engine}>
+    <PhysicsContext.Provider value={adapter}>
       {children}
     </PhysicsContext.Provider>
   );
 };
 
-export const usePhysics = (): Matter.Engine => {
-  const engine = useContext(PhysicsContext);
-  if (!engine) {
+export const usePhysics = (): PhysicsAdapter => {
+  const adapter = useContext(PhysicsContext);
+  if (!adapter) {
     throw new Error('usePhysics must be used within a PhysicsProvider');
   }
-  return engine;
+  return adapter;
 };
 
 export default PhysicsContext;
-

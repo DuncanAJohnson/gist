@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
 import Matter from 'matter-js';
 import { usePhysics } from '../../contexts/PhysicsContext';
-import { 
-  CANVAS_WIDTH, 
-  CANVAS_HEIGHT, 
-  WALL_THICKNESS 
+import { getMatterEngine } from '../../physics';
+import {
+  CANVAS_WIDTH,
+  CANVAS_HEIGHT,
+  WALL_THICKNESS
 } from '../BaseSimulation';
 
 interface EnvironmentProps {
@@ -14,7 +15,8 @@ interface EnvironmentProps {
 }
 
 function Environment({ walls = [], gravity = 0.00098 }: EnvironmentProps) {
-  const engine = usePhysics();
+  const adapter = usePhysics();
+  const engine = getMatterEngine(adapter);
 
   // Set gravity scale directly (already converted from real-world units)
   engine.gravity.scale = gravity;
@@ -103,7 +105,7 @@ function Environment({ walls = [], gravity = 0.00098 }: EnvironmentProps) {
     return () => {
       Composite.remove(engine.world, createdBodies);
     };
-  }, [walls, engine]);
+  }, [walls, adapter, engine]);
 
   return null;
 }

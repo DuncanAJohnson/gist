@@ -187,10 +187,10 @@ export class MatterAdapter implements PhysicsAdapter {
 
   constructor(opts: AdapterOptions = {}) {
     this.engine = Matter.Engine.create();
-    // Default Matter gravity is (0, 1) Y-down; we manage it through setGravity.
-    this.engine.gravity.x = 0;
-    this.engine.gravity.y = 0;
-    this.engine.gravity.scale = GRAVITY_SCALE;
+    // Leave Matter's default gravity (x:0, y:1, scale:0.001) in place so
+    // callers that still manipulate engine.gravity.scale directly (via the
+    // getMatterEngine escape hatch used in PR 2) keep working. Only override
+    // if the caller explicitly passes an SI gravity vector.
     if (opts.gravity) {
       this.setGravity(opts.gravity);
     }
