@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, ReactNode } from 'react';
-import Matter from 'matter-js';
 import { PhysicsProvider } from '../contexts/PhysicsContext';
-import { createPhysicsAdapter, getMatterEngine } from '../physics';
-import type { PhysicsAdapter } from '../physics/types';
+import { createPhysicsAdapter, type PhysicsEngineKind } from '../physics';
+import type { PhysicsAdapter, WorldSnapshot } from '../physics/types';
 
 export type SimulationMode = 'live' | 'precomputing' | 'replay';
 
@@ -22,6 +21,7 @@ export interface SimulationControls {
 }
 
 interface BaseSimulationProps {
+  physicsEngine?: PhysicsEngineKind;
   onInit?: (adapter: PhysicsAdapter) => void;
   onUpdate?: (adapter: PhysicsAdapter, time: number) => void;
   children?: ReactNode;
@@ -42,21 +42,27 @@ export const SIMULATION_HEIGHT = 600;
 export const CANVAS_WIDTH = SIMULATION_WIDTH + 2 * WALL_THICKNESS;
 export const CANVAS_HEIGHT = SIMULATION_HEIGHT + 2 * WALL_THICKNESS;
 
-// Coordinate transformation helpers:
-// Simulation (0, 0) is at the bottom-left of the usable space
-// Canvas coordinates have y increasing downward, simulation has y increasing upward
-export const simToCanvasX = (simX: number) => simX + WALL_THICKNESS;
-export const simToCanvasY = (simY: number) => CANVAS_HEIGHT - WALL_THICKNESS - simY;
-export const canvasToSimX = (canvasX: number) => canvasX - WALL_THICKNESS;
-export const canvasToSimY = (canvasY: number) => CANVAS_HEIGHT - WALL_THICKNESS - canvasY;
-
 // 60 FPS fixed timestep for both live physics and pre-computed playback.
 const FIXED_TIME_STEP = 1000 / 60;
 const FIXED_DT_SECONDS = FIXED_TIME_STEP / 1000;
 const MAX_DELTA = FIXED_TIME_STEP * 3;
 const PRECOMPUTE_BATCH = 60;
 
+function cloneSnapshot(snap: WorldSnapshot): WorldSnapshot {
+  return {
+    t: snap.t,
+    bodies: snap.bodies.map((b) => ({
+      id: b.id,
+      position: { x: b.position.x, y: b.position.y },
+      velocity: { x: b.velocity.x, y: b.velocity.y },
+      angle: b.angle,
+      angularVelocity: b.angularVelocity,
+    })),
+  };
+}
+
 function BaseSimulation({
+  physicsEngine = 'rapier',
   onInit,
   onUpdate,
   children,
@@ -70,13 +76,7 @@ function BaseSimulation({
   const [adapterReady, setAdapterReady] = useState(false);
   const isRunningRef = useRef(false);
   const modeRef = useRef<SimulationMode>('live');
-  const initialBodiesRef = useRef<Array<{
-    id: number;
-    position: { x: number; y: number };
-    velocity: { x: number; y: number };
-    angle: number;
-    angularVelocity: number;
-  }>>([]);
+  const initialSnapshotRef = useRef<WorldSnapshot | null>(null);
   const simulationTimeRef = useRef(0);
   const replayIndexRef = useRef(0);
   const replayTotalRef = useRef(0);
@@ -97,49 +97,38 @@ function BaseSimulation({
       onCanvasContainerReady(sceneRef.current);
     }
 
-    createPhysicsAdapter('matter').then((a) => {
-      if (disposed) {
-        a.destroy();
-        return;
-      }
-      adapter = a;
-      adapterRef.current = a;
-      setAdapterReady(true);
-
-      // Raw Matter engine used by the pre-compute snapshot path and by the
-      // reset-to-initial-state path below. Bodies are currently still created
-      // directly on the Matter engine by ObjectRenderer / Environment; PR 3
-      // will move that through adapter.createBody and remove this bridge.
-      const engine = getMatterEngine(a);
+    // Defer adapter creation one tick so React StrictMode's first mount
+    // (which is immediately cleaned up) never actually creates a Rapier world.
+    // Rapier's WASM state is fragile under double-create/double-destroy — we
+    // want exactly one adapter per true component lifetime.
+    const deferId = setTimeout(() => {
+      if (disposed) return;
+      createPhysicsAdapter(physicsEngine).then((a) => {
+        if (disposed) {
+          a.destroy();
+          return;
+        }
+        adapter = a;
+        adapterRef.current = a;
+        setAdapterReady(true);
 
       if (onInit) {
         onInit(a);
       }
 
-      // Save initial state for reset
+      // Save initial state for reset. Bodies are created asynchronously by
+      // child components (ObjectRenderer), so delay the capture slightly.
       setTimeout(() => {
-        initialBodiesRef.current = engine.world.bodies.map((body) => ({
-          id: body.id,
-          position: { ...body.position },
-          velocity: { ...body.velocity },
-          angle: body.angle,
-          angularVelocity: body.angularVelocity,
-        }));
+        initialSnapshotRef.current = cloneSnapshot(a.snapshot());
       }, 100);
 
       let lastTime = performance.now();
       let accumulator = 0;
 
       const resetBodiesToInitial = () => {
-        initialBodiesRef.current.forEach((initialBody) => {
-          const body = engine.world.bodies.find((b) => b.id === initialBody.id);
-          if (body) {
-            Matter.Body.setPosition(body, initialBody.position);
-            Matter.Body.setVelocity(body, initialBody.velocity);
-            Matter.Body.setAngle(body, initialBody.angle);
-            Matter.Body.setAngularVelocity(body, initialBody.angularVelocity);
-          }
-        });
+        if (initialSnapshotRef.current) {
+          a.restore(initialSnapshotRef.current);
+        }
       };
 
       const updateLoop = (currentTime: number) => {
@@ -147,8 +136,6 @@ function BaseSimulation({
         lastTime = currentTime;
 
         if (modeRef.current === 'precomputing') {
-          // Pre-compute path drives itself via its own async loop; the rAF
-          // loop here is a no-op so it can't double-step the engine.
           animationFrameId = requestAnimationFrame(updateLoop);
           return;
         }
@@ -178,8 +165,6 @@ function BaseSimulation({
             accumulator -= FIXED_TIME_STEP;
           }
         } else if (modeRef.current === 'live' && onUpdate) {
-          // When paused in live mode, still call onUpdate so output displays
-          // reflect immediate control changes.
           onUpdate(a, simulationTimeRef.current);
         }
 
@@ -192,8 +177,6 @@ function BaseSimulation({
         onControlsReady({
           play: () => {
             isRunningRef.current = true;
-            // Kick the timestep so the accumulator starts from "now" and
-            // we don't burn off a giant delta.
             lastTime = performance.now();
             accumulator = 0;
           },
@@ -208,53 +191,22 @@ function BaseSimulation({
             replayIndexRef.current = 0;
           },
           precompute: async (totalFrames, onBatch) => {
-            // NOTE: caller is responsible for resetting bodies and applying
-            // current control values before calling this — we don't reset here
-            // because control-driven body edits (e.g. setVelocity) would be lost.
+            // Caller is responsible for resetting bodies and applying current
+            // control values before calling this.
             modeRef.current = 'precomputing';
             isRunningRef.current = false;
             simulationTimeRef.current = 0;
             accumulator = 0;
 
-            // Snapshot the pre-compute starting pose so we can visually freeze
-            // bodies at this state between batches while physics evolves in the
-            // background. Two snapshots are maintained: `freeze` (the starting
+            // Two snapshots are maintained: `freeze` (the pre-compute starting
             // pose, restored for paint between batches) and `physicsSnap` (the
             // live physics state, saved before yielding and reloaded after).
-            //
-            // PR 3 will replace this with adapter.snapshot()/restore() once
-            // bodies are created through the adapter.
-            type BodySnap = {
-              body: Matter.Body;
-              position: { x: number; y: number };
-              velocity: { x: number; y: number };
-              angle: number;
-              angularVelocity: number;
-            };
-            const capture = (): BodySnap[] =>
-              engine.world.bodies.map((b) => ({
-                body: b,
-                position: { ...b.position },
-                velocity: { ...b.velocity },
-                angle: b.angle,
-                angularVelocity: b.angularVelocity,
-              }));
-            const apply = (snaps: BodySnap[]) => {
-              snaps.forEach(({ body, position, velocity, angle, angularVelocity }) => {
-                Matter.Body.setPosition(body, position);
-                Matter.Body.setVelocity(body, velocity);
-                Matter.Body.setAngle(body, angle);
-                Matter.Body.setAngularVelocity(body, angularVelocity);
-              });
-            };
-            const freeze = capture();
-            let physicsSnap = capture();
+            const freeze = cloneSnapshot(a.snapshot());
+            let physicsSnap = cloneSnapshot(freeze);
 
             let done = 0;
             while (done < totalFrames) {
-              // Restore the evolving physics state for this batch (starts equal
-              // to freeze state on the first iteration).
-              apply(physicsSnap);
+              a.restore(physicsSnap);
               const batchEnd = Math.min(totalFrames, done + PRECOMPUTE_BATCH);
               for (; done < batchEnd; done++) {
                 if (onUpdate) {
@@ -263,9 +215,8 @@ function BaseSimulation({
                 a.step(FIXED_DT_SECONDS);
                 simulationTimeRef.current += FIXED_DT_SECONDS;
               }
-              // Save where physics ended, then visually freeze for the yield.
-              physicsSnap = capture();
-              apply(freeze);
+              physicsSnap = cloneSnapshot(a.snapshot());
+              a.restore(freeze);
               onBatch(done);
               if (done < totalFrames) {
                 await new Promise<void>((resolve) =>
@@ -273,8 +224,7 @@ function BaseSimulation({
                 );
               }
             }
-            // Ensure bodies are in the freeze pose after the last batch too.
-            apply(freeze);
+            a.restore(freeze);
           },
           startReplay: (onFrame, totalFrames) => {
             modeRef.current = 'replay';
@@ -284,7 +234,6 @@ function BaseSimulation({
             simulationTimeRef.current = 0;
             accumulator = 0;
             lastTime = performance.now();
-            // Apply frame 0 immediately so the initial pose is visible.
             if (totalFrames > 0) {
               onFrame(0);
               replayIndexRef.current = 1;
@@ -303,10 +252,12 @@ function BaseSimulation({
           },
         });
       }
-    });
+      });
+    }, 0);
 
     return () => {
       disposed = true;
+      clearTimeout(deferId);
       if (animationFrameId !== undefined) {
         cancelAnimationFrame(animationFrameId);
       }
@@ -316,7 +267,7 @@ function BaseSimulation({
       adapterRef.current = null;
       setAdapterReady(false);
     };
-  }, [onInit, onUpdate, onControlsReady, onCanvasContainerReady]);
+  }, [physicsEngine, onInit, onUpdate, onControlsReady, onCanvasContainerReady]);
 
   useEffect(() => {
     if (!pickingPosition || !onCanvasClick || !sceneRef.current) return;

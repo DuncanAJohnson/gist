@@ -1,111 +1,47 @@
 import { useEffect } from 'react';
-import Matter from 'matter-js';
 import { usePhysics } from '../../contexts/PhysicsContext';
-import { getMatterEngine } from '../../physics';
 import {
-  CANVAS_WIDTH,
-  CANVAS_HEIGHT,
-  WALL_THICKNESS
+  SIMULATION_WIDTH,
+  SIMULATION_HEIGHT,
+  WALL_THICKNESS,
 } from '../BaseSimulation';
+import type { PhysicsBody, WallDef } from '../../physics/types';
 
 interface EnvironmentProps {
   walls?: string[];
-  /** Matter.js gravity scale (pre-converted from real-world units). Default: ~0.00098 (Earth gravity at 100px/m) */
+  /** Gravity magnitude in SI m/s² (applied as downward acceleration). */
   gravity?: number;
+  /** Render scale used to translate the fixed pixel canvas to an SI world size. */
+  pixelsPerUnit?: number;
 }
 
-function Environment({ walls = [], gravity = 0.00098 }: EnvironmentProps) {
+function Environment({ walls = [], gravity = 9.8, pixelsPerUnit = 10 }: EnvironmentProps) {
   const adapter = usePhysics();
-  const engine = getMatterEngine(adapter);
-
-  // Set gravity scale directly (already converted from real-world units)
-  engine.gravity.scale = gravity;
 
   useEffect(() => {
-    const { Bodies, Composite } = Matter;
-    const createdBodies: Matter.Body[] = [];
+    if (!adapter) return;
+    adapter.setGravity({ x: 0, y: -gravity });
+  }, [adapter, gravity]);
 
-    // Walls are positioned at the outer edges of the canvas,
-    // so the usable simulation space (0,0) to (SIMULATION_WIDTH, SIMULATION_HEIGHT)
-    // is inside the walls with (0,0) at bottom-left of the usable area.
+  useEffect(() => {
+    if (!adapter) return;
+    const worldWidth = SIMULATION_WIDTH / pixelsPerUnit;
+    const worldHeight = SIMULATION_HEIGHT / pixelsPerUnit;
+    const thickness = WALL_THICKNESS / pixelsPerUnit;
+    const bounds = { minX: 0, minY: 0, maxX: worldWidth, maxY: worldHeight };
 
-    // Create walls based on the walls array
-    if (walls.includes('bottom')) {
-      // Bottom wall: inner edge at y = CANVAS_HEIGHT - WALL_THICKNESS (bottom of usable space)
-      const ground = Bodies.rectangle(
-        CANVAS_WIDTH / 2,
-        CANVAS_HEIGHT - WALL_THICKNESS / 2,
-        CANVAS_WIDTH,
-        WALL_THICKNESS,
-        {
-          isStatic: true,
-          render: {
-            fillStyle: '#666',
-          },
-        }
-      );
-      createdBodies.push(ground);
-    }
+    const defs: WallDef[] = walls
+      .filter((side): side is WallDef['side'] =>
+        side === 'top' || side === 'bottom' || side === 'left' || side === 'right'
+      )
+      .map((side) => ({ side, bounds, thickness }));
 
-    if (walls.includes('top')) {
-      // Top wall: inner edge at y = WALL_THICKNESS (top of usable space)
-      const ceiling = Bodies.rectangle(
-        CANVAS_WIDTH / 2,
-        WALL_THICKNESS / 2,
-        CANVAS_WIDTH,
-        WALL_THICKNESS,
-        {
-          isStatic: true,
-          render: {
-            fillStyle: '#666',
-          },
-        }
-      );
-      createdBodies.push(ceiling);
-    }
+    const created: PhysicsBody[] = adapter.createWalls(defs);
 
-    if (walls.includes('left')) {
-      // Left wall: inner edge at x = WALL_THICKNESS (left of usable space)
-      const leftWall = Bodies.rectangle(
-        WALL_THICKNESS / 2,
-        CANVAS_HEIGHT / 2,
-        WALL_THICKNESS,
-        CANVAS_HEIGHT,
-        {
-          isStatic: true,
-          render: {
-            fillStyle: '#666',
-          },
-        }
-      );
-      createdBodies.push(leftWall);
-    }
-
-    if (walls.includes('right')) {
-      // Right wall: inner edge at x = CANVAS_WIDTH - WALL_THICKNESS (right of usable space)
-      const rightWall = Bodies.rectangle(
-        CANVAS_WIDTH - WALL_THICKNESS / 2,
-        CANVAS_HEIGHT / 2,
-        WALL_THICKNESS,
-        CANVAS_HEIGHT,
-        {
-          isStatic: true,
-          render: {
-            fillStyle: '#666',
-          },
-        }
-      );
-      createdBodies.push(rightWall);
-    }
-
-    // Add all bodies to the world
-    Composite.add(engine.world, createdBodies);
-
-    // Cleanup
     return () => {
-      Composite.remove(engine.world, createdBodies);
+      for (const body of created) adapter.removeBody(body);
     };
-  }, [walls, adapter, engine]);
+  }, [adapter, walls, pixelsPerUnit]);
 
   return null;
 }

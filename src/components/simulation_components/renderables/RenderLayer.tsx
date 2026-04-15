@@ -1,17 +1,20 @@
 import { useEffect, useRef, type RefObject } from 'react';
-import type Matter from 'matter-js';
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../../BaseSimulation';
+import { CANVAS_WIDTH, CANVAS_HEIGHT, WALL_THICKNESS } from '../../BaseSimulation';
+import { WorldToCanvas } from '../../../lib/worldToCanvas';
 import { getVisualDrawer } from './registry';
 import { resolvePosition } from './positionSources';
 import type { PixelRenderable, DataPositionResolver } from './types';
+import type { PhysicsBody, Vec2 } from '../../../physics/types';
 import './visuals';
 
 interface RenderLayerProps {
   renderables: PixelRenderable[];
-  objRefs: RefObject<Record<string, Matter.Body>>;
+  objRefs: RefObject<Record<string, PhysicsBody>>;
   dataSources: Record<string, DataPositionResolver>;
   simulationTimeRef: RefObject<number>;
   canvasContainer: HTMLDivElement | null;
+  pixelsPerUnit: number;
+  gravity: Vec2;
 }
 
 function RenderLayer({
@@ -20,14 +23,20 @@ function RenderLayer({
   dataSources,
   simulationTimeRef,
   canvasContainer,
+  pixelsPerUnit,
+  gravity,
 }: RenderLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Keep live pointers to the latest props so the rAF loop never reads stale data.
   const renderablesRef = useRef(renderables);
   const dataSourcesRef = useRef(dataSources);
+  const pixelsPerUnitRef = useRef(pixelsPerUnit);
+  const gravityRef = useRef(gravity);
   renderablesRef.current = renderables;
   dataSourcesRef.current = dataSources;
+  pixelsPerUnitRef.current = pixelsPerUnit;
+  gravityRef.current = gravity;
 
   // Mount an overlay canvas inside the BaseSimulation container.
   useEffect(() => {
@@ -62,10 +71,16 @@ function RenderLayer({
           ctx.fillStyle = '#fafafa';
           ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+          const w2c = new WorldToCanvas(
+            pixelsPerUnitRef.current,
+            CANVAS_HEIGHT,
+            WALL_THICKNESS,
+          );
           const resolveCtx = {
             objRefs: objRefs.current ?? {},
             dataSources: dataSourcesRef.current,
             simulationTime: simulationTimeRef.current ?? 0,
+            w2c,
           };
 
           for (const r of renderablesRef.current) {
@@ -79,6 +94,8 @@ function RenderLayer({
                 position: resolved.position,
                 body: resolved.body,
                 opacity: r.opacity,
+                w2c,
+                gravity: gravityRef.current,
               },
               r.visual
             );

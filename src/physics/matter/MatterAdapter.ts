@@ -1,5 +1,4 @@
 import Matter from 'matter-js';
-import * as decomp from 'poly-decomp';
 import type {
   AdapterOptions,
   BodyDef,
@@ -92,22 +91,6 @@ function buildMatterBodyFromShape(shape: ShapeDescriptor, isStatic: boolean): Ma
       return Matter.Bodies.fromVertices(0, 0, vertexSets, opts);
     }
   }
-}
-
-/**
- * Decompose a (possibly concave) polygon described in SI into a compound
- * ShapeDescriptor of convex polygon parts. This mirrors the current Vertex
- * body factory but operates on SI input.
- */
-export function decomposePolygonShape(vertices: Vec2[]): ShapeDescriptor {
-  const polygon: [number, number][] = vertices.map((v) => [v.x, v.y]);
-  decomp.makeCCW(polygon);
-  const convex = decomp.quickDecomp(polygon);
-  const parts: ShapeDescriptor[] = convex.map((poly: [number, number][]) => ({
-    type: 'polygon' as const,
-    vertices: poly.map(([x, y]) => ({ x, y })),
-  }));
-  return parts.length === 1 ? parts[0] : { type: 'compound', parts };
 }
 
 // ─── PhysicsBody wrapper ──────────────────────────────────────────────────
@@ -229,6 +212,11 @@ export class MatterAdapter implements PhysicsAdapter {
     // Material properties.
     if (def.mass !== undefined) {
       Matter.Body.setMass(matter, def.mass);
+    }
+    // Inertia must be set AFTER mass — Matter.Body.setMass rescales inertia
+    // proportionally, so any explicit override has to go in last.
+    if (def.inertia !== undefined) {
+      Matter.Body.setInertia(matter, def.inertia);
     }
     if (def.restitution !== undefined) matter.restitution = def.restitution;
     if (def.friction !== undefined) matter.friction = def.friction;

@@ -1,38 +1,35 @@
 import { useEffect, forwardRef } from 'react';
-import Matter from 'matter-js';
 import { usePhysics } from '../../../contexts/PhysicsContext';
-import { getMatterEngine } from '../../../physics';
 import { getBodyFactory } from './registry';
 import type { ObjectConfig } from './types';
+import type { BodyDef, PhysicsBody } from '../../../physics/types';
 
 // Ensure all body types are registered
 import './bodies';
 
-const ObjectRenderer = forwardRef<Matter.Body, ObjectConfig>(function ObjectRenderer(
+const ObjectRenderer = forwardRef<PhysicsBody, ObjectConfig>(function ObjectRenderer(
   {
     id,
     x,
     y,
     body,
-    velocity = { x: 0, y: 0 },
-    acceleration = { x: 0, y: 0 },
+    velocity,
     restitution = 0.8,
     frictionAir = 0,
     friction = 0,
     frictionStatic = 0,
-    // inertia = 0,
     isStatic = false,
     angularVelocity = 0,
     angle = 0,
     mass = 1,
+    inertia,
   },
   ref
 ) {
   const adapter = usePhysics();
-  const engine = getMatterEngine(adapter);
 
   useEffect(() => {
-    if (!body) return;
+    if (!adapter || !body) return;
 
     const factory = getBodyFactory(body.type);
     if (!factory) {
@@ -40,61 +37,37 @@ const ObjectRenderer = forwardRef<Matter.Body, ObjectConfig>(function ObjectRend
       return;
     }
 
-    // Create the body using the registered factory
-    const object = factory(x, y, body);
+    const shape = factory(body);
 
-    // Apply physics properties
-    object.restitution = restitution;
-    object.frictionAir = frictionAir;
-    object.friction = friction;
-    object.frictionStatic = frictionStatic;
-    object.isStatic = isStatic;
+    const def: BodyDef = {
+      id,
+      position: { x, y },
+      shape,
+      angle,
+      velocity,
+      angularVelocity,
+      mass,
+      inertia,
+      restitution,
+      friction,
+      frictionStatic,
+      frictionAir,
+      isStatic,
+    };
 
-    // Set initial velocity
-    if (velocity !== undefined) {
-      Matter.Body.setVelocity(object, velocity);
-    }
+    const created = adapter.createBody(def);
+    created.userData.derivedAcceleration = { x: 0, y: 0 };
 
-    // Set initial inertia - TODO, inertia is not working as expected
-    // if (inertia !== undefined) {
-    //   Matter.Body.setInertia(object,inertia);
-    // }
-
-    // Set initial angular velocity
-    if (angularVelocity !== undefined) {
-      Matter.Body.setAngularVelocity(object,angularVelocity);
-    }
-
-    // Set initial mass
-    if (mass !== undefined) {
-      Matter.Body.setMass(object,mass);
-    }
-
-    // Set initial angle
-    if (angle !== undefined) {
-      Matter.Body.setAngle(object,angle);
-    }
-
-    // Initialize acceleration property
-    if (acceleration !== undefined) {
-      (object as any).acceleration = acceleration;
-    }
-
-    // Add to world
-    Matter.Composite.add(engine.world, object);
-
-    // Expose the Matter.js body via ref
     if (ref) {
       if (typeof ref === 'function') {
-        ref(object);
+        ref(created);
       } else {
-        ref.current = object;
+        ref.current = created;
       }
     }
 
-    // Cleanup - only when component unmounts
     return () => {
-      Matter.Composite.remove(engine.world, object);
+      adapter.removeBody(created);
       if (ref) {
         if (typeof ref === 'function') {
           ref(null);
@@ -104,10 +77,9 @@ const ObjectRenderer = forwardRef<Matter.Body, ObjectConfig>(function ObjectRend
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adapter, engine, id]); // Only recreate if engine or id changes
+  }, [adapter, id]);
 
-  return null; // This component doesn't render anything visible
+  return null;
 });
 
 export default ObjectRenderer;
-

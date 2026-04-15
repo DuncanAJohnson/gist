@@ -28,6 +28,8 @@ export interface BodyDef {
   velocity?: Vec2;
   angularVelocity?: number;
   mass?: number;
+  /** Moment of inertia override. Set very high (e.g. 1e10) to prevent rotation. */
+  inertia?: number;
   restitution?: number;
   friction?: number;
   frictionStatic?: number;

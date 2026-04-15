@@ -16,8 +16,13 @@ export async function createPhysicsAdapter(
     case 'matter':
       adapter = new MatterAdapter(opts);
       break;
-    case 'rapier':
-      throw new Error('RapierAdapter not yet implemented (PR 5)');
+    case 'rapier': {
+      // Dynamic import so the ~2 MB Rapier WASM bundle is code-split away
+      // from Matter-only sims and only loaded on demand.
+      const { RapierAdapter } = await import('./rapier/RapierAdapter');
+      adapter = new RapierAdapter(opts);
+      break;
+    }
     default: {
       const _exhaustive: never = kind;
       throw new Error(`Unknown physics engine kind: ${_exhaustive}`);

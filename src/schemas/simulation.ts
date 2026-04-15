@@ -256,6 +256,7 @@ export const EnvironmentConfigSchema = z.object({
   gravity: z.number().optional().default(9.8).describe('Gravity acceleration in units/s² (downward). Default: 9.8 for Earth gravity in m/s². Set to 0 for zero-gravity. For cm/s² use 980.'),
   unit: UnitTypeSchema.optional().default('m').describe('Unit of measurement for all positions, velocities, and sizes. Default: "m" (meters). Options: "m", "cm", "km", "ft", "in".'),
   pixelsPerUnit: z.number().optional().default(10).describe('Scale factor: how many pixels equal one unit. Default: 10 (10px = 1m, giving 80m x 60m canvas). For larger simulations, use smaller values (e.g., 8 for 100m x 75m canvas).'),
+  physicsEngine: z.enum(['matter', 'rapier']).optional().default('rapier').describe('Which physics engine powers the simulation. "matter" uses Matter.js. "rapier" uses Rapier (WASM, SI-native, deterministic, default). Existing configs without this field use rapier.'),
 }).describe('Environment settings. Controls units, scale, boundaries, and gravity. Uses real-world physics coordinates: origin at bottom-left, Y increases upward.');
 
 export type EnvironmentConfig = z.infer<typeof EnvironmentConfigSchema>;

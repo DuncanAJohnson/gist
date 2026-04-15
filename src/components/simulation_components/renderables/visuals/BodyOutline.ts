@@ -1,52 +1,66 @@
 import { registerVisual } from '../registry';
 import type { DrawContext, PixelVisual } from '../types';
+import type { ShapeDescriptor } from '../../../../physics/types';
 
 /**
- * Draws the outline of a Matter.js body using its live world-space vertices.
- * This works for any body shape (rectangle, polygon, vertex, circle) because
- * Matter maintains body.vertices for all bodies. Circles are detected via
- * body.circleRadius and drawn as true arcs.
- *
- * Used for auto-synthesized default renderables that reproduce the exact
- * shape of the underlying physics body.
+ * Draws the outline of a physics body using its SI ShapeDescriptor, converted
+ * to canvas pixels via the DrawContext's WorldToCanvas. Works for all body
+ * shapes (circle, rectangle, polygon, compound).
  */
 function drawBodyOutline(drawCtx: DrawContext, visual: PixelVisual) {
   if (visual.type !== 'body-outline') return;
-  const { ctx, body, opacity } = drawCtx;
+  const { ctx, body, opacity, position, w2c } = drawCtx;
   if (!body) return;
 
   ctx.save();
   ctx.globalAlpha = opacity;
   ctx.fillStyle = visual.color;
 
-  const circleRadius = (body as unknown as { circleRadius?: number }).circleRadius;
-  if (circleRadius) {
-    ctx.beginPath();
-    ctx.arc(body.position.x, body.position.y, circleRadius, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (body.parts && body.parts.length > 1) {
-    // Compound body (e.g. vertex-decomposed concave polygons) — draw each part.
-    for (let p = 1; p < body.parts.length; p++) {
-      const part = body.parts[p];
+  ctx.translate(position.x, position.y);
+  ctx.rotate(position.angle);
+
+  drawShape(ctx, body.shape, w2c);
+
+  ctx.restore();
+}
+
+function drawShape(
+  ctx: CanvasRenderingContext2D,
+  shape: ShapeDescriptor,
+  w2c: { dimension: (m: number) => number },
+) {
+  switch (shape.type) {
+    case 'circle': {
+      const r = w2c.dimension(shape.radius);
       ctx.beginPath();
-      ctx.moveTo(part.vertices[0].x, part.vertices[0].y);
-      for (let i = 1; i < part.vertices.length; i++) {
-        ctx.lineTo(part.vertices[i].x, part.vertices[i].y);
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+    case 'rectangle': {
+      const w = w2c.dimension(shape.width);
+      const h = w2c.dimension(shape.height);
+      ctx.fillRect(-w / 2, -h / 2, w, h);
+      return;
+    }
+    case 'polygon': {
+      const verts = shape.vertices;
+      if (verts.length === 0) return;
+      ctx.beginPath();
+      // Y-flip vertices so local SI Y-up matches the already-rotated canvas frame.
+      ctx.moveTo(w2c.dimension(verts[0].x), -w2c.dimension(verts[0].y));
+      for (let i = 1; i < verts.length; i++) {
+        ctx.lineTo(w2c.dimension(verts[i].x), -w2c.dimension(verts[i].y));
       }
       ctx.closePath();
       ctx.fill();
+      return;
     }
-  } else {
-    ctx.beginPath();
-    ctx.moveTo(body.vertices[0].x, body.vertices[0].y);
-    for (let i = 1; i < body.vertices.length; i++) {
-      ctx.lineTo(body.vertices[i].x, body.vertices[i].y);
+    case 'compound': {
+      for (const part of shape.parts) drawShape(ctx, part, w2c);
+      return;
     }
-    ctx.closePath();
-    ctx.fill();
   }
-
-  ctx.restore();
 }
 
 registerVisual('body-outline', drawBodyOutline);

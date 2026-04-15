@@ -4,13 +4,12 @@ import { loadImage } from './imageCache';
 
 function drawImageVisual(drawCtx: DrawContext, visual: PixelVisual) {
   if (visual.type !== 'image') return;
-  const { ctx, position, opacity } = drawCtx;
+  const { ctx, position, opacity, w2c } = drawCtx;
   const img = loadImage(visual.src);
   if (!img.complete || img.naturalWidth === 0) return;
 
-  // visual.width / visual.height are pre-converted to canvas pixels by JsonSimulation
-  const w = visual.width;
-  const h = visual.height;
+  const w = w2c.dimension(visual.width);
+  const h = w2c.dimension(visual.height);
 
   ctx.save();
   ctx.globalAlpha = opacity;
