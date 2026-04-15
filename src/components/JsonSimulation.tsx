@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Matter from 'matter-js';
-import BaseSimulation from './BaseSimulation';
+import BaseSimulation, { type SimulationControls as BaseSimulationControls } from './BaseSimulation';
+import type { PrecomputeState, PrecomputeProgress } from './simulation_components/SimulationControls';
 import Environment from './simulation_components/Environment';
 import Panel from './simulation_components/Panel';
 import Scale from './simulation_components/Scale';
@@ -59,11 +60,13 @@ interface JsonSimulationProps {
   simulationId?: number;
 }
 
-interface SimulationControls {
-  play: () => void;
-  pause: () => void;
-  reset: () => void;
-}
+type SimulationControls = BaseSimulationControls;
+
+type Frame = {
+  bodies: Array<{ id: number; x: number; y: number; angle: number }>;
+  outputValues: Record<string, number>;
+  graphPoints: DataPoint[]; // one per graph, aligned with graphs array order
+};
 
 function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   const navigate = useNavigate();
@@ -204,31 +207,69 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   const simulationControlsRef = useRef<SimulationControls | null>(null);
   const [isRunning, setIsRunning] = useState(false);
 
-  // State for duration limit
-  const [maxDuration, setMaxDuration] = useState<number | null>(null);
-  const maxDurationRef = useRef<number | null>(null);
-  const [stopped, setStopped] = useState(false);
+  // Duration limit is now a required finite number, default 10, min 1.
+  const [maxDuration, setMaxDuration] = useState<number>(10);
 
   // State for graph data - one array per graph
   const [graphData, setGraphData] = useState<DataPoint[][]>(() => graphs.map(() => []));
-  const shouldClearGraphDataRef = useRef(false);
   const isRunningRef = useRef(isRunning);
 
-  // Keep ref in sync with state
+  // Pre-compute / replay state
+  const [precomputeState, setPrecomputeState] = useState<PrecomputeState>('idle');
+  const [precomputeProgress, setPrecomputeProgress] = useState<PrecomputeProgress | null>(null);
+  // 'idle' in live mode, 'precomputing' while recording, 'replay' while playing back.
+  const jsonModeRef = useRef<'idle' | 'precomputing' | 'replay'>('idle');
+  const frameCacheRef = useRef<{ key: string; frames: Frame[] } | null>(null);
+  const recordingBufferRef = useRef<Frame[] | null>(null);
+  // Tracks replay playhead so the next play click knows whether to resume or rewind.
+  const replayCursorRef = useRef<number>(0);
+
   useEffect(() => {
     isRunningRef.current = isRunning;
   }, [isRunning]);
-
-  // Keep maxDurationRef in sync
-  useEffect(() => {
-    maxDurationRef.current = maxDuration;
-  }, [maxDuration]);
 
   // Callback when simulation controls are ready
   const handleControlsReady = useCallback((controls: SimulationControls) => {
     setSimulationControls(controls);
     simulationControlsRef.current = controls;
   }, []);
+
+  // Replay callback: apply a recorded frame to bodies/outputs/graphs.
+  const handleReplayFrame = useCallback((frameIndex: number) => {
+    const cache = frameCacheRef.current;
+    if (!cache || frameIndex >= cache.frames.length) return;
+    const frames = cache.frames;
+    const frame = frames[frameIndex];
+
+    // Index bodies by Matter id for this lookup.
+    const byId = new Map<number, Matter.Body>();
+    for (const id in objRefs.current) {
+      const body = objRefs.current[id];
+      if (body) byId.set(body.id, body);
+    }
+    frame.bodies.forEach((snap) => {
+      const body = byId.get(snap.id);
+      if (body) {
+        Matter.Body.setPosition(body, { x: snap.x, y: snap.y });
+        Matter.Body.setAngle(body, snap.angle);
+      }
+    });
+
+    setOutputValues(frame.outputValues);
+    if (frameIndex === 0) {
+      setGraphData(graphs.map((_, i) => [frame.graphPoints[i]]));
+    } else {
+      setGraphData((prev) =>
+        prev.map((arr, i) => [...arr, frame.graphPoints[i]])
+      );
+    }
+    simulationTimeRef.current = (frameIndex + 1) / 30;
+    replayCursorRef.current = frameIndex + 1;
+
+    if (frameIndex + 1 >= frames.length) {
+      setIsRunning(false);
+    }
+  }, [graphs]);
 
   // Helper function to get nested property value
   const getNestedValue = (obj: any, path: string): any => {
@@ -294,14 +335,12 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     return unitConverter.fromPixelsProperty(property, pixelValue);
   }, [unitConverter]);
 
-  // Update loop to read output values and graph data
+  // Update loop to read output values and graph data.
+  // During 'replay', playback is driven by onReplayFrame instead — short-circuit.
   const handleUpdate = useCallback((_engine: Matter.Engine, time: number) => {
-    // Check if we've hit the duration limit
-    if (maxDurationRef.current !== null && time >= maxDurationRef.current && isRunningRef.current) {
-      simulationControlsRef.current?.pause();
-      setIsRunning(false);
-      setStopped(true);
-    }
+    if (jsonModeRef.current === 'replay') return;
+
+    const isRecording = jsonModeRef.current === 'precomputing';
 
     // Calculate acceleration for all bodies (in pixel space)
     const deltaTime = time - prevTimeRef.current;
@@ -356,36 +395,49 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
       });
     });
 
-    setOutputValues(newOutputValues);
+    // During pre-compute, hold all visible state still — we record silently.
+    if (!isRecording) {
+      setOutputValues(newOutputValues);
+      simulationTimeRef.current = time;
+    }
 
-    // Update simulation time (read by RenderLayer via ref)
-    simulationTimeRef.current = time;
-
-    // Collect graph data and convert from pixels to real-world units
-    if (graphs.length > 0 && isRunningRef.current) {
-      setGraphData((prevData) => {
-        return prevData.map((data, graphIndex) => {
-          const graph = graphs[graphIndex];
-          const dataPoint: DataPoint = { time };
-
-          // Collect all line values for this graph (line graphs have lines property)
-          if (graph.type === 'line' && graph.lines) {
-            graph.lines.forEach((line: LineConfig) => {
-              const obj = objRefs.current[line.targetObj];
-              if (obj) {
-                const pixelValue = getNestedValue(obj, line.property);
-                // Convert from pixels to real-world units
-                const realValue = convertPixelToRealUnit(line.property, pixelValue);
-                dataPoint[line.label] = clampToZero(realValue);
-              }
-            });
+    // Compute graph data points for this frame (real-world units)
+    const perFrameGraphPoints: DataPoint[] = graphs.map((graph) => {
+      const dataPoint: DataPoint = { time };
+      if (graph.type === 'line' && graph.lines) {
+        graph.lines.forEach((line: LineConfig) => {
+          const obj = objRefs.current[line.targetObj];
+          if (obj) {
+            const pixelValue = getNestedValue(obj, line.property);
+            const realValue = convertPixelToRealUnit(line.property, pixelValue);
+            dataPoint[line.label] = clampToZero(realValue);
           }
-
-          return [...data, dataPoint];
         });
+      }
+      return dataPoint;
+    });
+
+    if (graphs.length > 0 && isRunningRef.current && !isRecording) {
+      setGraphData((prevData) =>
+        prevData.map((data, graphIndex) => [...data, perFrameGraphPoints[graphIndex]])
+      );
+    }
+
+    if (isRecording && recordingBufferRef.current) {
+      const bodies = objects
+        .map((objectConfig) => {
+          const body = objRefs.current[objectConfig.id];
+          if (!body) return null;
+          return { id: body.id, x: body.position.x, y: body.position.y, angle: body.angle };
+        })
+        .filter((b): b is { id: number; x: number; y: number; angle: number } => b !== null);
+      recordingBufferRef.current.push({
+        bodies,
+        outputValues: newOutputValues,
+        graphPoints: perFrameGraphPoints,
       });
     }
-  }, [outputs, graphs, convertPixelToRealUnit]);
+  }, [outputs, graphs, objects, convertPixelToRealUnit]);
 
   const handleEdit = async (editedJSON: any) => {
     if (!simulationId) return;
@@ -482,14 +534,81 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         onTweakJSON={simulationId ? handleTweakJSON : undefined}
         maxDuration={maxDuration}
         onMaxDurationChange={setMaxDuration}
-        stopped={stopped}
-        onPlay={() => {
-          // Clear graph data if we just reset
-          if (shouldClearGraphDataRef.current) {
-            setGraphData(graphs.map(() => []));
-            shouldClearGraphDataRef.current = false;
+        precomputeState={precomputeState}
+        precomputeProgress={precomputeProgress}
+        onPlay={async () => {
+          const sim = simulationControlsRef.current;
+          if (!sim) return;
+
+          const currentKey = JSON.stringify({ controls: controlValues, duration: maxDuration });
+
+          // If a cached replay matches current controls/duration: resume mid-stream, or rewind if at end.
+          if (frameCacheRef.current && frameCacheRef.current.key === currentKey) {
+            const frames = frameCacheRef.current.frames;
+            if (jsonModeRef.current !== 'replay' || replayCursorRef.current >= frames.length) {
+              setGraphData(graphs.map(() => []));
+              jsonModeRef.current = 'replay';
+              setPrecomputeState('ready');
+              sim.startReplay(handleReplayFrame, frames.length);
+            }
+            sim.play();
+            setIsRunning(true);
+            return;
           }
-          simulationControls?.play();
+
+          // Otherwise: cache is missing or stale (a control or duration was edited).
+          // Invalidate and re-run pre-compute.
+          frameCacheRef.current = null;
+          const totalFrames = Math.max(1, Math.round(maxDuration * 30));
+          recordingBufferRef.current = [];
+          prevVelocitiesRef.current = {};
+          prevTimeRef.current = 0;
+          setGraphData(graphs.map(() => []));
+
+          // Reset bodies to initial state then re-apply current control values so
+          // slider/toggle edits are reflected in the pre-computed run.
+          sim.reset();
+          controls.forEach((control) => {
+            if (control.type === 'slider' || control.type === 'toggle') {
+              handleControlChange(control, controlValues[control.label]);
+            }
+          });
+          jsonModeRef.current = 'precomputing';
+          setPrecomputeState('precomputing');
+          setPrecomputeProgress({ framesDone: 0, totalFrames, estimatedMsRemaining: 0 });
+          const startedAt = performance.now();
+
+          try {
+            await sim.precompute(totalFrames, (framesDone) => {
+              const elapsed = performance.now() - startedAt;
+              const estimatedTotal = framesDone > 0 ? (elapsed / framesDone) * totalFrames : 0;
+              const remaining = Math.max(0, estimatedTotal - elapsed);
+              setPrecomputeProgress({
+                framesDone,
+                totalFrames,
+                estimatedMsRemaining: remaining,
+              });
+            });
+          } catch (err) {
+            console.error('Pre-compute failed:', err);
+            jsonModeRef.current = 'idle';
+            setPrecomputeState('idle');
+            setPrecomputeProgress(null);
+            return;
+          }
+
+          const recordedFrames = recordingBufferRef.current;
+          recordingBufferRef.current = null;
+          frameCacheRef.current = { key: currentKey, frames: recordedFrames };
+
+          // Clear visible state before replay so replay's append-frame semantics start clean.
+          setGraphData(graphs.map(() => []));
+
+          jsonModeRef.current = 'replay';
+          setPrecomputeState('ready');
+          setPrecomputeProgress(null);
+          sim.startReplay(handleReplayFrame, recordedFrames.length);
+          sim.play();
           setIsRunning(true);
         }}
         onPause={() => {
@@ -497,15 +616,27 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           setIsRunning(false);
         }}
         onReset={() => {
-          simulationControls?.reset();
+          const sim = simulationControlsRef.current;
+          if (!sim) return;
+
+          // Reset never clears the pre-computed cache — it only rewinds playback.
+          // (Only editing a control or maxDuration invalidates the cache.)
+          if (frameCacheRef.current) {
+            setIsRunning(false);
+            setGraphData(graphs.map(() => []));
+            jsonModeRef.current = 'replay';
+            setPrecomputeState('ready');
+            sim.pause();
+            sim.startReplay(handleReplayFrame, frameCacheRef.current.frames.length);
+            return;
+          }
+
+          // No cache yet — fall back to the live-mode reset.
+          sim.reset();
           setIsRunning(false);
-          setStopped(false);
-          // Mark that we should clear graph data on next play
-          shouldClearGraphDataRef.current = true;
-          // Reset acceleration tracking
+          setGraphData(graphs.map(() => []));
           prevVelocitiesRef.current = {};
           prevTimeRef.current = 0;
-          // Re-apply all control values after reset
           setTimeout(() => {
             controls.forEach((control) => {
               if (control.type === 'slider') {
@@ -531,6 +662,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
               key={`${control.targetObj}.${control.property}`}
               control={control}
               value={controlValues[control.label]}
+              disabled={isRunning}
               onChange={(value: number | boolean) => handleControlChange(control, value as number)}
             />
           ))}

@@ -57,17 +57,7 @@ function LineGraph({ config, data, compact = false, maxDuration, overlayData, ov
     return [yAxisRange.min, yAxisRange.max];
   }, [combinedData, yAxisRange, lines]);
 
-  // Calculate x-axis domain: use maxDuration if set, otherwise grow with data
-  const xDomain = useMemo(() => {
-    if (maxDuration != null) {
-      return [0, maxDuration];
-    }
-    if (!data || data.length === 0) {
-      return [0, 5];
-    }
-    const maxTime = data[data.length - 1].time;
-    return [0, Math.max(5, maxTime)];
-  }, [data, maxDuration]);
+  const xDomain = useMemo(() => [0, maxDuration], [maxDuration]);
 
   return (
     <div className={`bg-white rounded-lg shadow-md ${compact ? 'p-2 min-w-[280px]' : 'p-4 min-w-[400px]'}`}>

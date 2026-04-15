@@ -8,9 +8,10 @@ interface Props {
   control: ControlConfig;
   value: number | boolean;
   onChange: (value: number | boolean) => void;
+  disabled?: boolean;
 }
 
-function ControlRenderer({ control, value, onChange }: Props) {
+function ControlRenderer({ control, value, onChange, disabled }: Props) {
   const Component = getControlComponent(control.type);
 
   if (!Component) {
@@ -18,7 +19,7 @@ function ControlRenderer({ control, value, onChange }: Props) {
     return null;
   }
 
-  return <Component control={control} value={value} onChange={onChange} />;
+  return <Component control={control} value={value} onChange={onChange} disabled={disabled} />;
 }
 
 export default ControlRenderer;

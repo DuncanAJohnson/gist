@@ -8,7 +8,7 @@ interface Props {
   config: GraphConfig;
   data: DataPoint[];
   compact?: boolean;
-  maxDuration?: number | null;
+  maxDuration: number;
   overlayData?: OverlayPoint[];
   overlayColor?: string;
 }

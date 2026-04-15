@@ -1,28 +1,77 @@
+export type PrecomputeState = 'idle' | 'precomputing' | 'ready';
+
+export interface PrecomputeProgress {
+  framesDone: number;
+  totalFrames: number;
+  estimatedMsRemaining: number;
+}
+
 interface SimulationControlsProps {
   isRunning: boolean;
   onPlay: () => void;
   onPause: () => void;
   onReset: () => void;
-  maxDuration: number | null;
-  onMaxDurationChange: (v: number | null) => void;
-  stopped: boolean;
+  maxDuration: number;
+  onMaxDurationChange: (v: number) => void;
+  precomputeState: PrecomputeState;
+  precomputeProgress: PrecomputeProgress | null;
 }
 
-function SimulationControls({ isRunning, onPlay, onPause, onReset, maxDuration, onMaxDurationChange, stopped }: SimulationControlsProps) {
+function SimulationControls({
+  isRunning,
+  onPlay,
+  onPause,
+  onReset,
+  maxDuration,
+  onMaxDurationChange,
+  precomputeState,
+  precomputeProgress,
+}: SimulationControlsProps) {
+  if (precomputeState === 'precomputing') {
+    const percent = precomputeProgress && precomputeProgress.totalFrames > 0
+      ? Math.min(100, Math.round((precomputeProgress.framesDone / precomputeProgress.totalFrames) * 100))
+      : 0;
+    const secondsRemaining = precomputeProgress
+      ? Math.max(0, Math.ceil(precomputeProgress.estimatedMsRemaining / 1000))
+      : null;
+    return (
+      <div className="flex flex-col gap-1 min-w-[260px]">
+        <div className="text-xs text-gray-700 font-medium">
+          Pre-computing… {percent}%
+          {secondsRemaining !== null && precomputeProgress!.framesDone > 0 && (
+            <span className="text-gray-500"> (~{secondsRemaining}s remaining)</span>
+          )}
+        </div>
+        <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-green-500"
+            style={{ width: `${percent}%` }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex gap-2 items-center">
       {/* Duration input */}
-      <div className="flex items-center gap-2 bg-gray-100 border border-gray-300 rounded-lg px-3 h-[40px]" title="Stop after this many seconds (leave blank for unlimited)">
+      <div
+        className="flex items-center gap-2 bg-gray-100 border border-gray-300 rounded-lg px-3 h-[40px]"
+        title="Stop after this many seconds (minimum 1). Editing this invalidates the pre-computed cache."
+      >
         <span className="text-sm text-gray-600 whitespace-nowrap">Simulation Duration:</span>
         <input
           type="number"
-          min="0"
+          min="1"
           step="1"
-          placeholder="∞"
-          value={maxDuration ?? ''}
+          value={maxDuration}
           onChange={(e) => {
-            const val = e.target.value;
-            onMaxDurationChange(val === '' ? null : Math.max(0, Number(val)));
+            const raw = e.target.value;
+            if (raw === '') return;
+            const n = Number(raw);
+            if (Number.isFinite(n)) {
+              onMaxDurationChange(Math.max(1, n));
+            }
           }}
           className="w-14 bg-transparent text-sm text-center focus:outline-none"
         />
@@ -31,14 +80,9 @@ function SimulationControls({ isRunning, onPlay, onPause, onReset, maxDuration, 
 
       {!isRunning ? (
         <button
-          className={`text-white border-0 rounded px-4 py-2 text-xl transition-all duration-200 shadow-md min-w-[50px] h-[40px] flex items-center justify-center ${
-            stopped
-              ? 'bg-gray-400 cursor-not-allowed opacity-60'
-              : 'bg-green-500 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg hover:bg-green-600 active:translate-y-0 active:shadow-sm'
-          }`}
-          onClick={stopped ? undefined : onPlay}
-          title={stopped ? 'Reset to play again' : 'Play'}
-          disabled={stopped}
+          className="bg-green-500 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg hover:bg-green-600 active:translate-y-0 active:shadow-sm text-white border-0 rounded px-4 py-2 text-xl transition-all duration-200 shadow-md min-w-[50px] h-[40px] flex items-center justify-center"
+          onClick={onPlay}
+          title="Play"
         >
           ▶
         </button>
@@ -54,7 +98,7 @@ function SimulationControls({ isRunning, onPlay, onPause, onReset, maxDuration, 
       <button
         className="bg-blue-500 text-white border-0 rounded px-4 py-2 text-xl cursor-pointer transition-all duration-200 shadow-md min-w-[50px] h-[40px] flex items-center justify-center hover:-translate-y-0.5 hover:shadow-lg hover:bg-blue-600 active:translate-y-0 active:shadow-sm"
         onClick={onReset}
-        title="Reset"
+        title={precomputeState === 'ready' ? 'Reset & clear pre-computed cache' : 'Reset'}
       >
         ⟲
       </button>
@@ -63,4 +107,3 @@ function SimulationControls({ isRunning, onPlay, onPause, onReset, maxDuration, 
 }
 
 export default SimulationControls;
-
