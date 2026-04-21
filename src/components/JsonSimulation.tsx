@@ -1,15 +1,20 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Matter from 'matter-js';
-import BaseSimulation, { type SimulationControls as BaseSimulationControls } from './BaseSimulation';
+import BaseSimulation, { type SimulationControls as BaseSimulationControls, CANVAS_HEIGHT, WALL_THICKNESS } from './BaseSimulation';
+import type { PhysicsAdapter, PhysicsBody, Vec2 } from '../physics/types';
 import type { PrecomputeState, PrecomputeProgress } from './simulation_components/SimulationControls';
 import Environment from './simulation_components/Environment';
 import Panel from './simulation_components/Panel';
 import Scale from './simulation_components/Scale';
 import SimulationHeader from './simulation_components/SimulationHeader';
 import JsonEditor from './JsonEditor';
+import EngineSwitcher from './simulation_components/EngineSwitcher';
+import type { PhysicsEngineKind } from '../physics';
+import { resolveEngine } from '../config/engines';
 import { createSimulation, updateChangesMade } from '../lib/simulationService';
-import { UnitConverter, type UnitType } from '../lib/unitConversion';
+import type { UnitType } from '../lib/unitConversion';
+import { UNIT_ABBREV, unitToMeters, scaleObjectToSI, isDimensionalProperty } from '../lib/unitConversion';
+import { WorldToCanvas } from '../lib/worldToCanvas';
 // Controls
 import ControlRenderer from './simulation_components/controls/ControlRenderer';
 import type { ControlConfig, ToggleConfig, SliderConfig } from './simulation_components/controls/types';
@@ -34,7 +39,7 @@ import {
   synthesizeForceArrowRenderable,
   synthesizeExperimentalRenderable,
   buildExperimentalDataResolver,
-  toPixelRenderable,
+  prepareRenderable,
 } from './simulation_components/renderables/synthesize';
 import type { PixelRenderable, DataPositionResolver } from './simulation_components/renderables/types';
 import type { Renderable } from '../schemas/simulation';
@@ -47,6 +52,7 @@ interface SimulationConfig {
     gravity?: number;
     unit?: UnitType;
     pixelsPerUnit?: number;
+    physicsEngine?: 'matter' | 'rapier' | 'planck';
   };
   objects?: Array<ObjectConfig>;
   controls?: Array<ControlConfig>;
@@ -62,10 +68,17 @@ interface JsonSimulationProps {
 
 type SimulationControls = BaseSimulationControls;
 
+type FrameBodySnap = {
+  id: string;
+  x: number;
+  y: number;
+  angle: number;
+};
+
 type Frame = {
-  bodies: Array<{ id: number; x: number; y: number; angle: number }>;
+  bodies: FrameBodySnap[];
   outputValues: Record<string, number>;
-  graphPoints: DataPoint[]; // one per graph, aligned with graphs array order
+  graphPoints: DataPoint[];
 };
 
 function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
@@ -81,6 +94,24 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     renderables: configRenderables = [],
   } = config;
 
+  const pixelsPerUnit = environment.pixelsPerUnit ?? 10;
+  const gravityMagnitude = environment.gravity ?? 9.8;
+
+  // SI cutover: config values are declared in `environment.unit`. Convert all
+  // dimensional values (lengths, velocities, accelerations, gravity) to SI
+  // meters at this boundary — everything below runs pure SI. The render layer
+  // uses `pixelsPerMeter` so user-set `pixelsPerUnit` still behaves as
+  // "pixels per user unit" for Scale/overlays.
+  const unitScale = useMemo(() => unitToMeters(environment.unit ?? 'm'), [environment.unit]);
+  const pixelsPerMeter = pixelsPerUnit / unitScale;
+  const siGravityMagnitude = gravityMagnitude * unitScale;
+  const gravityVec: Vec2 = useMemo(() => ({ x: 0, y: -siGravityMagnitude }), [siGravityMagnitude]);
+
+  const siObjects = useMemo(
+    () => objects.map((obj) => scaleObjectToSI(obj, unitScale)),
+    [objects, unitScale],
+  );
+
   const [showJsonEditor, setShowJsonEditor] = useState(false);
 
   // Experimental data overlay state
@@ -92,67 +123,9 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   const simulationTimeRef = useRef(0);
   const [canvasContainer, setCanvasContainer] = useState<HTMLDivElement | null>(null);
 
-  // Create unit converter from environment config
-  const unitConverter = useMemo(() => {
-    return new UnitConverter(
-      environment.unit ?? 'm',
-      environment.pixelsPerUnit ?? 10,
-    );
-  }, [environment.unit, environment.pixelsPerUnit]);
-
-  // Convert objects from real-world units to pixels for rendering
-  const pixelObjects = useMemo(() => {
-    return objects.map((obj): ObjectConfig => {
-      const pixelObj: ObjectConfig = {
-        ...obj,
-        x: unitConverter.toPixelsX(obj.x),
-        y: unitConverter.toPixelsY(obj.y),
-      };
-
-      // Convert velocity if present
-      if (obj.velocity) {
-        pixelObj.velocity = unitConverter.toPixelsVelocityAcceleration(obj.velocity);
-      }
-
-      // Convert acceleration if present
-      if (obj.acceleration) {
-        pixelObj.acceleration = unitConverter.toPixelsVelocityAcceleration(obj.acceleration);
-      }
-
-      // Convert body dimensions
-      if (obj.body) {
-        const body = { ...obj.body };
-        if (body.type === 'circle' && 'radius' in body) {
-          (body as any).radius = unitConverter.toPixelsDimension((body as any).radius);
-        } else if (body.type === 'rectangle' && 'width' in body && 'height' in body) {
-          (body as any).width = unitConverter.toPixelsDimension((body as any).width);
-          (body as any).height = unitConverter.toPixelsDimension((body as any).height);
-        } else if (body.type === 'polygon' && 'radius' in body) {
-          (body as any).radius = unitConverter.toPixelsDimension((body as any).radius);
-        } else if (body.type === 'vertex' && 'vertices' in body) {
-          (body as any).vertices = (body as any).vertices.map((v: { x: number; y: number }) => 
-            unitConverter.toPixelsPosition(v)
-          );
-        }
-        pixelObj.body = body;
-      }
-
-      return pixelObj;
-    });
-  }, [objects, unitConverter]);
-
-  // Convert gravity from real-world units to Matter.js scale
-  const matterGravityScale = useMemo(() => {
-    const gravity = environment.gravity ?? 9.8;
-    return unitConverter.toMatterGravityScale(gravity);
-  }, [environment.gravity, unitConverter]);
-
-  // Compose renderables: user-declared + auto-synthesized (walls, default
-  // body outlines, experimental-data marker). Any physics object without an
-  // explicit body-tracking renderable gets a default one so every sim still
-  // renders correctly.
+  // Compose renderables in SI — no per-property pixel conversion.
   const pixelRenderables = useMemo<PixelRenderable[]>(() => {
-    const explicit = configRenderables.map((r) => toPixelRenderable(r, unitConverter));
+    const explicit = configRenderables.map(prepareRenderable);
     const coveredBodyIds = new Set(
       configRenderables
         .filter((r) => r.source.type === 'body')
@@ -164,28 +137,28 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     const forceArrows = objects
       .filter((obj) => obj.showForceArrows)
       .map(synthesizeForceArrowRenderable);
-    const walls = synthesizeWallRenderables(environment.walls ?? []);
+    const walls = synthesizeWallRenderables(environment.walls ?? [], pixelsPerMeter);
     const experimental = experimentalData
       ? [synthesizeExperimentalRenderable(experimentalData)]
       : [];
     return [...walls, ...defaults, ...forceArrows, ...explicit, ...experimental].sort(
       (a, b) => a.zIndex - b.zIndex
     );
-  }, [configRenderables, objects, environment.walls, experimentalData, unitConverter]);
+  }, [configRenderables, objects, environment.walls, experimentalData, pixelsPerMeter]);
 
   const dataSources = useMemo<Record<string, DataPositionResolver>>(() => {
     if (!experimentalData) return {};
-    const resolver = buildExperimentalDataResolver(experimentalData, unitConverter);
+    const resolver = buildExperimentalDataResolver(experimentalData, unitScale);
     return resolver ? { experimental: resolver } : {};
-  }, [experimentalData, unitConverter]);
+  }, [experimentalData, unitScale]);
 
-  // Store refs to all objects by their ID
-  const objRefs = useRef<Record<string, Matter.Body>>({});
-  
-  // Store previous velocities to calculate acceleration
+  // Refs to all physics bodies by config id (SI PhysicsBody).
+  const objRefs = useRef<Record<string, PhysicsBody>>({});
+
+  // Finite-difference state for derivedAcceleration.
   const prevVelocitiesRef = useRef<Record<string, { x: number; y: number }>>({});
   const prevTimeRef = useRef<number>(0);
-  
+
   // State for control values
   const [controlValues, setControlValues] = useState<Record<string, number>>(() => {
     const initialValues: Record<string, number> = {};
@@ -207,28 +180,32 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   const simulationControlsRef = useRef<SimulationControls | null>(null);
   const [isRunning, setIsRunning] = useState(false);
 
-  // Duration limit is now a required finite number, default 10, min 1.
+  // Session-local engine override. Resets on reload — the config's
+  // environment.physicsEngine is always the starting point. Both the override
+  // and the config value are routed through resolveEngine so a disabled engine
+  // (per src/config/engines.ts) falls back to DEFAULT_ENGINE.
+  const [engineOverride, setEngineOverride] = useState<PhysicsEngineKind | null>(null);
+  const activeEngine: PhysicsEngineKind = resolveEngine(
+    engineOverride ?? environment.physicsEngine,
+  );
+
   const [maxDuration, setMaxDuration] = useState<number>(10);
 
-  // State for graph data - one array per graph
   const [graphData, setGraphData] = useState<DataPoint[][]>(() => graphs.map(() => []));
   const isRunningRef = useRef(isRunning);
 
   // Pre-compute / replay state
   const [precomputeState, setPrecomputeState] = useState<PrecomputeState>('idle');
   const [precomputeProgress, setPrecomputeProgress] = useState<PrecomputeProgress | null>(null);
-  // 'idle' in live mode, 'precomputing' while recording, 'replay' while playing back.
   const jsonModeRef = useRef<'idle' | 'precomputing' | 'replay'>('idle');
   const frameCacheRef = useRef<{ key: string; frames: Frame[] } | null>(null);
   const recordingBufferRef = useRef<Frame[] | null>(null);
-  // Tracks replay playhead so the next play click knows whether to resume or rewind.
   const replayCursorRef = useRef<number>(0);
 
   useEffect(() => {
     isRunningRef.current = isRunning;
   }, [isRunning]);
 
-  // Callback when simulation controls are ready
   const handleControlsReady = useCallback((controls: SimulationControls) => {
     setSimulationControls(controls);
     simulationControlsRef.current = controls;
@@ -241,17 +218,12 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     const frames = cache.frames;
     const frame = frames[frameIndex];
 
-    // Index bodies by Matter id for this lookup.
-    const byId = new Map<number, Matter.Body>();
-    for (const id in objRefs.current) {
-      const body = objRefs.current[id];
-      if (body) byId.set(body.id, body);
-    }
     frame.bodies.forEach((snap) => {
-      const body = byId.get(snap.id);
+      const body = objRefs.current[snap.id];
       if (body) {
-        Matter.Body.setPosition(body, { x: snap.x, y: snap.y });
-        Matter.Body.setAngle(body, snap.angle);
+        body.position.x = snap.x;
+        body.position.y = snap.y;
+        body.angle = snap.angle;
       }
     });
 
@@ -271,12 +243,25 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     }
   }, [graphs]);
 
-  // Helper function to get nested property value
   const getNestedValue = (obj: any, path: string): any => {
+    // Redirect acceleration.* to the finite-difference stored on userData.
+    if (path.startsWith('acceleration.')) {
+      const axis = path.slice('acceleration.'.length);
+      const derived = obj?.userData?.derivedAcceleration;
+      return derived?.[axis];
+    }
     return path.split('.').reduce((current, key) => current?.[key], obj);
   };
 
-  // Helper function to set nested property value
+  // Read a property for display (outputs/graphs). Physics bodies store SI
+  // values — divide by unitScale for dimensional properties so UI labels in
+  // the config's `unit` stay consistent.
+  const readDisplayValue = (obj: any, path: string): number => {
+    const raw = getNestedValue(obj, path);
+    if (typeof raw !== 'number') return raw;
+    return isDimensionalProperty(path) ? raw / unitScale : raw;
+  };
+
   const setNestedValue = (obj: any, path: string, value: any): void => {
     const keys = path.split('.');
     const lastKey = keys.pop()!;
@@ -284,133 +269,76 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     target[lastKey] = value;
   };
 
-  // Helper function to clamp very small values to zero
   const clampToZero = (value: number): number => {
     return Math.abs(value) < 0.01 ? 0 : value;
   };
 
-  // Handle control changes - value is in real-world units, convert to pixels for Matter.js
+  // Handle control changes — SI everywhere, Vec2Accessor routes writes through
+  // the adapter for velocity/position.
   const handleControlChange = useCallback((control: typeof controls[0], value: number) => {
     setControlValues((prev) => ({
       ...prev,
       [control.label]: value,
     }));
 
-    // Update the object property
     const obj = objRefs.current[control.targetObj];
     if (obj && control.property) {
-      if (control.property.startsWith('velocity.')) {
-        // Special handling for velocity - convert from real units to pixels
-        const axis = control.property.split('.')[1] as 'x' | 'y';
-        const pixelValue = axis === 'x' 
-          ? unitConverter.toPixelsVelocityAccelerationX(value)
-          : unitConverter.toPixelsVelocityAccelerationY(value);
-        const currentVelocity = obj.velocity;
-        const newVelocity = {
-          x: axis === 'x' ? pixelValue : currentVelocity.x,
-          y: axis === 'y' ? pixelValue : currentVelocity.y,
-        };
-        Matter.Body.setVelocity(obj, newVelocity);
-      } else if (control.property.startsWith('position.')) {
-        // Special handling for position - convert from real units to pixels
-        const axis = control.property.split('.')[1] as 'x' | 'y';
-        const pixelValue = axis === 'x'
-          ? unitConverter.toPixelsX(value)
-          : unitConverter.toPixelsY(value);
-        const currentPosition = obj.position;
-        const newPosition = {
-          x: axis === 'x' ? pixelValue : currentPosition.x,
-          y: axis === 'y' ? pixelValue : currentPosition.y,
-        };
-        Matter.Body.setPosition(obj, newPosition);
-      } else {
-        // Generic property update (no conversion needed for non-spatial properties)
-        setNestedValue(obj, control.property, value);
-      }
+      const siValue = isDimensionalProperty(control.property) ? value * unitScale : value;
+      setNestedValue(obj, control.property, siValue);
     }
-  }, [unitConverter]);
+  }, [unitScale]);
 
-  // Helper to convert a pixel value to real-world units based on property type
-  const convertPixelToRealUnit = useCallback((property: string, pixelValue: number): number => {
-    return unitConverter.fromPixelsProperty(property, pixelValue);
-  }, [unitConverter]);
-
-  // Update loop to read output values and graph data.
-  // During 'replay', playback is driven by onReplayFrame instead — short-circuit.
-  const handleUpdate = useCallback((_engine: Matter.Engine, time: number) => {
+  // Update loop: compute finite-difference acceleration, collect outputs, graphs.
+  const handleUpdate = useCallback((_adapter: PhysicsAdapter, time: number) => {
     if (jsonModeRef.current === 'replay') return;
 
     const isRecording = jsonModeRef.current === 'precomputing';
 
-    // Calculate acceleration for all bodies (in pixel space)
     const deltaTime = time - prevTimeRef.current;
     if (deltaTime > 0) {
-      // Use objects from the config to iterate through bodies
       objects.forEach((objectConfig) => {
         const body = objRefs.current[objectConfig.id];
         if (!body) return;
-        
+
         const prevVelocity = prevVelocitiesRef.current[objectConfig.id];
         if (prevVelocity) {
-          // Calculate acceleration as change in velocity over time (still in pixels)
-          const acceleration = {
+          body.userData.derivedAcceleration = {
             x: (body.velocity.x - prevVelocity.x) / deltaTime,
             y: (body.velocity.y - prevVelocity.y) / deltaTime,
           };
-          // Store acceleration on the body as a custom property
-          (body as any).acceleration = acceleration;
         } else {
-          // First frame - initialize acceleration to zero
-          (body as any).acceleration = { x: 0, y: 0 };
+          body.userData.derivedAcceleration = { x: 0, y: 0 };
         }
-        // Store engine gravity so force arrows can include gravitational force.
-        // Convert to the same units as the delta-v acceleration (pixels / seconds):
-        //   Matter.js gravity adds gravity.scale * dt² to displacement per step,
-        //   so the equivalent acceleration = gravity.scale * dt_ms² / dt_seconds
-        //                                  = gravity.scale * deltaTime * 1e6
-        const gScale = _engine.gravity.scale * deltaTime * 1e6;
-        (body as any).gravityAcceleration = {
-          x: _engine.gravity.x * gScale,
-          y: _engine.gravity.y * gScale,
-        };
 
-        // Update previous velocity
-        prevVelocitiesRef.current[objectConfig.id] = { ...body.velocity };
+        prevVelocitiesRef.current[objectConfig.id] = { x: body.velocity.x, y: body.velocity.y };
       });
     }
     prevTimeRef.current = time;
 
-    // Collect output values and convert from pixels to real-world units
     const newOutputValues: Record<string, number> = {};
-    
     outputs.forEach((group) => {
       group.values.forEach((output) => {
         const obj = objRefs.current[output.targetObj];
         if (obj) {
           const key = `${output.targetObj}.${output.property}`;
-          const pixelValue = getNestedValue(obj, output.property);
-          // Convert from pixels to real-world units
-          newOutputValues[key] = convertPixelToRealUnit(output.property, pixelValue);
+          newOutputValues[key] = readDisplayValue(obj, output.property);
         }
       });
     });
 
-    // During pre-compute, hold all visible state still — we record silently.
     if (!isRecording) {
       setOutputValues(newOutputValues);
       simulationTimeRef.current = time;
     }
 
-    // Compute graph data points for this frame (real-world units)
     const perFrameGraphPoints: DataPoint[] = graphs.map((graph) => {
       const dataPoint: DataPoint = { time };
       if (graph.type === 'line' && graph.lines) {
         graph.lines.forEach((line: LineConfig) => {
           const obj = objRefs.current[line.targetObj];
           if (obj) {
-            const pixelValue = getNestedValue(obj, line.property);
-            const realValue = convertPixelToRealUnit(line.property, pixelValue);
-            dataPoint[line.label] = clampToZero(realValue);
+            const value = readDisplayValue(obj, line.property);
+            dataPoint[line.label] = clampToZero(value);
           }
         });
       }
@@ -424,26 +352,25 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     }
 
     if (isRecording && recordingBufferRef.current) {
-      const bodies = objects
+      const bodies: FrameBodySnap[] = objects
         .map((objectConfig) => {
           const body = objRefs.current[objectConfig.id];
           if (!body) return null;
-          return { id: body.id, x: body.position.x, y: body.position.y, angle: body.angle };
+          return { id: objectConfig.id, x: body.position.x, y: body.position.y, angle: body.angle };
         })
-        .filter((b): b is { id: number; x: number; y: number; angle: number } => b !== null);
+        .filter((b): b is FrameBodySnap => b !== null);
       recordingBufferRef.current.push({
         bodies,
         outputValues: newOutputValues,
         graphPoints: perFrameGraphPoints,
       });
     }
-  }, [outputs, graphs, objects, convertPixelToRealUnit]);
+  }, [outputs, graphs, objects]);
 
   const handleEdit = async (editedJSON: any) => {
     if (!simulationId) return;
     try {
       const newSimulationId = await createSimulation(editedJSON, true, simulationId);
-      // Trigger server-side update of changes_made column
       updateChangesMade(newSimulationId);
       navigate(`/simulation/${newSimulationId}`);
     } catch (error) {
@@ -460,7 +387,6 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     if (!simulationId) return;
     try {
       const newSimulationId = await createSimulation(tweakedJSON, false, simulationId);
-      // Trigger server-side update of changes_made column
       updateChangesMade(newSimulationId);
       setShowJsonEditor(false);
       navigate(`/simulation/${newSimulationId}`);
@@ -471,17 +397,19 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   };
 
   const handlePickPosition = useCallback(() => {
-    setShowExperimentalModal(false); // hide modal but keep form state
+    setShowExperimentalModal(false);
     setPickingPosition(true);
   }, []);
 
   const handleCanvasClick = useCallback((canvasX: number, canvasY: number) => {
     if (!pickingPosition) return;
-    const realPos = unitConverter.fromPixelsPosition({ x: canvasX, y: canvasY });
-    setPickedPosition(realPos);
+    // Convert canvas pixel back to the config's user unit (not SI).
+    const w2c = new WorldToCanvas(pixelsPerUnit, CANVAS_HEIGHT, WALL_THICKNESS);
+    const userPos = w2c.fromPoint({ x: canvasX, y: canvasY });
+    setPickedPosition(userPos);
     setPickingPosition(false);
     setShowExperimentalModal(true);
-  }, [pickingPosition, unitConverter]);
+  }, [pickingPosition, pixelsPerUnit]);
 
   const handleCanvasContainerReady = useCallback((container: HTMLDivElement) => {
     setCanvasContainer(container);
@@ -515,7 +443,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           onConfirm={handleExperimentalConfirm}
           onPickPosition={handlePickPosition}
           pickedPosition={pickedPosition}
-          unitLabel={unitConverter.getUnitLabel()}
+          unitLabel={UNIT_ABBREV[environment.unit ?? 'm']}
           graphs={graphs}
         />
       )}
@@ -540,9 +468,12 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           const sim = simulationControlsRef.current;
           if (!sim) return;
 
-          const currentKey = JSON.stringify({ controls: controlValues, duration: maxDuration });
+          const currentKey = JSON.stringify({
+            controls: controlValues,
+            duration: maxDuration,
+            engine: activeEngine,
+          });
 
-          // If a cached replay matches current controls/duration: resume mid-stream, or rewind if at end.
           if (frameCacheRef.current && frameCacheRef.current.key === currentKey) {
             const frames = frameCacheRef.current.frames;
             if (jsonModeRef.current !== 'replay' || replayCursorRef.current >= frames.length) {
@@ -556,8 +487,6 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
             return;
           }
 
-          // Otherwise: cache is missing or stale (a control or duration was edited).
-          // Invalidate and re-run pre-compute.
           frameCacheRef.current = null;
           const totalFrames = Math.max(1, Math.round(maxDuration * 30));
           recordingBufferRef.current = [];
@@ -565,8 +494,6 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           prevTimeRef.current = 0;
           setGraphData(graphs.map(() => []));
 
-          // Reset bodies to initial state then re-apply current control values so
-          // slider/toggle edits are reflected in the pre-computed run.
           sim.reset();
           controls.forEach((control) => {
             if (control.type === 'slider' || control.type === 'toggle') {
@@ -601,7 +528,6 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           recordingBufferRef.current = null;
           frameCacheRef.current = { key: currentKey, frames: recordedFrames };
 
-          // Clear visible state before replay so replay's append-frame semantics start clean.
           setGraphData(graphs.map(() => []));
 
           jsonModeRef.current = 'replay';
@@ -619,8 +545,6 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           const sim = simulationControlsRef.current;
           if (!sim) return;
 
-          // Reset never clears the pre-computed cache — it only rewinds playback.
-          // (Only editing a control or maxDuration invalidates the cache.)
           if (frameCacheRef.current) {
             setIsRunning(false);
             setGraphData(graphs.map(() => []));
@@ -631,7 +555,6 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
             return;
           }
 
-          // No cache yet — fall back to the live-mode reset.
           sim.reset();
           setIsRunning(false);
           setGraphData(graphs.map(() => []));
@@ -646,8 +569,9 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           }, 0);
         }}
       />
-      
+
       <BaseSimulation
+        physicsEngine={activeEngine}
         onUpdate={handleUpdate}
         onControlsReady={handleControlsReady}
         onCanvasContainerReady={handleCanvasContainerReady}
@@ -672,8 +596,13 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         {/* Scale + Import Experimental Data */}
         <div className="col-start-1 row-start-2 justify-self-end flex flex-col gap-3 items-end">
           <Scale
-            pixelsPerUnit={environment.pixelsPerUnit ?? 10}
+            pixelsPerUnit={pixelsPerUnit}
             unit={environment.unit ?? 'm'}
+          />
+          <EngineSwitcher
+            value={activeEngine}
+            onChange={setEngineOverride}
+            disabled={isRunning || precomputeState === 'precomputing'}
           />
           <button
             onClick={() => setShowExperimentalModal(true)}
@@ -691,16 +620,20 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           )}
         </div>
 
-        {/* Environment - use converted gravity scale */}
-        <Environment walls={environment.walls} gravity={matterGravityScale} />
-        
-        {/* Objects - render with pixel-converted values */}
-        {pixelObjects.map((object, index) => (
+        {/* Environment - SI gravity and bounds */}
+        <Environment
+          walls={environment.walls}
+          gravity={siGravityMagnitude}
+          pixelsPerUnit={pixelsPerMeter}
+        />
+
+        {/* Objects - pre-scaled to SI at the config boundary */}
+        {siObjects.map((object) => (
           <ObjectRenderer
-            key={objects[index].id}
+            key={object.id}
             ref={(ref) => {
               if (ref) {
-                objRefs.current[objects[index].id] = ref;
+                objRefs.current[object.id] = ref;
               }
             }}
             {...object}
@@ -764,13 +697,15 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
             <DataDownload graphs={graphs} graphData={graphData} />
           </Panel>
         )}
-        {/* Unified render layer (replaces Matter.Render and ExperimentalDataRenderer) */}
+        {/* Unified render layer */}
         <RenderLayer
           renderables={pixelRenderables}
           objRefs={objRefs}
           dataSources={dataSources}
           simulationTimeRef={simulationTimeRef}
           canvasContainer={canvasContainer}
+          pixelsPerUnit={pixelsPerMeter}
+          gravity={gravityVec}
         />
       </BaseSimulation>
     </div>
@@ -778,4 +713,3 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 }
 
 export default JsonSimulation;
-

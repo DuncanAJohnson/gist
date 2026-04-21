@@ -3,7 +3,7 @@ import type { DrawContext, PixelVisual } from '../types';
 
 function drawShape(drawCtx: DrawContext, visual: PixelVisual) {
   if (visual.type !== 'shape') return;
-  const { ctx, position, opacity } = drawCtx;
+  const { ctx, position, opacity, w2c } = drawCtx;
 
   ctx.save();
   ctx.globalAlpha = opacity;
@@ -12,7 +12,7 @@ function drawShape(drawCtx: DrawContext, visual: PixelVisual) {
   ctx.fillStyle = visual.color;
 
   if (visual.shape === 'circle') {
-    const r = visual.radius ?? 10;
+    const r = w2c.dimension(visual.radius ?? 1);
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fill();
@@ -22,8 +22,8 @@ function drawShape(drawCtx: DrawContext, visual: PixelVisual) {
       ctx.stroke();
     }
   } else if (visual.shape === 'rectangle') {
-    const w = visual.width ?? 20;
-    const h = visual.height ?? 20;
+    const w = w2c.dimension(visual.width ?? 2);
+    const h = w2c.dimension(visual.height ?? 2);
     ctx.fillRect(-w / 2, -h / 2, w, h);
     if (visual.stroke) {
       ctx.strokeStyle = visual.stroke;
@@ -32,7 +32,7 @@ function drawShape(drawCtx: DrawContext, visual: PixelVisual) {
     }
   } else if (visual.shape === 'polygon') {
     const sides = visual.sides ?? 6;
-    const r = visual.radius ?? 10;
+    const r = w2c.dimension(visual.radius ?? 1);
     ctx.beginPath();
     for (let i = 0; i < sides; i++) {
       const theta = (i / sides) * Math.PI * 2 - Math.PI / 2;

@@ -1,4 +1,5 @@
-import type Matter from 'matter-js';
+import type { PhysicsBody, Vec2 } from '../../../physics/types';
+import type { WorldToCanvas } from '../../../lib/worldToCanvas';
 import type { Renderable, Visual, PositionSource } from '../../../schemas/simulation';
 
 export type { Renderable, Visual, PositionSource };
@@ -16,8 +17,7 @@ export interface MarkerVisual {
 
 /**
  * Internal body-outline visual used by auto-synthesized default renderables.
- * Draws the physics body's own vertices — works for any body shape, uses
- * live physics data. Not exposed through the schema.
+ * Draws the physics body's SI ShapeDescriptor, converted via WorldToCanvas.
  */
 export interface BodyOutlineVisual {
   type: 'body-outline';
@@ -26,7 +26,7 @@ export interface BodyOutlineVisual {
 
 /**
  * Internal force-arrow visual. Draws net-force arrows on a physics body
- * using live acceleration data from the engine. Not exposed through the schema.
+ * using live SI acceleration data. Not exposed through the schema.
  */
 export interface ForceArrowVisual {
   type: 'force-arrow';
@@ -40,19 +40,21 @@ export interface ForceArrowVisual {
 export type PixelVisual = Visual | MarkerVisual | BodyOutlineVisual | ForceArrowVisual;
 
 /**
- * A renderable converted to pixel/canvas space — what RenderLayer actually consumes.
- * Numeric dimensions in `visual` are in canvas pixels. Fixed source coords are in canvas pixels.
+ * A renderable prepared for RenderLayer. All numeric values in `source` and
+ * `visual` (fixed coordinates, widths, heights, radii) are in SI units —
+ * conversion to canvas pixels happens at draw time via the WorldToCanvas
+ * supplied on the DrawContext.
  */
 export interface PixelRenderable {
   id: string;
-  source: PositionSource;  // body/data bodyId/dataId, or fixed coords in canvas pixels
+  source: PositionSource;
   visual: PixelVisual;
   opacity: number;
   zIndex: number;
 }
 
 /**
- * Resolved position in canvas-pixel space.
+ * Resolved position in canvas-pixel space, ready to draw.
  */
 export interface ResolvedPosition {
   x: number;
@@ -61,18 +63,24 @@ export interface ResolvedPosition {
 }
 
 /**
- * A data source that can report position in canvas pixels at a given simulation time.
+ * A data source that can report position in SI at a given simulation time.
  * Used for experimental data (and any future time-series visual sources).
  */
 export interface DataPositionResolver {
-  resolve(time: number): ResolvedPosition | null;
+  resolve(time: number): { x: number; y: number; angle: number } | null;
 }
 
 export interface DrawContext {
   ctx: CanvasRenderingContext2D;
+  /** Canvas-pixel position (already converted from SI). */
   position: ResolvedPosition;
-  body?: Matter.Body;
+  /** SI physics body, present when the source resolves to a body. */
+  body?: PhysicsBody;
   opacity: number;
+  /** World → canvas transform for this frame. */
+  w2c: WorldToCanvas;
+  /** SI gravity (m/s²), used by force-arrow visuals. */
+  gravity: Vec2;
 }
 
 export type VisualDrawFn = (drawCtx: DrawContext, visual: PixelVisual) => void;

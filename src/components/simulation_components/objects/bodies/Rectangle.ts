@@ -1,16 +1,11 @@
-import Matter from 'matter-js';
 import { registerBody } from '../registry';
 import type { RectangleBodyConfig } from '../types';
+import type { ShapeDescriptor } from '../../../../physics/types';
 
-function createRectangle(x: number, y: number, config: RectangleBodyConfig): Matter.Body {
-  const body = Matter.Bodies.rectangle(x, y, config.width, config.height);
-  if (config.color) {
-    body.render.fillStyle = config.color;
-  }
-  return body;
+function createRectangle(config: RectangleBodyConfig): ShapeDescriptor {
+  return { type: 'rectangle', width: config.width, height: config.height };
 }
 
 registerBody('rectangle', createRectangle);
 
 export default createRectangle;
-

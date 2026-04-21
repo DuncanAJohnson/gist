@@ -1,6 +1,6 @@
 {
   "manifest_version": 1,
-  "exported_at": "2026-04-14T19:58:36.127Z",
+  "exported_at": "2026-04-20T13:43:36.374Z",
   "exported_by": "bill@crcs.works",
   "export_mode": "all_approved",
   "items": [
@@ -725,6 +725,276 @@
       }
     },
     {
+      "name": "billiard_ball_1",
+      "display_name": "billiard ball 1",
+      "status": "approved",
+      "version": 2,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 28
+        }
+      }
+    },
+    {
+      "name": "billiard_ball_10",
+      "display_name": "billiard ball 10",
+      "status": "approved",
+      "version": 2,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 28
+        }
+      }
+    },
+    {
+      "name": "billiard_ball_11",
+      "display_name": "billiard ball 11",
+      "status": "approved",
+      "version": 2,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 28
+        }
+      }
+    },
+    {
+      "name": "billiard_ball_12",
+      "display_name": "billiard ball 12",
+      "status": "approved",
+      "version": 2,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 28
+        }
+      }
+    },
+    {
+      "name": "billiard_ball_13",
+      "display_name": "billiard ball 13",
+      "status": "approved",
+      "version": 2,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 28
+        }
+      }
+    },
+    {
+      "name": "billiard_ball_14",
+      "display_name": "billiard ball 14",
+      "status": "approved",
+      "version": 2,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 28
+        }
+      }
+    },
+    {
+      "name": "billiard_ball_15",
+      "display_name": "billiard ball 15",
+      "status": "approved",
+      "version": 2,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 28
+        }
+      }
+    },
+    {
+      "name": "billiard_ball_2",
+      "display_name": "billiard ball 2",
+      "status": "approved",
+      "version": 2,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 28
+        }
+      }
+    },
+    {
+      "name": "billiard_ball_3",
+      "display_name": "billiard ball 3",
+      "status": "approved",
+      "version": 2,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 28
+        }
+      }
+    },
+    {
+      "name": "billiard_ball_4",
+      "display_name": "billiard ball 4",
+      "status": "approved",
+      "version": 2,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 28
+        }
+      }
+    },
+    {
+      "name": "billiard_ball_5",
+      "display_name": "billiard ball 5",
+      "status": "approved",
+      "version": 2,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 28
+        }
+      }
+    },
+    {
+      "name": "billiard_ball_6",
+      "display_name": "billiard ball 6",
+      "status": "approved",
+      "version": 2,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 28
+        }
+      }
+    },
+    {
+      "name": "billiard_ball_7",
+      "display_name": "billiard ball 7",
+      "status": "approved",
+      "version": 2,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 28
+        }
+      }
+    },
+    {
+      "name": "billiard_ball_8",
+      "display_name": "billiard ball 8",
+      "status": "approved",
+      "version": 2,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 28
+        }
+      }
+    },
+    {
+      "name": "billiard_ball_9",
+      "display_name": "billiard ball 9",
+      "status": "approved",
+      "version": 2,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 28
+        }
+      }
+    },
+    {
       "name": "bird",
       "display_name": "bird",
       "status": "approved",
@@ -1386,6 +1656,24 @@
             34
           ],
           "height": 40
+        }
+      }
+    },
+    {
+      "name": "cue_ball",
+      "display_name": "cue ball",
+      "status": "approved",
+      "version": 2,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 28
         }
       }
     },
@@ -3624,6 +3912,33 @@
       }
     },
     {
+      "name": "pool_triangle_rack",
+      "display_name": "pool triangle rack",
+      "status": "approved",
+      "version": 2,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              32,
+              8
+            ],
+            [
+              60,
+              56
+            ],
+            [
+              4,
+              56
+            ]
+          ]
+        }
+      }
+    },
+    {
       "name": "pumpkin",
       "display_name": "pumpkin",
       "status": "approved",
@@ -4647,6 +4962,24 @@
             32
           ],
           "height": 36
+        }
+      }
+    },
+    {
+      "name": "striped_ball",
+      "display_name": "striped ball",
+      "status": "approved",
+      "version": 2,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 28
         }
       }
     },

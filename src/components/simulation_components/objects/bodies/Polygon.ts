@@ -1,16 +1,18 @@
-import Matter from 'matter-js';
 import { registerBody } from '../registry';
 import type { PolygonBodyConfig } from '../types';
+import type { ShapeDescriptor } from '../../../../physics/types';
 
-function createPolygon(x: number, y: number, config: PolygonBodyConfig): Matter.Body {
-  const body = Matter.Bodies.polygon(x, y, config.sides, config.radius);
-  if (config.color) {
-    body.render.fillStyle = config.color;
+function createPolygon(config: PolygonBodyConfig): ShapeDescriptor {
+  const sides = config.sides;
+  const r = config.radius;
+  const vertices = [] as { x: number; y: number }[];
+  for (let i = 0; i < sides; i++) {
+    const theta = (i / sides) * Math.PI * 2 - Math.PI / 2;
+    vertices.push({ x: Math.cos(theta) * r, y: Math.sin(theta) * r });
   }
-  return body;
+  return { type: 'polygon', vertices };
 }
 
 registerBody('polygon', createPolygon);
 
 export default createPolygon;
-

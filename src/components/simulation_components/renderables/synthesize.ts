@@ -1,5 +1,4 @@
-import { CANVAS_WIDTH, CANVAS_HEIGHT, WALL_THICKNESS } from '../../BaseSimulation';
-import type { UnitConverter } from '../../../lib/unitConversion';
+import { SIMULATION_WIDTH, SIMULATION_HEIGHT, WALL_THICKNESS } from '../../BaseSimulation';
 import type { Renderable } from '../../../schemas/simulation';
 import type { ObjectConfig } from '../objects/types';
 import type { ExperimentalDataConfig } from '../ExperimentalDataModal';
@@ -9,12 +8,21 @@ import { interpolate } from './positionSources';
 const WALL_COLOR = '#666';
 
 /**
- * Wall renderables — drawn as fixed rectangles at hardcoded canvas positions.
- * The corresponding physics bodies live in Environment.tsx; these are purely
- * visual.
+ * Wall renderables — drawn as fixed rectangles at the SI world edges. The
+ * matching physics bodies live in Environment.tsx; these are purely visual.
+ *
+ * `pixelsPerUnit` is needed to compute the SI size of the fixed-pixel
+ * simulation area and wall thickness.
  */
-export function synthesizeWallRenderables(walls: string[]): PixelRenderable[] {
+export function synthesizeWallRenderables(
+  walls: string[],
+  pixelsPerUnit: number,
+): PixelRenderable[] {
+  const worldW = SIMULATION_WIDTH / pixelsPerUnit;
+  const worldH = SIMULATION_HEIGHT / pixelsPerUnit;
+  const thickness = WALL_THICKNESS / pixelsPerUnit;
   const out: PixelRenderable[] = [];
+
   const make = (id: string, x: number, y: number, w: number, h: number): PixelRenderable => ({
     id,
     source: { type: 'fixed', x, y, angle: 0 },
@@ -24,24 +32,47 @@ export function synthesizeWallRenderables(walls: string[]): PixelRenderable[] {
   });
 
   if (walls.includes('bottom')) {
-    out.push(make('__wall_bottom', CANVAS_WIDTH / 2, CANVAS_HEIGHT - WALL_THICKNESS / 2, CANVAS_WIDTH, WALL_THICKNESS));
+    out.push(make(
+      '__wall_bottom',
+      worldW / 2,
+      -thickness / 2,
+      worldW + 2 * thickness,
+      thickness,
+    ));
   }
   if (walls.includes('top')) {
-    out.push(make('__wall_top', CANVAS_WIDTH / 2, WALL_THICKNESS / 2, CANVAS_WIDTH, WALL_THICKNESS));
+    out.push(make(
+      '__wall_top',
+      worldW / 2,
+      worldH + thickness / 2,
+      worldW + 2 * thickness,
+      thickness,
+    ));
   }
   if (walls.includes('left')) {
-    out.push(make('__wall_left', WALL_THICKNESS / 2, CANVAS_HEIGHT / 2, WALL_THICKNESS, CANVAS_HEIGHT));
+    out.push(make(
+      '__wall_left',
+      -thickness / 2,
+      worldH / 2,
+      thickness,
+      worldH + 2 * thickness,
+    ));
   }
   if (walls.includes('right')) {
-    out.push(make('__wall_right', CANVAS_WIDTH - WALL_THICKNESS / 2, CANVAS_HEIGHT / 2, WALL_THICKNESS, CANVAS_HEIGHT));
+    out.push(make(
+      '__wall_right',
+      worldW + thickness / 2,
+      worldH / 2,
+      thickness,
+      worldH + 2 * thickness,
+    ));
   }
   return out;
 }
 
 /**
  * Default "body-outline" renderable for a physics object that the user hasn't
- * explicitly given a renderable for. Uses live body geometry, honoring any
- * body.color in the config (or a fallback).
+ * explicitly given a renderable for.
  */
 export function synthesizeBodyRenderable(obj: ObjectConfig): PixelRenderable {
   const color = (obj.body && 'color' in obj.body && obj.body.color) || '#4ecdc4';
@@ -56,7 +87,6 @@ export function synthesizeBodyRenderable(obj: ObjectConfig): PixelRenderable {
 
 /**
  * Force-arrow renderable for a physics object with showForceArrows enabled.
- * Draws above the body outline so it's always visible.
  */
 export function synthesizeForceArrowRenderable(obj: ObjectConfig): PixelRenderable {
   return {
@@ -69,8 +99,7 @@ export function synthesizeForceArrowRenderable(obj: ObjectConfig): PixelRenderab
 }
 
 /**
- * Marker renderable for imported experimental data. Mirrors the legacy
- * ExperimentalDataRenderer's appearance exactly.
+ * Marker renderable for imported experimental data.
  */
 export function synthesizeExperimentalRenderable(
   experimentalData: ExperimentalDataConfig
@@ -90,14 +119,12 @@ export function synthesizeExperimentalRenderable(
 }
 
 /**
- * Builds a DataPositionResolver that reports the canvas-pixel position for an
- * experimental-data trace at a given simulation time. Replicates the position
- * math from the legacy ExperimentalDataRenderer (origin + signed relative
- * displacement).
+ * Builds a DataPositionResolver that reports the SI position of an
+ * experimental-data trace at a given simulation time.
  */
 export function buildExperimentalDataResolver(
   experimentalData: ExperimentalDataConfig,
-  unitConverter: UnitConverter
+  unitScale: number = 1,
 ): DataPositionResolver | null {
   if (!experimentalData.origin) return null;
   const { data, origin, positiveX, positiveY, hasX, hasY } = experimentalData;
@@ -114,59 +141,22 @@ export function buildExperimentalDataResolver(
       let realY = origin.y;
       if (dataX !== null) realX += signX * (dataX - initialX);
       if (dataY !== null) realY += signY * (dataY - initialY);
-      return {
-        x: unitConverter.toPixelsX(realX),
-        y: unitConverter.toPixelsY(realY),
-        angle: 0,
-      };
+      // Origin and data are declared in the config's user unit; scale to SI
+      // so the render layer's WorldToCanvas can handle them alongside physics.
+      return { x: realX * unitScale, y: realY * unitScale, angle: 0 };
     },
   };
 }
 
 /**
- * Convert a user-declared Renderable (real-world units) to a PixelRenderable
- * (canvas pixels). Mirrors the conversion done for `pixelObjects`.
+ * Convert a user-declared Renderable to the internal PixelRenderable form.
+ * Values already live in SI — this just fills in defaults.
  */
-export function toPixelRenderable(
-  r: Renderable,
-  unitConverter: UnitConverter
-): PixelRenderable {
-  let source = r.source;
-  if (source.type === 'fixed') {
-    source = {
-      type: 'fixed',
-      x: unitConverter.toPixelsX(source.x),
-      y: unitConverter.toPixelsY(source.y),
-      angle: source.angle ?? 0,
-    };
-  }
-
-  let visual = r.visual;
-  if (visual.type === 'shape') {
-    visual = {
-      ...visual,
-      width: visual.width !== undefined ? unitConverter.toPixelsDimension(visual.width) : undefined,
-      height: visual.height !== undefined ? unitConverter.toPixelsDimension(visual.height) : undefined,
-      radius: visual.radius !== undefined ? unitConverter.toPixelsDimension(visual.radius) : undefined,
-    };
-  } else if (visual.type === 'image') {
-    visual = {
-      ...visual,
-      width: unitConverter.toPixelsDimension(visual.width),
-      height: unitConverter.toPixelsDimension(visual.height),
-    };
-  } else if (visual.type === 'renderable') {
-    visual = {
-      ...visual,
-      width: unitConverter.toPixelsDimension(visual.width),
-      height: unitConverter.toPixelsDimension(visual.height),
-    };
-  }
-
+export function prepareRenderable(r: Renderable): PixelRenderable {
   return {
     id: r.id,
-    source,
-    visual,
+    source: r.source,
+    visual: r.visual,
     opacity: r.opacity ?? 1,
     zIndex: r.zIndex ?? 0,
   };

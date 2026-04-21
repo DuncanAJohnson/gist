@@ -11,8 +11,10 @@
     "generate:schema": "npx tsx scripts/generate-schema.ts"
   },
   "dependencies": {
+    "@dimforge/rapier2d-compat": "^0.19.3",
     "@supabase/supabase-js": "^2.78.0",
     "matter-js": "^0.20.0",
+    "planck": "^1.4.2",
     "poly-decomp": "^0.3.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

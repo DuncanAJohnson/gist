@@ -3,9 +3,6 @@ import type { DrawContext, PixelVisual } from '../types';
 import { loadImage } from './imageCache';
 
 // Build name → path lookup from the bundled manifest.
-// Eagerly fetched at module load; the manifest is tiny and local so it resolves
-// nearly instantly. If the draw function fires before it resolves, the name
-// simply won't be found and drawing is skipped (same as a not-yet-loaded image).
 const nameToPath = new Map<string, string>();
 fetch('/renderables/manifest.json')
   .then(r => r.json())
@@ -24,9 +21,9 @@ function drawRenderable(drawCtx: DrawContext, visual: PixelVisual) {
   const img = loadImage(path);
   if (!img.complete || img.naturalWidth === 0) return;
 
-  const { ctx, position, opacity } = drawCtx;
-  const w = visual.width;
-  const h = visual.height;
+  const { ctx, position, opacity, w2c } = drawCtx;
+  const w = w2c.dimension(visual.width);
+  const h = w2c.dimension(visual.height);
 
   ctx.save();
   ctx.globalAlpha = opacity;
