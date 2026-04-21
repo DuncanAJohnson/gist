@@ -657,8 +657,15 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           <ObjectRenderer
             key={object.id}
             ref={(ref) => {
+              // Delete on null so objRefs doesn't keep wrappers to freed
+              // engine bodies after an adapter teardown (engine switch). A
+              // stale wrapper would crash on the next body.velocity.x read —
+              // Rapier throws "unreachable" from WASM, which then corrupts
+              // the shared world and breaks the next reinit too.
               if (ref) {
                 objRefs.current[object.id] = ref;
+              } else {
+                delete objRefs.current[object.id];
               }
             }}
             {...object}
