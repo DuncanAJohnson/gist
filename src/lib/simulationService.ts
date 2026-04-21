@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { DEFAULT_PROVIDER, getModelForProvider } from '../config/aiProviders';
 
 export interface SimulationRecord {
   id: number;
@@ -20,6 +21,7 @@ export interface SimulationListItem {
   changes_made: string | null;
   published: boolean;
   endorsement_count: number;
+  week_endorsement_count: number;
 }
 
 export type SortOption = 'recent' | 'endorsed';
@@ -81,8 +83,43 @@ export async function getSimulation(id: number): Promise<any> {
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-function mapRow(row: any): SimulationListItem {
-  return {
+/**
+ * Fetches published simulations with both all-time and past-7-day endorsement
+ * counts. Sort uses the count matching opts.window.
+ */
+export async function getPublishedSimulations(opts: {
+  sort: SortOption;
+  window: WindowOption;
+}): Promise<SimulationListItem[]> {
+  const weekAgo = new Date(Date.now() - WEEK_MS).toISOString();
+
+  const [allTimeRes, weekRes] = await Promise.all([
+    supabase
+      .from('simulations')
+      .select(
+        'id, title, description, created_at, parent_id, changes_made, published, simulation_endorsements(count)'
+      )
+      .eq('published', true),
+    supabase
+      .from('simulations')
+      .select('id, simulation_endorsements(count)')
+      .eq('published', true)
+      .gte('simulation_endorsements.created_at', weekAgo),
+  ]);
+
+  if (allTimeRes.error) {
+    throw new Error(`Failed to fetch simulations: ${allTimeRes.error.message}`);
+  }
+  if (weekRes.error) {
+    throw new Error(`Failed to fetch week counts: ${weekRes.error.message}`);
+  }
+
+  const weekCountById = new Map<number, number>();
+  for (const row of weekRes.data || []) {
+    weekCountById.set(row.id, (row as any).simulation_endorsements?.[0]?.count ?? 0);
+  }
+
+  const items: SimulationListItem[] = (allTimeRes.data || []).map((row: any) => ({
     id: row.id,
     title: row.title,
     description: row.description,
@@ -91,37 +128,13 @@ function mapRow(row: any): SimulationListItem {
     changes_made: row.changes_made,
     published: !!row.published,
     endorsement_count: row.simulation_endorsements?.[0]?.count ?? 0,
-  };
-}
+    week_endorsement_count: weekCountById.get(row.id) ?? 0,
+  }));
 
-/**
- * Fetches published simulations with endorsement counts, sorted per opts.
- * When window='week', endorsement_count only reflects endorsements from the past 7 days.
- */
-export async function getPublishedSimulations(opts: {
-  sort: SortOption;
-  window: WindowOption;
-}): Promise<SimulationListItem[]> {
-  const weekAgo = new Date(Date.now() - WEEK_MS).toISOString();
-
-  let query = supabase
-    .from('simulations')
-    .select(
-      'id, title, description, created_at, parent_id, changes_made, published, simulation_endorsements(count)'
-    )
-    .eq('published', true);
-
-  if (opts.window === 'week') {
-    query = query.gte('simulation_endorsements.created_at', weekAgo);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    throw new Error(`Failed to fetch simulations: ${error.message}`);
-  }
-
-  const items = (data || []).map(mapRow);
+  const primaryCount = (s: SimulationListItem) =>
+    opts.window === 'week' ? s.week_endorsement_count : s.endorsement_count;
+  const altCount = (s: SimulationListItem) =>
+    opts.window === 'week' ? s.endorsement_count : s.week_endorsement_count;
 
   if (opts.sort === 'recent') {
     items.sort(
@@ -129,9 +142,10 @@ export async function getPublishedSimulations(opts: {
     );
   } else {
     items.sort((a, b) => {
-      if (b.endorsement_count !== a.endorsement_count) {
-        return b.endorsement_count - a.endorsement_count;
-      }
+      const primaryDiff = primaryCount(b) - primaryCount(a);
+      if (primaryDiff !== 0) return primaryDiff;
+      const altDiff = altCount(b) - altCount(a);
+      if (altDiff !== 0) return altDiff;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   }
@@ -259,6 +273,8 @@ export async function updateChangesMade(simulationId: number): Promise<void> {
     },
     body: JSON.stringify({
       simulation_id: simulationId,
+      provider: DEFAULT_PROVIDER,
+      model: getModelForProvider(DEFAULT_PROVIDER),
     }),
   }).catch((error) => {
     // Silently fail - this is a background operation
