@@ -37,7 +37,20 @@ function loadRapier(): Promise<RAPIER> {
   if (!rapierModulePromise) {
     rapierModulePromise = (async () => {
       const R = await import('@dimforge/rapier2d-compat');
-      await R.init();
+      // @dimforge/rapier2d-compat 0.19.x's own init() passes a Uint8Array to
+      // the underlying WASM loader, which triggers a "deprecated parameters …
+      // pass a single object instead" console.warn. It's internal to the
+      // compat bundle (no caller-side fix), so suppress it just for this call.
+      const origWarn = console.warn;
+      console.warn = (...args: unknown[]) => {
+        if (typeof args[0] === 'string' && args[0].includes('deprecated parameters for the initialization function')) return;
+        origWarn.apply(console, args);
+      };
+      try {
+        await R.init();
+      } finally {
+        console.warn = origWarn;
+      }
       return R;
     })();
   }
