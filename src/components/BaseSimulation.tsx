@@ -14,9 +14,10 @@ export interface SimulationControls {
     onBatch: (framesDone: number) => void
   ) => Promise<void>;
   startReplay: (
-    onFrame: (frameIndex: number) => void,
+    onFrame: (frameIndex: number, options?: { seek?: boolean }) => void,
     totalFrames: number
   ) => void;
+  seekReplay: (frameIndex: number) => void;
   clearReplay: () => void;
 }
 
@@ -30,6 +31,7 @@ interface BaseSimulationProps {
   onCanvasClick?: (canvasX: number, canvasY: number) => void;
   pickingPosition?: boolean;
   precomputeTimestepSeconds?: number;
+  playbackSpeed?: number;
 }
 
 // Wall thickness for environment boundaries
@@ -73,6 +75,7 @@ function BaseSimulation({
   onCanvasClick,
   pickingPosition,
   precomputeTimestepSeconds = DEFAULT_PRECOMPUTE_TIMESTEP_SECONDS,
+  playbackSpeed = 1,
 }: BaseSimulationProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<PhysicsAdapter | null>(null);
@@ -83,7 +86,7 @@ function BaseSimulation({
   const simulationTimeRef = useRef(0);
   const replayIndexRef = useRef(0);
   const replayTotalRef = useRef(0);
-  const replayOnFrameRef = useRef<((frameIndex: number) => void) | null>(null);
+  const replayOnFrameRef = useRef<((frameIndex: number, options?: { seek?: boolean }) => void) | null>(null);
 
   // Callback refs: the adapter-lifecycle effect must NOT re-run when these
   // change. If it did, the cleanup would call adapter.destroy() — and since
@@ -95,11 +98,13 @@ function BaseSimulation({
   const onControlsReadyRef = useRef(onControlsReady);
   const onCanvasContainerReadyRef = useRef(onCanvasContainerReady);
   const precomputeTimestepRef = useRef(precomputeTimestepSeconds);
+  const playbackSpeedRef = useRef(playbackSpeed);
   useEffect(() => { onInitRef.current = onInit; }, [onInit]);
   useEffect(() => { onUpdateRef.current = onUpdate; }, [onUpdate]);
   useEffect(() => { onControlsReadyRef.current = onControlsReady; }, [onControlsReady]);
   useEffect(() => { onCanvasContainerReadyRef.current = onCanvasContainerReady; }, [onCanvasContainerReady]);
   useEffect(() => { precomputeTimestepRef.current = precomputeTimestepSeconds; }, [precomputeTimestepSeconds]);
+  useEffect(() => { playbackSpeedRef.current = playbackSpeed; }, [playbackSpeed]);
 
   useEffect(() => {
     if (!sceneRef.current) return;
@@ -161,7 +166,11 @@ function BaseSimulation({
 
         if (isRunningRef.current) {
           if (delta > MAX_DELTA) delta = MAX_DELTA;
-          accumulator += delta;
+          if (modeRef.current === 'replay') {
+            accumulator += delta * playbackSpeedRef.current;
+          } else {
+            accumulator += delta;
+          }
 
           while (accumulator >= FIXED_TIME_STEP) {
             if (modeRef.current === 'replay') {
@@ -267,6 +276,16 @@ function BaseSimulation({
               replayIndexRef.current = 1;
               simulationTimeRef.current = FIXED_DT_SECONDS;
             }
+          },
+          seekReplay: (frameIndex: number) => {
+            const total = replayTotalRef.current;
+            if (total <= 0 || modeRef.current !== 'replay') return;
+            const clamped = Math.max(0, Math.min(total - 1, Math.floor(frameIndex)));
+            replayIndexRef.current = clamped + 1;
+            simulationTimeRef.current = (clamped + 1) * FIXED_DT_SECONDS;
+            accumulator = 0;
+            lastTime = performance.now();
+            replayOnFrameRef.current?.(clamped, { seek: true });
           },
           clearReplay: () => {
             modeRef.current = 'live';

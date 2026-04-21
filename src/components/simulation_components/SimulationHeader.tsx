@@ -26,6 +26,11 @@ interface SimulationHeaderProps {
   onMaxDurationChange: (v: number) => void;
   precomputeState: PrecomputeState;
   precomputeProgress: PrecomputeProgress | null;
+  playbackSpeed: number;
+  onPlaybackSpeedChange: (speed: number) => void;
+  replayFrameIndex: number;
+  totalFrames: number;
+  onSeek: (frameIndex: number) => void;
 }
 
 function SimulationHeader({
@@ -42,6 +47,11 @@ function SimulationHeader({
   onMaxDurationChange,
   precomputeState,
   precomputeProgress,
+  playbackSpeed,
+  onPlaybackSpeedChange,
+  replayFrameIndex,
+  totalFrames,
+  onSeek,
 }: SimulationHeaderProps) {
   const [showEditPopup, setShowEditPopup] = useState(false);
   const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
@@ -182,6 +192,11 @@ function SimulationHeader({
           onMaxDurationChange={onMaxDurationChange}
           precomputeState={precomputeState}
           precomputeProgress={precomputeProgress}
+          playbackSpeed={playbackSpeed}
+          onPlaybackSpeedChange={onPlaybackSpeedChange}
+          replayFrameIndex={replayFrameIndex}
+          totalFrames={totalFrames}
+          onSeek={onSeek}
         />
         {simulationId && metaLoaded && (
           <>

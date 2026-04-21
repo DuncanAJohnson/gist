@@ -193,6 +193,10 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
   const [maxDuration, setMaxDuration] = useState<number>(10);
 
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
+  const [replayFrameIndex, setReplayFrameIndex] = useState<number>(0);
+  const [replayTotalFrames, setReplayTotalFrames] = useState<number>(0);
+
   const [graphData, setGraphData] = useState<DataPoint[][]>(() => graphs.map(() => []));
   const isRunningRef = useRef(isRunning);
 
@@ -214,7 +218,9 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   }, []);
 
   // Replay callback: apply a recorded frame to bodies/outputs/graphs.
-  const handleReplayFrame = useCallback((frameIndex: number) => {
+  // When `options.seek` is true, rebuild the graph history from frames[0..frameIndex]
+  // so scrubbing backward doesn't leave stale trailing points.
+  const handleReplayFrame = useCallback((frameIndex: number, options?: { seek?: boolean }) => {
     const cache = frameCacheRef.current;
     if (!cache || frameIndex >= cache.frames.length) return;
     const frames = cache.frames;
@@ -230,14 +236,19 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     });
 
     setOutputValues(frame.outputValues);
-    if (frameIndex === 0) {
-      setGraphData(graphs.map((_, i) => [frame.graphPoints[i]]));
+    setReplayFrameIndex(frameIndex);
+    if (options?.seek || frameIndex === 0) {
+      setGraphData(
+        graphs.map((_, gi) =>
+          frames.slice(0, frameIndex + 1).map((f) => f.graphPoints[gi])
+        )
+      );
     } else {
       setGraphData((prev) =>
         prev.map((arr, i) => [...arr, frame.graphPoints[i]])
       );
     }
-    simulationTimeRef.current = (frameIndex + 1) / 30;
+    simulationTimeRef.current = (frameIndex + 1) / 60;
     replayCursorRef.current = frameIndex + 1;
 
     if (frameIndex + 1 >= frames.length) {
@@ -490,6 +501,11 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         onMaxDurationChange={setMaxDuration}
         precomputeState={precomputeState}
         precomputeProgress={precomputeProgress}
+        playbackSpeed={playbackSpeed}
+        onPlaybackSpeedChange={setPlaybackSpeed}
+        replayFrameIndex={replayFrameIndex}
+        totalFrames={replayTotalFrames}
+        onSeek={(frameIndex) => simulationControlsRef.current?.seekReplay(frameIndex)}
         onPlay={async () => {
           const sim = simulationControlsRef.current;
           if (!sim) return;
@@ -503,6 +519,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
           if (frameCacheRef.current && frameCacheRef.current.key === currentKey) {
             const frames = frameCacheRef.current.frames;
+            setReplayTotalFrames(frames.length);
             if (jsonModeRef.current !== 'replay' || replayCursorRef.current >= frames.length) {
               setGraphData(graphs.map(() => []));
               jsonModeRef.current = 'replay';
@@ -515,7 +532,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           }
 
           frameCacheRef.current = null;
-          const totalFrames = Math.max(1, Math.round(maxDuration * 30));
+          const totalFrames = Math.max(1, Math.round(maxDuration * 60));
           recordingBufferRef.current = [];
           prevVelocitiesRef.current = {};
           prevTimeRef.current = 0;
@@ -560,6 +577,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           jsonModeRef.current = 'replay';
           setPrecomputeState('ready');
           setPrecomputeProgress(null);
+          setReplayTotalFrames(recordedFrames.length);
           sim.startReplay(handleReplayFrame, recordedFrames.length);
           sim.play();
           setIsRunning(true);
@@ -600,6 +618,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
       <BaseSimulation
         physicsEngine={activeEngine}
         precomputeTimestepSeconds={1 / precomputeTimestepHz}
+        playbackSpeed={playbackSpeed}
         onUpdate={handleUpdate}
         onControlsReady={handleControlsReady}
         onCanvasContainerReady={handleCanvasContainerReady}
