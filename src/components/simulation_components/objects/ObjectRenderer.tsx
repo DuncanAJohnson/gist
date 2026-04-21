@@ -14,6 +14,7 @@ const ObjectRenderer = forwardRef<PhysicsBody, ObjectConfig>(function ObjectRend
     y,
     body,
     velocity,
+    acceleration,
     restitution = 0.8,
     frictionAir = 0,
     friction = 0,
@@ -57,6 +58,12 @@ const ObjectRenderer = forwardRef<PhysicsBody, ObjectConfig>(function ObjectRend
 
     const created = adapter.createBody(def);
     created.userData.derivedAcceleration = { x: 0, y: 0 };
+    // Persistent acceleration applied per-step by JsonSimulation's update loop.
+    // Stored on userData so the adapter stays engine-agnostic — integration
+    // happens above the adapter via velocity writes, not via engine forces.
+    created.userData.configuredAcceleration = acceleration
+      ? { x: acceleration.x, y: acceleration.y }
+      : { x: 0, y: 0 };
 
     if (ref) {
       if (typeof ref === 'function') {

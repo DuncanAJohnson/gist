@@ -263,6 +263,19 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   };
 
   const setNestedValue = (obj: any, path: string, value: any): void => {
+    // Acceleration isn't a native PhysicsBody field — it's a per-body config
+    // applied each step by handleUpdate via velocity integration. Route writes
+    // to userData.configuredAcceleration so sliders targeting "acceleration.x"
+    // take effect on the next physics step.
+    if (path.startsWith('acceleration.')) {
+      const axis = path.slice('acceleration.'.length);
+      if (!obj?.userData) return;
+      if (!obj.userData.configuredAcceleration) {
+        obj.userData.configuredAcceleration = { x: 0, y: 0 };
+      }
+      obj.userData.configuredAcceleration[axis] = value;
+      return;
+    }
     const keys = path.split('.');
     const lastKey = keys.pop()!;
     const target = keys.reduce((current, key) => current[key], obj);
@@ -299,6 +312,18 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
       objects.forEach((objectConfig) => {
         const body = objRefs.current[objectConfig.id];
         if (!body) return;
+
+        // Apply the body's configured constant acceleration via velocity
+        // integration. Works uniformly across Matter/Rapier/Planck because
+        // the Vec2Accessor setter routes through each engine's setVelocity,
+        // which also wakes sleeping bodies when the new velocity is non-zero.
+        const cfgAccel = body.userData.configuredAcceleration as
+          | { x: number; y: number }
+          | undefined;
+        if (cfgAccel && !body.isStatic && (cfgAccel.x !== 0 || cfgAccel.y !== 0)) {
+          body.velocity.x = body.velocity.x + cfgAccel.x * deltaTime;
+          body.velocity.y = body.velocity.y + cfgAccel.y * deltaTime;
+        }
 
         const prevVelocity = prevVelocitiesRef.current[objectConfig.id];
         if (prevVelocity) {

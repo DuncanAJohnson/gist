@@ -73,6 +73,9 @@ export function scaleObjectToSI(obj: ObjectConfig, scale: number): ObjectConfig 
     velocity: obj.velocity
       ? { x: obj.velocity.x * scale, y: obj.velocity.y * scale }
       : obj.velocity,
+    acceleration: obj.acceleration
+      ? { x: obj.acceleration.x * scale, y: obj.acceleration.y * scale }
+      : obj.acceleration,
     body: scaleBodyToSI(obj.body, scale),
   };
 }
