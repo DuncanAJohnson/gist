@@ -17,7 +17,7 @@ export type AiProviderKind = 'openai' | 'skolegpt';
 
 export const ENABLED_PROVIDERS: readonly AiProviderKind[] = [
   'openai',
-  'skolegpt',
+  // 'skolegpt',
 ] as const;
 
 export const DEFAULT_PROVIDER: AiProviderKind = 'skolegpt';
