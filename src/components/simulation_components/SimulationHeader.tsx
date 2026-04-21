@@ -20,7 +20,6 @@ interface SimulationHeaderProps {
   onPause: () => void;
   onReset: () => void;
   onEdit?: (json: any) => void;
-  onTweakJSON?: () => void;
   simulationId?: number;
   currentJSON?: any;
   maxDuration: number;
@@ -37,7 +36,6 @@ function SimulationHeader({
   onPause,
   onReset,
   onEdit,
-  onTweakJSON,
   simulationId,
   currentJSON,
   maxDuration,
@@ -160,17 +158,8 @@ function SimulationHeader({
 
   return (
     <div className="flex flex-row bg-gray-50 rounded-lg shadow-sm justify-between items-center relative">
-      {/* Left side - Tweak JSON button */}
       <div className="flex flex-col items-start px-8 py-4 gap-4">
         <div className="flex items-center gap-4">
-          {onTweakJSON && (
-            <button
-              onClick={onTweakJSON}
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
-            >
-              Tweak Simulation JSON
-            </button>
-          )}
           <div>
             {title && <h1 className="m-0 text-gray-800 text-3xl font-semibold">{title}</h1>}
             {description && (

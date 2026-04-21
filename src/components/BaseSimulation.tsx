@@ -29,6 +29,7 @@ interface BaseSimulationProps {
   onCanvasContainerReady?: (container: HTMLDivElement) => void;
   onCanvasClick?: (canvasX: number, canvasY: number) => void;
   pickingPosition?: boolean;
+  precomputeTimestepSeconds?: number;
 }
 
 // Wall thickness for environment boundaries
@@ -47,6 +48,7 @@ const FIXED_TIME_STEP = 1000 / 60;
 const FIXED_DT_SECONDS = FIXED_TIME_STEP / 1000;
 const MAX_DELTA = FIXED_TIME_STEP * 3;
 const PRECOMPUTE_BATCH = 60;
+const DEFAULT_PRECOMPUTE_TIMESTEP_SECONDS = 1 / 480;
 
 function cloneSnapshot(snap: WorldSnapshot): WorldSnapshot {
   return {
@@ -70,6 +72,7 @@ function BaseSimulation({
   onCanvasContainerReady,
   onCanvasClick,
   pickingPosition,
+  precomputeTimestepSeconds = DEFAULT_PRECOMPUTE_TIMESTEP_SECONDS,
 }: BaseSimulationProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<PhysicsAdapter | null>(null);
@@ -91,10 +94,12 @@ function BaseSimulation({
   const onUpdateRef = useRef(onUpdate);
   const onControlsReadyRef = useRef(onControlsReady);
   const onCanvasContainerReadyRef = useRef(onCanvasContainerReady);
+  const precomputeTimestepRef = useRef(precomputeTimestepSeconds);
   useEffect(() => { onInitRef.current = onInit; }, [onInit]);
   useEffect(() => { onUpdateRef.current = onUpdate; }, [onUpdate]);
   useEffect(() => { onControlsReadyRef.current = onControlsReady; }, [onControlsReady]);
   useEffect(() => { onCanvasContainerReadyRef.current = onCanvasContainerReady; }, [onCanvasContainerReady]);
+  useEffect(() => { precomputeTimestepRef.current = precomputeTimestepSeconds; }, [precomputeTimestepSeconds]);
 
   useEffect(() => {
     if (!sceneRef.current) return;
@@ -218,6 +223,13 @@ function BaseSimulation({
             const freeze = cloneSnapshot(a.snapshot());
             let physicsSnap = cloneSnapshot(freeze);
 
+            // Substep the integration so each recorded frame still advances
+            // by FIXED_DT_SECONDS (keeping playback pacing invariant) while
+            // the engine sees a finer per-step dt for integration accuracy.
+            const requestedTs = precomputeTimestepRef.current;
+            const substeps = Math.max(1, Math.round(FIXED_DT_SECONDS / requestedTs));
+            const substepDt = FIXED_DT_SECONDS / substeps;
+
             let done = 0;
             while (done < totalFrames) {
               a.restore(physicsSnap);
@@ -226,7 +238,9 @@ function BaseSimulation({
                 if (onUpdateRef.current) {
                   onUpdateRef.current(a, simulationTimeRef.current);
                 }
-                a.step(FIXED_DT_SECONDS);
+                for (let i = 0; i < substeps; i++) {
+                  a.step(substepDt);
+                }
                 simulationTimeRef.current += FIXED_DT_SECONDS;
               }
               physicsSnap = cloneSnapshot(a.snapshot());

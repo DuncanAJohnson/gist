@@ -8,7 +8,7 @@ import Panel from './simulation_components/Panel';
 import Scale from './simulation_components/Scale';
 import SimulationHeader from './simulation_components/SimulationHeader';
 import JsonEditor from './JsonEditor';
-import EngineSwitcher from './simulation_components/EngineSwitcher';
+import AdvancedDebugPanel from './simulation_components/AdvancedDebugPanel';
 import type { PhysicsEngineKind } from '../physics';
 import { resolveEngine } from '../config/engines';
 import { createSimulation, updateChangesMade } from '../lib/simulationService';
@@ -188,6 +188,8 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   const activeEngine: PhysicsEngineKind = resolveEngine(
     engineOverride ?? environment.physicsEngine,
   );
+
+  const [precomputeTimestepHz, setPrecomputeTimestepHz] = useState<number>(480);
 
   const [maxDuration, setMaxDuration] = useState<number>(10);
 
@@ -484,7 +486,6 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         simulationId={simulationId}
         currentJSON={config}
         onEdit={simulationId ? handleEdit : undefined}
-        onTweakJSON={simulationId ? handleTweakJSON : undefined}
         maxDuration={maxDuration}
         onMaxDurationChange={setMaxDuration}
         precomputeState={precomputeState}
@@ -497,6 +498,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
             controls: controlValues,
             duration: maxDuration,
             engine: activeEngine,
+            timestepHz: precomputeTimestepHz,
           });
 
           if (frameCacheRef.current && frameCacheRef.current.key === currentKey) {
@@ -597,6 +599,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
       <BaseSimulation
         physicsEngine={activeEngine}
+        precomputeTimestepSeconds={1 / precomputeTimestepHz}
         onUpdate={handleUpdate}
         onControlsReady={handleControlsReady}
         onCanvasContainerReady={handleCanvasContainerReady}
@@ -624,10 +627,14 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
             pixelsPerUnit={pixelsPerUnit}
             unit={environment.unit ?? 'm'}
           />
-          <EngineSwitcher
-            value={activeEngine}
-            onChange={setEngineOverride}
-            disabled={isRunning || precomputeState === 'precomputing'}
+          <AdvancedDebugPanel
+            engine={activeEngine}
+            onEngineChange={setEngineOverride}
+            engineDisabled={isRunning || precomputeState === 'precomputing'}
+            timestepHz={precomputeTimestepHz}
+            onTimestepChange={setPrecomputeTimestepHz}
+            timestepDisabled={isRunning || precomputeState === 'precomputing'}
+            onTweakJSON={simulationId ? handleTweakJSON : undefined}
           />
           <button
             onClick={() => setShowExperimentalModal(true)}
