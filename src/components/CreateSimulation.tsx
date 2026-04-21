@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createSimulation } from '../lib/simulationService';
+import AiProviderSwitcher from './AiProviderSwitcher';
+import {
+  DEFAULT_PROVIDER,
+  getModelForProvider,
+  type AiProviderKind,
+} from '../config/aiProviders';
 
 interface CreateSimulationProps {
   isOpen: boolean;
@@ -25,6 +31,7 @@ function CreateSimulation({
   const [showJSONInput, setShowJSONInput] = useState(false);
   const [jsonInput, setJsonInput] = useState('');
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [provider, setProvider] = useState<AiProviderKind>(DEFAULT_PROVIDER);
   const simulationAiUrl = (import.meta as any).env.VITE_SIMULATION_AI_URL;
 
   // Reset state when modal closes
@@ -76,20 +83,42 @@ function CreateSimulation({
     return () => clearInterval(interval);
   }, [isStreaming]);
 
-  // Extract JSON from text
+  // Extract JSON from text. Models sometimes wrap the config in prose or
+  // markdown code fences, so we strip fences first, then scan for the first
+  // balanced `{...}` block that parses into an object with `title` + `objects`.
   const extractJSON = (text: string): any | null => {
-    try {
-      // Find JSON object in the text
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        // Validate it has required fields for a simulation
-        if (parsed.title && parsed.objects) {
-          return parsed;
+    const fenceStripped = text.replace(/```(?:json)?\s*([\s\S]*?)```/gi, '$1');
+    const candidates: string[] = [];
+
+    for (let i = 0; i < fenceStripped.length; i++) {
+      if (fenceStripped[i] !== '{') continue;
+      let depth = 0;
+      let inString = false;
+      let escape = false;
+      for (let j = i; j < fenceStripped.length; j++) {
+        const ch = fenceStripped[j];
+        if (escape) { escape = false; continue; }
+        if (ch === '\\') { escape = true; continue; }
+        if (ch === '"') { inString = !inString; continue; }
+        if (inString) continue;
+        if (ch === '{') depth++;
+        else if (ch === '}') {
+          depth--;
+          if (depth === 0) {
+            candidates.push(fenceStripped.slice(i, j + 1));
+            break;
+          }
         }
       }
-    } catch (e) {
-      // Not valid JSON or doesn't match schema
+    }
+
+    for (const candidate of candidates) {
+      try {
+        const parsed = JSON.parse(candidate);
+        if (parsed && parsed.title && parsed.objects) return parsed;
+      } catch {
+        // try next candidate
+      }
     }
     return null;
   };
@@ -156,7 +185,8 @@ function CreateSimulation({
         },
         body: JSON.stringify({
           messages: messages,
-          model: 'gpt-5-mini',
+          provider: provider,
+          model: getModelForProvider(provider),
           max_tokens: 100000,
         }),
       });
@@ -169,14 +199,16 @@ function CreateSimulation({
 
       if (data.type === 'success') {
         const assistantContent = data.content;
-        
-        // Check if we have JSON in the response
+
         const json = extractJSON(assistantContent);
         if (json) {
           setExtractedJSON(json);
           if (onJSONExtracted) {
             onJSONExtracted(json);
           }
+        } else {
+          console.warn('AI response did not contain a valid simulation JSON. Raw content:', assistantContent);
+          alert('The AI returned a response but no valid simulation JSON was found. Check the console for the raw output.');
         }
       } else if (data.type === 'error') {
         console.error('API error:', data.error);
@@ -263,23 +295,26 @@ function CreateSimulation({
           )}
         </div>
         {!showJSONInput && (
-          <div className="flex gap-2">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={existingJSON ? "Describe your edits..." : "Describe your simulation..."}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-              rows={3}
-              disabled={isStreaming}
-            />
-            <button
-              onClick={handleGenerate}
-              disabled={!input.trim() || isStreaming}
-              className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-            >
-              Generate
-            </button>
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder={existingJSON ? "Describe your edits..." : "Describe your simulation..."}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
+                rows={3}
+                disabled={isStreaming}
+              />
+              <button
+                onClick={handleGenerate}
+                disabled={!input.trim() || isStreaming}
+                className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+              >
+                Generate
+              </button>
+            </div>
+            <AiProviderSwitcher value={provider} onChange={setProvider} disabled={isStreaming} />
           </div>
         )}
       </div>
@@ -382,23 +417,26 @@ function CreateSimulation({
                 </button>
               </div>
             ) : (
-              <div className="flex gap-3">
-                <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder={existingJSON ? "Describe your edits..." : "Describe your simulation..."}
-                  className="flex-1 px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  rows={3}
-                  disabled={isStreaming}
-                />
-                <button
-                  onClick={handleGenerate}
-                  disabled={!input.trim() || isStreaming}
-                  className="px-6 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                >
-                  Generate
-                </button>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-3">
+                  <textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder={existingJSON ? "Describe your edits..." : "Describe your simulation..."}
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    rows={3}
+                    disabled={isStreaming}
+                  />
+                  <button
+                    onClick={handleGenerate}
+                    disabled={!input.trim() || isStreaming}
+                    className="px-6 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  >
+                    Generate
+                  </button>
+                </div>
+                <AiProviderSwitcher value={provider} onChange={setProvider} disabled={isStreaming} />
               </div>
             )}
           </div>
