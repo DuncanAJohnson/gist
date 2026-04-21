@@ -86,6 +86,11 @@ function addCollidersForShape(
   const applyMaterial = (cd: RAPIER_NS.ColliderDesc) => {
     if (material.restitution !== undefined) cd.setRestitution(material.restitution);
     if (material.friction !== undefined) cd.setFriction(material.friction);
+    // Use Max so a body's own restitution/friction dominates the contact —
+    // matches Planck's mixRestitution and makes a ball=1 bounce off wall=0
+    // fully elastic, instead of Rapier's default Average halving it.
+    cd.setRestitutionCombineRule(3 as RAPIER_NS.CoefficientCombineRule);
+    cd.setFrictionCombineRule(3 as RAPIER_NS.CoefficientCombineRule);
     if (localOffset.x !== 0 || localOffset.y !== 0) {
       cd.setTranslation(localOffset.x, localOffset.y);
     }
@@ -217,6 +222,16 @@ class RapierPhysicsBody implements PhysicsBody {
         : (0 as RAPIER_NS.RigidBodyType), // Dynamic
       true,
     );
+  }
+
+  get restitution(): number {
+    return this.rigid.numColliders() > 0 ? this.rigid.collider(0).restitution() : 0;
+  }
+  set restitution(value: number) {
+    const n = this.rigid.numColliders();
+    for (let i = 0; i < n; i++) {
+      this.rigid.collider(i).setRestitution(value);
+    }
   }
 }
 

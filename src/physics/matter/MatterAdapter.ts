@@ -158,6 +158,13 @@ class MatterPhysicsBody implements PhysicsBody {
   set isStatic(value: boolean) {
     Matter.Body.setStatic(this.matter, value);
   }
+
+  get restitution(): number {
+    return this.matter.restitution;
+  }
+  set restitution(value: number) {
+    this.matter.restitution = value;
+  }
 }
 
 // ─── adapter ──────────────────────────────────────────────────────────────

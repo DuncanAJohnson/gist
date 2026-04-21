@@ -8,7 +8,7 @@ import Panel from './simulation_components/Panel';
 import Scale from './simulation_components/Scale';
 import SimulationHeader from './simulation_components/SimulationHeader';
 import JsonEditor from './JsonEditor';
-import EngineSwitcher from './simulation_components/EngineSwitcher';
+import AdvancedDebugPanel from './simulation_components/AdvancedDebugPanel';
 import type { PhysicsEngineKind } from '../physics';
 import { resolveEngine } from '../config/engines';
 import { createSimulation, updateChangesMade } from '../lib/simulationService';
@@ -189,7 +189,13 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     engineOverride ?? environment.physicsEngine,
   );
 
+  const [precomputeTimestepHz, setPrecomputeTimestepHz] = useState<number>(480);
+
   const [maxDuration, setMaxDuration] = useState<number>(10);
+
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
+  const [replayFrameIndex, setReplayFrameIndex] = useState<number>(0);
+  const [replayTotalFrames, setReplayTotalFrames] = useState<number>(0);
 
   const [graphData, setGraphData] = useState<DataPoint[][]>(() => graphs.map(() => []));
   const isRunningRef = useRef(isRunning);
@@ -212,7 +218,9 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   }, []);
 
   // Replay callback: apply a recorded frame to bodies/outputs/graphs.
-  const handleReplayFrame = useCallback((frameIndex: number) => {
+  // When `options.seek` is true, rebuild the graph history from frames[0..frameIndex]
+  // so scrubbing backward doesn't leave stale trailing points.
+  const handleReplayFrame = useCallback((frameIndex: number, options?: { seek?: boolean }) => {
     const cache = frameCacheRef.current;
     if (!cache || frameIndex >= cache.frames.length) return;
     const frames = cache.frames;
@@ -228,14 +236,19 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     });
 
     setOutputValues(frame.outputValues);
-    if (frameIndex === 0) {
-      setGraphData(graphs.map((_, i) => [frame.graphPoints[i]]));
+    setReplayFrameIndex(frameIndex);
+    if (options?.seek || frameIndex === 0) {
+      setGraphData(
+        graphs.map((_, gi) =>
+          frames.slice(0, frameIndex + 1).map((f) => f.graphPoints[gi])
+        )
+      );
     } else {
       setGraphData((prev) =>
         prev.map((arr, i) => [...arr, frame.graphPoints[i]])
       );
     }
-    simulationTimeRef.current = (frameIndex + 1) / 30;
+    simulationTimeRef.current = (frameIndex + 1) / 60;
     replayCursorRef.current = frameIndex + 1;
 
     if (frameIndex + 1 >= frames.length) {
@@ -263,6 +276,19 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   };
 
   const setNestedValue = (obj: any, path: string, value: any): void => {
+    // Acceleration isn't a native PhysicsBody field — it's a per-body config
+    // applied each step by handleUpdate via velocity integration. Route writes
+    // to userData.configuredAcceleration so sliders targeting "acceleration.x"
+    // take effect on the next physics step.
+    if (path.startsWith('acceleration.')) {
+      const axis = path.slice('acceleration.'.length);
+      if (!obj?.userData) return;
+      if (!obj.userData.configuredAcceleration) {
+        obj.userData.configuredAcceleration = { x: 0, y: 0 };
+      }
+      obj.userData.configuredAcceleration[axis] = value;
+      return;
+    }
     const keys = path.split('.');
     const lastKey = keys.pop()!;
     const target = keys.reduce((current, key) => current[key], obj);
@@ -299,6 +325,18 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
       objects.forEach((objectConfig) => {
         const body = objRefs.current[objectConfig.id];
         if (!body) return;
+
+        // Apply the body's configured constant acceleration via velocity
+        // integration. Works uniformly across Matter/Rapier/Planck because
+        // the Vec2Accessor setter routes through each engine's setVelocity,
+        // which also wakes sleeping bodies when the new velocity is non-zero.
+        const cfgAccel = body.userData.configuredAcceleration as
+          | { x: number; y: number }
+          | undefined;
+        if (cfgAccel && !body.isStatic && (cfgAccel.x !== 0 || cfgAccel.y !== 0)) {
+          body.velocity.x = body.velocity.x + cfgAccel.x * deltaTime;
+          body.velocity.y = body.velocity.y + cfgAccel.y * deltaTime;
+        }
 
         const prevVelocity = prevVelocitiesRef.current[objectConfig.id];
         if (prevVelocity) {
@@ -459,11 +497,15 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         simulationId={simulationId}
         currentJSON={config}
         onEdit={simulationId ? handleEdit : undefined}
-        onTweakJSON={simulationId ? handleTweakJSON : undefined}
         maxDuration={maxDuration}
         onMaxDurationChange={setMaxDuration}
         precomputeState={precomputeState}
         precomputeProgress={precomputeProgress}
+        playbackSpeed={playbackSpeed}
+        onPlaybackSpeedChange={setPlaybackSpeed}
+        replayFrameIndex={replayFrameIndex}
+        totalFrames={replayTotalFrames}
+        onSeek={(frameIndex) => simulationControlsRef.current?.seekReplay(frameIndex)}
         onPlay={async () => {
           const sim = simulationControlsRef.current;
           if (!sim) return;
@@ -472,10 +514,12 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
             controls: controlValues,
             duration: maxDuration,
             engine: activeEngine,
+            timestepHz: precomputeTimestepHz,
           });
 
           if (frameCacheRef.current && frameCacheRef.current.key === currentKey) {
             const frames = frameCacheRef.current.frames;
+            setReplayTotalFrames(frames.length);
             if (jsonModeRef.current !== 'replay' || replayCursorRef.current >= frames.length) {
               setGraphData(graphs.map(() => []));
               jsonModeRef.current = 'replay';
@@ -488,7 +532,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           }
 
           frameCacheRef.current = null;
-          const totalFrames = Math.max(1, Math.round(maxDuration * 30));
+          const totalFrames = Math.max(1, Math.round(maxDuration * 60));
           recordingBufferRef.current = [];
           prevVelocitiesRef.current = {};
           prevTimeRef.current = 0;
@@ -533,6 +577,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           jsonModeRef.current = 'replay';
           setPrecomputeState('ready');
           setPrecomputeProgress(null);
+          setReplayTotalFrames(recordedFrames.length);
           sim.startReplay(handleReplayFrame, recordedFrames.length);
           sim.play();
           setIsRunning(true);
@@ -572,6 +617,8 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
       <BaseSimulation
         physicsEngine={activeEngine}
+        precomputeTimestepSeconds={1 / precomputeTimestepHz}
+        playbackSpeed={playbackSpeed}
         onUpdate={handleUpdate}
         onControlsReady={handleControlsReady}
         onCanvasContainerReady={handleCanvasContainerReady}
@@ -599,10 +646,14 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
             pixelsPerUnit={pixelsPerUnit}
             unit={environment.unit ?? 'm'}
           />
-          <EngineSwitcher
-            value={activeEngine}
-            onChange={setEngineOverride}
-            disabled={isRunning || precomputeState === 'precomputing'}
+          <AdvancedDebugPanel
+            engine={activeEngine}
+            onEngineChange={setEngineOverride}
+            engineDisabled={isRunning || precomputeState === 'precomputing'}
+            timestepHz={precomputeTimestepHz}
+            onTimestepChange={setPrecomputeTimestepHz}
+            timestepDisabled={isRunning || precomputeState === 'precomputing'}
+            onTweakJSON={simulationId ? handleTweakJSON : undefined}
           />
           <button
             onClick={() => setShowExperimentalModal(true)}
@@ -632,8 +683,15 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           <ObjectRenderer
             key={object.id}
             ref={(ref) => {
+              // Delete on null so objRefs doesn't keep wrappers to freed
+              // engine bodies after an adapter teardown (engine switch). A
+              // stale wrapper would crash on the next body.velocity.x read —
+              // Rapier throws "unreachable" from WASM, which then corrupts
+              // the shared world and breaks the next reinit too.
               if (ref) {
                 objRefs.current[object.id] = ref;
+              } else {
+                delete objRefs.current[object.id];
               }
             }}
             {...object}

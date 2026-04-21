@@ -72,7 +72,12 @@ function Library() {
     setSimulations((prev) =>
       prev.map((s) =>
         s.id === simulationId
-          ? { ...s, endorsement_count: s.endorsement_count + (nowEndorsed ? 1 : -1) }
+          ? {
+              ...s,
+              endorsement_count: s.endorsement_count + (nowEndorsed ? 1 : -1),
+              week_endorsement_count:
+                s.week_endorsement_count + (nowEndorsed ? 1 : -1),
+            }
           : s
       )
     );
@@ -144,6 +149,7 @@ function Library() {
               simulation={sim}
               endorsed={endorsedIds.has(sim.id)}
               onToggleEndorse={handleToggleEndorse}
+              endorsementDisplay={timeWindow === 'week' ? 'with-week' : 'total'}
             />
           ))}
         </div>

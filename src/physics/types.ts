@@ -66,6 +66,8 @@ export interface PhysicsBody {
   angularVelocity: number;
   mass: number;
   isStatic: boolean;
+  /** Coefficient of restitution, applied to all of the body's colliders/fixtures. */
+  restitution: number;
   userData: Record<string, unknown>;
 }
 

@@ -14,9 +14,10 @@ export interface SimulationControls {
     onBatch: (framesDone: number) => void
   ) => Promise<void>;
   startReplay: (
-    onFrame: (frameIndex: number) => void,
+    onFrame: (frameIndex: number, options?: { seek?: boolean }) => void,
     totalFrames: number
   ) => void;
+  seekReplay: (frameIndex: number) => void;
   clearReplay: () => void;
 }
 
@@ -29,6 +30,8 @@ interface BaseSimulationProps {
   onCanvasContainerReady?: (container: HTMLDivElement) => void;
   onCanvasClick?: (canvasX: number, canvasY: number) => void;
   pickingPosition?: boolean;
+  precomputeTimestepSeconds?: number;
+  playbackSpeed?: number;
 }
 
 // Wall thickness for environment boundaries
@@ -47,6 +50,7 @@ const FIXED_TIME_STEP = 1000 / 60;
 const FIXED_DT_SECONDS = FIXED_TIME_STEP / 1000;
 const MAX_DELTA = FIXED_TIME_STEP * 3;
 const PRECOMPUTE_BATCH = 60;
+const DEFAULT_PRECOMPUTE_TIMESTEP_SECONDS = 1 / 480;
 
 function cloneSnapshot(snap: WorldSnapshot): WorldSnapshot {
   return {
@@ -70,6 +74,8 @@ function BaseSimulation({
   onCanvasContainerReady,
   onCanvasClick,
   pickingPosition,
+  precomputeTimestepSeconds = DEFAULT_PRECOMPUTE_TIMESTEP_SECONDS,
+  playbackSpeed = 1,
 }: BaseSimulationProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<PhysicsAdapter | null>(null);
@@ -80,7 +86,7 @@ function BaseSimulation({
   const simulationTimeRef = useRef(0);
   const replayIndexRef = useRef(0);
   const replayTotalRef = useRef(0);
-  const replayOnFrameRef = useRef<((frameIndex: number) => void) | null>(null);
+  const replayOnFrameRef = useRef<((frameIndex: number, options?: { seek?: boolean }) => void) | null>(null);
 
   // Callback refs: the adapter-lifecycle effect must NOT re-run when these
   // change. If it did, the cleanup would call adapter.destroy() — and since
@@ -91,10 +97,14 @@ function BaseSimulation({
   const onUpdateRef = useRef(onUpdate);
   const onControlsReadyRef = useRef(onControlsReady);
   const onCanvasContainerReadyRef = useRef(onCanvasContainerReady);
+  const precomputeTimestepRef = useRef(precomputeTimestepSeconds);
+  const playbackSpeedRef = useRef(playbackSpeed);
   useEffect(() => { onInitRef.current = onInit; }, [onInit]);
   useEffect(() => { onUpdateRef.current = onUpdate; }, [onUpdate]);
   useEffect(() => { onControlsReadyRef.current = onControlsReady; }, [onControlsReady]);
   useEffect(() => { onCanvasContainerReadyRef.current = onCanvasContainerReady; }, [onCanvasContainerReady]);
+  useEffect(() => { precomputeTimestepRef.current = precomputeTimestepSeconds; }, [precomputeTimestepSeconds]);
+  useEffect(() => { playbackSpeedRef.current = playbackSpeed; }, [playbackSpeed]);
 
   useEffect(() => {
     if (!sceneRef.current) return;
@@ -156,7 +166,11 @@ function BaseSimulation({
 
         if (isRunningRef.current) {
           if (delta > MAX_DELTA) delta = MAX_DELTA;
-          accumulator += delta;
+          if (modeRef.current === 'replay') {
+            accumulator += delta * playbackSpeedRef.current;
+          } else {
+            accumulator += delta;
+          }
 
           while (accumulator >= FIXED_TIME_STEP) {
             if (modeRef.current === 'replay') {
@@ -218,6 +232,13 @@ function BaseSimulation({
             const freeze = cloneSnapshot(a.snapshot());
             let physicsSnap = cloneSnapshot(freeze);
 
+            // Substep the integration so each recorded frame still advances
+            // by FIXED_DT_SECONDS (keeping playback pacing invariant) while
+            // the engine sees a finer per-step dt for integration accuracy.
+            const requestedTs = precomputeTimestepRef.current;
+            const substeps = Math.max(1, Math.round(FIXED_DT_SECONDS / requestedTs));
+            const substepDt = FIXED_DT_SECONDS / substeps;
+
             let done = 0;
             while (done < totalFrames) {
               a.restore(physicsSnap);
@@ -226,7 +247,9 @@ function BaseSimulation({
                 if (onUpdateRef.current) {
                   onUpdateRef.current(a, simulationTimeRef.current);
                 }
-                a.step(FIXED_DT_SECONDS);
+                for (let i = 0; i < substeps; i++) {
+                  a.step(substepDt);
+                }
                 simulationTimeRef.current += FIXED_DT_SECONDS;
               }
               physicsSnap = cloneSnapshot(a.snapshot());
@@ -253,6 +276,16 @@ function BaseSimulation({
               replayIndexRef.current = 1;
               simulationTimeRef.current = FIXED_DT_SECONDS;
             }
+          },
+          seekReplay: (frameIndex: number) => {
+            const total = replayTotalRef.current;
+            if (total <= 0 || modeRef.current !== 'replay') return;
+            const clamped = Math.max(0, Math.min(total - 1, Math.floor(frameIndex)));
+            replayIndexRef.current = clamped + 1;
+            simulationTimeRef.current = (clamped + 1) * FIXED_DT_SECONDS;
+            accumulator = 0;
+            lastTime = performance.now();
+            replayOnFrameRef.current?.(clamped, { seek: true });
           },
           clearReplay: () => {
             modeRef.current = 'live';

@@ -20,13 +20,17 @@ interface SimulationHeaderProps {
   onPause: () => void;
   onReset: () => void;
   onEdit?: (json: any) => void;
-  onTweakJSON?: () => void;
   simulationId?: number;
   currentJSON?: any;
   maxDuration: number;
   onMaxDurationChange: (v: number) => void;
   precomputeState: PrecomputeState;
   precomputeProgress: PrecomputeProgress | null;
+  playbackSpeed: number;
+  onPlaybackSpeedChange: (speed: number) => void;
+  replayFrameIndex: number;
+  totalFrames: number;
+  onSeek: (frameIndex: number) => void;
 }
 
 function SimulationHeader({
@@ -37,13 +41,17 @@ function SimulationHeader({
   onPause,
   onReset,
   onEdit,
-  onTweakJSON,
   simulationId,
   currentJSON,
   maxDuration,
   onMaxDurationChange,
   precomputeState,
   precomputeProgress,
+  playbackSpeed,
+  onPlaybackSpeedChange,
+  replayFrameIndex,
+  totalFrames,
+  onSeek,
 }: SimulationHeaderProps) {
   const [showEditPopup, setShowEditPopup] = useState(false);
   const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
@@ -53,6 +61,7 @@ function SimulationHeader({
   const feedbackPopupRef = useRef<HTMLDivElement>(null);
 
   const [published, setPublished] = useState(false);
+  const [publishedBy, setPublishedBy] = useState<string | null>(null);
   const [endorsed, setEndorsed] = useState(false);
   const [endorsementCount, setEndorsementCount] = useState(0);
   const [metaLoaded, setMetaLoaded] = useState(false);
@@ -73,6 +82,7 @@ function SimulationHeader({
         ]);
         if (cancelled) return;
         setPublished(meta.published);
+        setPublishedBy(meta.published_by);
         setEndorsementCount(meta.endorsement_count);
         setEndorsed(endorsedIds.has(simulationId));
         setMetaLoaded(true);
@@ -84,6 +94,8 @@ function SimulationHeader({
       cancelled = true;
     };
   }, [simulationId]);
+
+  const isPublisher = published && publishedBy !== null && publishedBy === getBrowserId();
 
   // Close popups when clicking outside
   useEffect(() => {
@@ -123,14 +135,18 @@ function SimulationHeader({
 
   const handleTogglePublish = async () => {
     if (!simulationId) return;
+    const browserId = getBrowserId();
     const next = !published;
+    const prevPublishedBy = publishedBy;
     setPublished(next);
+    setPublishedBy(next ? browserId : null);
     try {
-      if (next) await publishSimulation(simulationId);
-      else await unpublishSimulation(simulationId);
+      if (next) await publishSimulation(simulationId, browserId);
+      else await unpublishSimulation(simulationId, browserId);
     } catch (err) {
       console.error('Failed to toggle publish:', err);
       setPublished(!next);
+      setPublishedBy(prevPublishedBy);
     }
   };
 
@@ -152,17 +168,8 @@ function SimulationHeader({
 
   return (
     <div className="flex flex-row bg-gray-50 rounded-lg shadow-sm justify-between items-center relative">
-      {/* Left side - Tweak JSON button */}
       <div className="flex flex-col items-start px-8 py-4 gap-4">
         <div className="flex items-center gap-4">
-          {onTweakJSON && (
-            <button
-              onClick={onTweakJSON}
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
-            >
-              Tweak Simulation JSON
-            </button>
-          )}
           <div>
             {title && <h1 className="m-0 text-gray-800 text-3xl font-semibold">{title}</h1>}
             {description && (
@@ -185,6 +192,11 @@ function SimulationHeader({
           onMaxDurationChange={onMaxDurationChange}
           precomputeState={precomputeState}
           precomputeProgress={precomputeProgress}
+          playbackSpeed={playbackSpeed}
+          onPlaybackSpeedChange={onPlaybackSpeedChange}
+          replayFrameIndex={replayFrameIndex}
+          totalFrames={totalFrames}
+          onSeek={onSeek}
         />
         {simulationId && metaLoaded && (
           <>
@@ -200,16 +212,28 @@ function SimulationHeader({
               <span aria-hidden>{endorsed ? '♥' : '♡'}</span>
               <span>{endorsementCount}</span>
             </button>
-            <button
-              onClick={handleTogglePublish}
-              className={`px-4 py-2 rounded-lg transition-colors font-medium text-sm ${
-                published
-                  ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  : 'bg-green-600 text-white hover:bg-green-700'
-              }`}
-            >
-              {published ? 'Published ✓' : 'Publish'}
-            </button>
+            {!published ? (
+              <button
+                onClick={handleTogglePublish}
+                className="px-4 py-2 rounded-lg transition-colors font-medium text-sm bg-green-600 text-white hover:bg-green-700"
+              >
+                Publish
+              </button>
+            ) : isPublisher ? (
+              <button
+                onClick={handleTogglePublish}
+                className="px-4 py-2 rounded-lg transition-colors font-medium text-sm bg-gray-200 text-gray-700 hover:bg-gray-300"
+              >
+                Published ✓
+              </button>
+            ) : (
+              <span
+                className="px-4 py-2 rounded-lg font-medium text-sm bg-gray-100 text-gray-600 border border-gray-200"
+                title="Only the publisher can unpublish this simulation"
+              >
+                Published ✓
+              </span>
+            )}
           </>
         )}
         {simulationId && (

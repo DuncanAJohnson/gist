@@ -169,6 +169,16 @@ class PlanckPhysicsBody implements PhysicsBody {
   set isStatic(value: boolean) {
     this.body.setType(value ? 'static' : 'dynamic');
   }
+
+  get restitution(): number {
+    const f = this.body.getFixtureList();
+    return f ? f.getRestitution() : 0;
+  }
+  set restitution(value: number) {
+    for (let f = this.body.getFixtureList(); f; f = f.getNext()) {
+      f.setRestitution(value);
+    }
+  }
 }
 
 // ─── adapter ──────────────────────────────────────────────────────────────
