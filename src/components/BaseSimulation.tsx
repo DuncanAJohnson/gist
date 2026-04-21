@@ -82,6 +82,20 @@ function BaseSimulation({
   const replayTotalRef = useRef(0);
   const replayOnFrameRef = useRef<((frameIndex: number) => void) | null>(null);
 
+  // Callback refs: the adapter-lifecycle effect must NOT re-run when these
+  // change. If it did, the cleanup would call adapter.destroy() — and since
+  // React flushes cleanups before new effects bottom-up, a simultaneous
+  // re-run in a child (e.g. Environment, whose effect uses the same adapter)
+  // would try to call createWalls on a world-less adapter and throw.
+  const onInitRef = useRef(onInit);
+  const onUpdateRef = useRef(onUpdate);
+  const onControlsReadyRef = useRef(onControlsReady);
+  const onCanvasContainerReadyRef = useRef(onCanvasContainerReady);
+  useEffect(() => { onInitRef.current = onInit; }, [onInit]);
+  useEffect(() => { onUpdateRef.current = onUpdate; }, [onUpdate]);
+  useEffect(() => { onControlsReadyRef.current = onControlsReady; }, [onControlsReady]);
+  useEffect(() => { onCanvasContainerReadyRef.current = onCanvasContainerReady; }, [onCanvasContainerReady]);
+
   useEffect(() => {
     if (!sceneRef.current) return;
 
@@ -93,8 +107,8 @@ function BaseSimulation({
     sceneRef.current.style.height = `${CANVAS_HEIGHT}px`;
     sceneRef.current.style.backgroundColor = '#fafafa';
 
-    if (onCanvasContainerReady) {
-      onCanvasContainerReady(sceneRef.current);
+    if (onCanvasContainerReadyRef.current) {
+      onCanvasContainerReadyRef.current(sceneRef.current);
     }
 
     // Defer adapter creation one tick so React StrictMode's first mount
@@ -112,8 +126,8 @@ function BaseSimulation({
         adapterRef.current = a;
         setAdapterReady(true);
 
-      if (onInit) {
-        onInit(a);
+      if (onInitRef.current) {
+        onInitRef.current(a);
       }
 
       // Save initial state for reset. Bodies are created asynchronously by
@@ -156,16 +170,16 @@ function BaseSimulation({
               replayIndexRef.current = idx + 1;
               simulationTimeRef.current += FIXED_DT_SECONDS;
             } else {
-              if (onUpdate) {
-                onUpdate(a, simulationTimeRef.current);
+              if (onUpdateRef.current) {
+                onUpdateRef.current(a, simulationTimeRef.current);
               }
               a.step(FIXED_DT_SECONDS);
               simulationTimeRef.current += FIXED_DT_SECONDS;
             }
             accumulator -= FIXED_TIME_STEP;
           }
-        } else if (modeRef.current === 'live' && onUpdate) {
-          onUpdate(a, simulationTimeRef.current);
+        } else if (modeRef.current === 'live' && onUpdateRef.current) {
+          onUpdateRef.current(a, simulationTimeRef.current);
         }
 
         animationFrameId = requestAnimationFrame(updateLoop);
@@ -173,8 +187,8 @@ function BaseSimulation({
 
       animationFrameId = requestAnimationFrame(updateLoop);
 
-      if (onControlsReady) {
-        onControlsReady({
+      if (onControlsReadyRef.current) {
+        onControlsReadyRef.current({
           play: () => {
             isRunningRef.current = true;
             lastTime = performance.now();
@@ -209,8 +223,8 @@ function BaseSimulation({
               a.restore(physicsSnap);
               const batchEnd = Math.min(totalFrames, done + PRECOMPUTE_BATCH);
               for (; done < batchEnd; done++) {
-                if (onUpdate) {
-                  onUpdate(a, simulationTimeRef.current);
+                if (onUpdateRef.current) {
+                  onUpdateRef.current(a, simulationTimeRef.current);
                 }
                 a.step(FIXED_DT_SECONDS);
                 simulationTimeRef.current += FIXED_DT_SECONDS;
@@ -267,7 +281,7 @@ function BaseSimulation({
       adapterRef.current = null;
       setAdapterReady(false);
     };
-  }, [physicsEngine, onInit, onUpdate, onControlsReady, onCanvasContainerReady]);
+  }, [physicsEngine]);
 
   useEffect(() => {
     if (!pickingPosition || !onCanvasClick || !sceneRef.current) return;

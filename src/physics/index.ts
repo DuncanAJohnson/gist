@@ -1,7 +1,7 @@
 import type { AdapterOptions, PhysicsAdapter } from './types';
 import { MatterAdapter } from './matter/MatterAdapter';
 
-export type PhysicsEngineKind = 'matter' | 'rapier';
+export type PhysicsEngineKind = 'matter' | 'rapier' | 'planck';
 
 /**
  * Factory for physics adapters. Rapier is loaded via dynamic import so the
@@ -21,6 +21,11 @@ export async function createPhysicsAdapter(
       // from Matter-only sims and only loaded on demand.
       const { RapierAdapter } = await import('./rapier/RapierAdapter');
       adapter = new RapierAdapter(opts);
+      break;
+    }
+    case 'planck': {
+      const { PlanckAdapter } = await import('./planck/PlanckAdapter');
+      adapter = new PlanckAdapter(opts);
       break;
     }
     default: {

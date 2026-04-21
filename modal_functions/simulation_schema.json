@@ -50,12 +50,13 @@
           "type": "number"
         },
         "physicsEngine": {
-          "description": "Which physics engine powers the simulation. \"matter\" uses Matter.js. \"rapier\" uses Rapier (WASM, SI-native, deterministic, default). Existing configs without this field use rapier.",
+          "description": "Which physics engine powers the simulation. \"matter\" uses Matter.js. \"rapier\" uses Rapier (WASM, SI-native, deterministic, default). \"planck\" uses Planck.js (pure JS port of Box2D, SI-native). Existing configs without this field use rapier.",
           "default": "rapier",
           "type": "string",
           "enum": [
             "matter",
-            "rapier"
+            "rapier",
+            "planck"
           ]
         }
       },

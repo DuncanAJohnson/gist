@@ -8,6 +8,9 @@ import Panel from './simulation_components/Panel';
 import Scale from './simulation_components/Scale';
 import SimulationHeader from './simulation_components/SimulationHeader';
 import JsonEditor from './JsonEditor';
+import EngineSwitcher from './simulation_components/EngineSwitcher';
+import type { PhysicsEngineKind } from '../physics';
+import { resolveEngine } from '../config/engines';
 import { createSimulation, updateChangesMade } from '../lib/simulationService';
 import type { UnitType } from '../lib/unitConversion';
 import { UNIT_ABBREV, unitToMeters, scaleObjectToSI, isDimensionalProperty } from '../lib/unitConversion';
@@ -49,7 +52,7 @@ interface SimulationConfig {
     gravity?: number;
     unit?: UnitType;
     pixelsPerUnit?: number;
-    physicsEngine?: 'matter' | 'rapier';
+    physicsEngine?: 'matter' | 'rapier' | 'planck';
   };
   objects?: Array<ObjectConfig>;
   controls?: Array<ControlConfig>;
@@ -176,6 +179,15 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   const [simulationControls, setSimulationControls] = useState<SimulationControls | null>(null);
   const simulationControlsRef = useRef<SimulationControls | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+
+  // Session-local engine override. Resets on reload — the config's
+  // environment.physicsEngine is always the starting point. Both the override
+  // and the config value are routed through resolveEngine so a disabled engine
+  // (per src/config/engines.ts) falls back to DEFAULT_ENGINE.
+  const [engineOverride, setEngineOverride] = useState<PhysicsEngineKind | null>(null);
+  const activeEngine: PhysicsEngineKind = resolveEngine(
+    engineOverride ?? environment.physicsEngine,
+  );
 
   const [maxDuration, setMaxDuration] = useState<number>(10);
 
@@ -456,7 +468,11 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           const sim = simulationControlsRef.current;
           if (!sim) return;
 
-          const currentKey = JSON.stringify({ controls: controlValues, duration: maxDuration });
+          const currentKey = JSON.stringify({
+            controls: controlValues,
+            duration: maxDuration,
+            engine: activeEngine,
+          });
 
           if (frameCacheRef.current && frameCacheRef.current.key === currentKey) {
             const frames = frameCacheRef.current.frames;
@@ -555,7 +571,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
       />
 
       <BaseSimulation
-        physicsEngine={environment.physicsEngine ?? 'rapier'}
+        physicsEngine={activeEngine}
         onUpdate={handleUpdate}
         onControlsReady={handleControlsReady}
         onCanvasContainerReady={handleCanvasContainerReady}
@@ -582,6 +598,11 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           <Scale
             pixelsPerUnit={pixelsPerUnit}
             unit={environment.unit ?? 'm'}
+          />
+          <EngineSwitcher
+            value={activeEngine}
+            onChange={setEngineOverride}
+            disabled={isRunning || precomputeState === 'precomputing'}
           />
           <button
             onClick={() => setShowExperimentalModal(true)}
