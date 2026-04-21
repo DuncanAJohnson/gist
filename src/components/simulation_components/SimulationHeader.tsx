@@ -53,6 +53,7 @@ function SimulationHeader({
   const feedbackPopupRef = useRef<HTMLDivElement>(null);
 
   const [published, setPublished] = useState(false);
+  const [publishedBy, setPublishedBy] = useState<string | null>(null);
   const [endorsed, setEndorsed] = useState(false);
   const [endorsementCount, setEndorsementCount] = useState(0);
   const [metaLoaded, setMetaLoaded] = useState(false);
@@ -73,6 +74,7 @@ function SimulationHeader({
         ]);
         if (cancelled) return;
         setPublished(meta.published);
+        setPublishedBy(meta.published_by);
         setEndorsementCount(meta.endorsement_count);
         setEndorsed(endorsedIds.has(simulationId));
         setMetaLoaded(true);
@@ -84,6 +86,8 @@ function SimulationHeader({
       cancelled = true;
     };
   }, [simulationId]);
+
+  const isPublisher = published && publishedBy !== null && publishedBy === getBrowserId();
 
   // Close popups when clicking outside
   useEffect(() => {
@@ -123,14 +127,18 @@ function SimulationHeader({
 
   const handleTogglePublish = async () => {
     if (!simulationId) return;
+    const browserId = getBrowserId();
     const next = !published;
+    const prevPublishedBy = publishedBy;
     setPublished(next);
+    setPublishedBy(next ? browserId : null);
     try {
-      if (next) await publishSimulation(simulationId);
-      else await unpublishSimulation(simulationId);
+      if (next) await publishSimulation(simulationId, browserId);
+      else await unpublishSimulation(simulationId, browserId);
     } catch (err) {
       console.error('Failed to toggle publish:', err);
       setPublished(!next);
+      setPublishedBy(prevPublishedBy);
     }
   };
 
@@ -200,16 +208,28 @@ function SimulationHeader({
               <span aria-hidden>{endorsed ? '♥' : '♡'}</span>
               <span>{endorsementCount}</span>
             </button>
-            <button
-              onClick={handleTogglePublish}
-              className={`px-4 py-2 rounded-lg transition-colors font-medium text-sm ${
-                published
-                  ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  : 'bg-green-600 text-white hover:bg-green-700'
-              }`}
-            >
-              {published ? 'Published ✓' : 'Publish'}
-            </button>
+            {!published ? (
+              <button
+                onClick={handleTogglePublish}
+                className="px-4 py-2 rounded-lg transition-colors font-medium text-sm bg-green-600 text-white hover:bg-green-700"
+              >
+                Publish
+              </button>
+            ) : isPublisher ? (
+              <button
+                onClick={handleTogglePublish}
+                className="px-4 py-2 rounded-lg transition-colors font-medium text-sm bg-gray-200 text-gray-700 hover:bg-gray-300"
+              >
+                Published ✓
+              </button>
+            ) : (
+              <span
+                className="px-4 py-2 rounded-lg font-medium text-sm bg-gray-100 text-gray-600 border border-gray-200"
+                title="Only the publisher can unpublish this simulation"
+              >
+                Published ✓
+              </span>
+            )}
           </>
         )}
         {simulationId && (

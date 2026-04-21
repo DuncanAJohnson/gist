@@ -152,10 +152,10 @@ export async function getTopEndorsedThisWeek(limit = 3): Promise<SimulationListI
  */
 export async function getSimulationMeta(
   id: number
-): Promise<{ published: boolean; endorsement_count: number }> {
+): Promise<{ published: boolean; published_by: string | null; endorsement_count: number }> {
   const { data, error } = await supabase
     .from('simulations')
-    .select('published, simulation_endorsements(count)')
+    .select('published, published_by, simulation_endorsements(count)')
     .eq('id', id)
     .single();
 
@@ -165,27 +165,39 @@ export async function getSimulationMeta(
 
   return {
     published: !!data.published,
+    published_by: data.published_by ?? null,
     endorsement_count: data.simulation_endorsements?.[0]?.count ?? 0,
   };
 }
 
-export async function publishSimulation(id: number): Promise<void> {
+export async function publishSimulation(id: number, browserId: string): Promise<void> {
   const { error } = await supabase
     .from('simulations')
-    .update({ published: true, published_at: new Date().toISOString() })
+    .update({
+      published: true,
+      published_at: new Date().toISOString(),
+      published_by: browserId,
+    })
     .eq('id', id);
   if (error) {
     throw new Error(`Failed to publish simulation: ${error.message}`);
   }
 }
 
-export async function unpublishSimulation(id: number): Promise<void> {
-  const { error } = await supabase
+export async function unpublishSimulation(id: number, browserId: string): Promise<void> {
+  // Only update when published_by matches. Rows with NULL published_by (legacy
+  // publishes) never match, so they can't be unpublished from the client.
+  const { data, error } = await supabase
     .from('simulations')
-    .update({ published: false, published_at: null })
-    .eq('id', id);
+    .update({ published: false, published_at: null, published_by: null })
+    .eq('id', id)
+    .eq('published_by', browserId)
+    .select('id');
   if (error) {
     throw new Error(`Failed to unpublish simulation: ${error.message}`);
+  }
+  if (!data || data.length === 0) {
+    throw new Error('Only the publisher can unpublish this simulation.');
   }
 }
 
