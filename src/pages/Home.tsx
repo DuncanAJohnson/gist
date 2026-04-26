@@ -39,9 +39,9 @@ function Home() {
     }
   };
 
-  const handleJSONExtracted = async (json: any) => {
+  const handleJSONExtracted = async (json: any, userPrompt: string | null) => {
     try {
-      const simulationId = await createSimulation(json, true, null);
+      const simulationId = await createSimulation(json, true, null, userPrompt);
       navigate(`/simulation/${simulationId}`);
     } catch (error) {
       console.error('Failed to save simulation:', error);

@@ -10,6 +10,7 @@ export interface SimulationRecord {
   title: string | null;
   description: string | null;
   changes_made: string | null;
+  user_prompt: string | null;
 }
 
 export interface SimulationListItem {
@@ -32,17 +33,20 @@ export type WindowOption = 'week' | 'all';
  * @param json - The simulation JSON configuration
  * @param fromAI - Whether this simulation was created by AI
  * @param parentId - The ID of the parent simulation (null for new simulations)
+ * @param userPrompt - The natural-language prompt the user typed to generate
+ *   this simulation (null when there is no prompt, e.g. manual JSON paste/tweak)
  * @returns The ID of the created simulation
  */
 export async function createSimulation(
   json: any,
   fromAI: boolean,
-  parentId: number | null
+  parentId: number | null,
+  userPrompt: string | null
 ): Promise<number> {
   // Extract title and description from JSON
   const title = json.title || null;
   const description = json.description || null;
-  
+
   const { data, error } = await supabase
     .from('simulations')
     .insert({
@@ -51,6 +55,7 @@ export async function createSimulation(
       parent_id: parentId,
       title: title,
       description: description,
+      user_prompt: userPrompt,
     })
     .select('id')
     .single();

@@ -11,7 +11,7 @@ import {
 interface CreateSimulationProps {
   isOpen: boolean;
   onClose: () => void;
-  onJSONExtracted?: (json: any) => void;
+  onJSONExtracted?: (json: any, userPrompt: string | null) => void;
   existingJSON?: any;
   compact?: boolean;
 }
@@ -137,13 +137,14 @@ function CreateSimulation({
         return;
       }
 
-      // Create simulation (not from AI)
-      const simulationId = await createSimulation(parsed, false, null);
-      
+      // Create simulation (not from AI). Pasted JSON has no natural-language
+      // prompt, so user_prompt is null.
+      const simulationId = await createSimulation(parsed, false, null, null);
+
       if (onJSONExtracted) {
-        onJSONExtracted(parsed);
+        onJSONExtracted(parsed, null);
       }
-      
+
       onClose();
       navigate(`/simulation/${simulationId}`);
     } catch (error) {
@@ -204,7 +205,7 @@ function CreateSimulation({
         if (json) {
           setExtractedJSON(json);
           if (onJSONExtracted) {
-            onJSONExtracted(json);
+            onJSONExtracted(json, userInput);
           }
         } else {
           console.warn('AI response did not contain a valid simulation JSON. Raw content:', assistantContent);

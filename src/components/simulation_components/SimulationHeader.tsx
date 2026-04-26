@@ -19,7 +19,7 @@ interface SimulationHeaderProps {
   onPlay: () => void;
   onPause: () => void;
   onReset: () => void;
-  onEdit?: (json: any) => void;
+  onEdit?: (json: any, userPrompt: string | null) => void;
   simulationId?: number;
   currentJSON?: any;
   maxDuration: number;
@@ -126,9 +126,9 @@ function SimulationHeader({
     };
   }, [showEditPopup, showFeedbackPopup]);
 
-  const handleJSONExtracted = (json: any) => {
+  const handleJSONExtracted = (json: any, userPrompt: string | null) => {
     if (onEdit) {
-      onEdit(json);
+      onEdit(json, userPrompt);
     }
     setShowEditPopup(false);
   };

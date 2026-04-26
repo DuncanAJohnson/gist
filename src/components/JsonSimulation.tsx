@@ -413,10 +413,10 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     }
   }, [outputs, graphs, objects]);
 
-  const handleEdit = async (editedJSON: any) => {
+  const handleEdit = async (editedJSON: any, userPrompt: string | null) => {
     if (!simulationId) return;
     try {
-      const newSimulationId = await createSimulation(editedJSON, true, simulationId);
+      const newSimulationId = await createSimulation(editedJSON, true, simulationId, userPrompt);
       updateChangesMade(newSimulationId);
       navigate(`/simulation/${newSimulationId}`);
     } catch (error) {
@@ -432,7 +432,8 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   const handleSaveTweakedJSON = async (tweakedJSON: any) => {
     if (!simulationId) return;
     try {
-      const newSimulationId = await createSimulation(tweakedJSON, false, simulationId);
+      // Manual JSON edits have no natural-language prompt.
+      const newSimulationId = await createSimulation(tweakedJSON, false, simulationId, null);
       updateChangesMade(newSimulationId);
       setShowJsonEditor(false);
       navigate(`/simulation/${newSimulationId}`);

@@ -18,9 +18,9 @@ export function CreateSimulationProvider({ children }: { children: ReactNode }) 
   const openModal = () => setIsOpen(true);
   const closeModal = () => setIsOpen(false);
 
-  const handleJSONExtracted = async (json: any) => {
+  const handleJSONExtracted = async (json: any, userPrompt: string | null) => {
     try {
-      const simulationId = await createSimulation(json, true, null);
+      const simulationId = await createSimulation(json, true, null, userPrompt);
       closeModal();
       navigate(`/simulation/${simulationId}`);
     } catch (error) {
