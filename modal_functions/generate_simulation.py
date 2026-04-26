@@ -74,7 +74,8 @@ async def chat_endpoint(request: dict):
     Expected payload:
     {
         "messages": [{"role": "...", "content": "..."}],
-        "model": "gpt-5-mini"
+        "model":    "gpt-5-mini" | "skolegpt-v3" | ...,
+        "provider": "openai" | "skolegpt"   // optional; auto-detected from model when omitted
     }
 
     Returns: text/event-stream of SSE events (see module docstring).
@@ -83,6 +84,7 @@ async def chat_endpoint(request: dict):
 
     messages = request.get("messages", [])
     model = request.get("model")
+    provider = request.get("provider")
 
     if not messages:
         return JSONResponse(content={"error": "No messages provided"}, status_code=400)
@@ -90,14 +92,15 @@ async def chat_endpoint(request: dict):
         return JSONResponse(content={"error": "model is required"}, status_code=400)
 
     logger.info(
-        "endpoint: incoming request (model=%s, n_messages=%d, last_user_chars=%d)",
+        "endpoint: incoming request (provider=%s, model=%s, n_messages=%d, last_user_chars=%d)",
+        provider,
         model,
         len(messages),
         len((messages[-1] or {}).get("content", "")),
     )
 
     return StreamingResponse(
-        run_sim_pipeline_sse(messages, model=model),
+        run_sim_pipeline_sse(messages, model=model, provider=provider),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -108,7 +111,10 @@ async def chat_endpoint(request: dict):
 
 @app.function(
     image=image,
-    secrets=[modal.Secret.from_name("gist-openai-key")],
+    secrets=[
+        modal.Secret.from_name("gist-openai-key"),
+        modal.Secret.from_name("gist-skolegpt-key"),
+    ],
     timeout=600,
 )
 @modal.asgi_app()

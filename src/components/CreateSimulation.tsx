@@ -170,6 +170,7 @@ function CreateSimulation({
         },
         body: JSON.stringify({
           messages: messages,
+          provider: provider,
           model: getModelForProvider(provider),
         }),
       });

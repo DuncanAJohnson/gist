@@ -277,9 +277,23 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   // Read a property for display (outputs/graphs). Physics bodies store SI
   // values — divide by unitScale for dimensional properties so UI labels in
   // the config's `unit` stay consistent.
+  //
+  // Returns NaN for paths that don't resolve to a number — e.g. a config with
+  // `property: "velocity"` (no axis) would otherwise hand back a Vec2Accessor
+  // instance, which crashes React when rendered. Callers should treat NaN as
+  // missing data.
   const readDisplayValue = (obj: any, path: string): number => {
     const raw = getNestedValue(obj, path);
-    if (typeof raw !== 'number') return raw;
+    if (typeof raw !== 'number') {
+      if (raw !== undefined && raw !== null) {
+        // Log once per unique path so a misconfigured prop doesn't spam the console.
+        console.warn(
+          `readDisplayValue: path "${path}" resolved to non-number (${typeof raw}). Outputs/graphs will show '—'. ` +
+          `Did the AI emit a property without an axis suffix (e.g. "velocity" instead of "velocity.y")?`,
+        );
+      }
+      return NaN;
+    }
     return isDimensionalProperty(path) ? raw / unitScale : raw;
   };
 

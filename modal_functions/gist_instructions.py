@@ -122,7 +122,7 @@ You are producing the full `controls` array. The skeleton listed each control's 
 For each control:
 - Pick `type`: "slider" for continuous numeric values (velocity, mass, gravity, restitution), "toggle" for on/off booleans (isStatic, showForceArrows).
 - For sliders: include `label`, `targetObj`, `property`, `min`, `max`, `step`, `defaultValue` (all required by the schema). For toggles: `label`, `targetObj`, `property`, `defaultValue` (boolean).
-- `property` is a dot-path like `velocity.x`, `velocity.y`, `position.x`, or `mass`. The `targetObj` must equal the skeleton's `target_id`.
+- `property` MUST be a scalar dot-path — always include the axis suffix on vector quantities. Valid: `"velocity.x"`, `"velocity.y"`, `"position.x"`, `"position.y"`, `"mass"`, `"restitution"`, `"angle"`, `"isStatic"`. Invalid: `"velocity"`, `"position"`, `"acceleration"` (these are 2D vectors and a slider can only drive one number at a time). The `targetObj` must equal the skeleton's `target_id`.
 - Choose realistic ranges: velocities -30 to 30, masses 0.1 to 100. The `defaultValue` should match the object's current state from the objects stage.
 - Use clear, educational `label`s with units.
 
@@ -146,7 +146,8 @@ You are producing the full `graphs` array. The skeleton listed each graph's name
 
 For each graph:
 - Set `type` to "line" (the only currently supported variant).
-- Build the `lines` array from the skeleton's `tracks`: each line has `label`, `color` (hex, match the corresponding object's color when reasonable), `targetObj`, and `property` (dot-path like `velocity.y`).
+- Build the `lines` array from the skeleton's `tracks`: each line has `label`, `color` (hex, match the corresponding object's color when reasonable), `targetObj`, and `property` (dot-path).
+- `property` MUST resolve to a scalar number — always include the axis suffix on vector quantities (e.g. `"velocity.y"`, NOT `"velocity"`). To plot a 2D quantity, emit two separate lines.
 - Choose `yAxisRange.min` and `yAxisRange.max` to fit the expected value range with headroom.
 - Provide a clear `title` and `yAxisLabel` with units. The X-axis is always time in seconds and is not configurable.
 
@@ -176,7 +177,12 @@ You are producing the full `outputs` array — groups of live numeric readouts. 
 
 For each group:
 - Set `title` to a clear group heading (e.g. "Ball outputs").
-- Build the `values` array with one OutputValueConfig per (target_id, property): set `label` (e.g. "Vertical velocity"), `targetObj` (object id), `property` (dot-path like `velocity.y`), and optionally `unit` (e.g. "m/s") — omit `unit` to let the runtime auto-derive it from the environment unit.
+- Build the `values` array with one OutputValueConfig per (target_id, property): set `label` (e.g. "Vertical velocity"), `targetObj` (object id), `property` (dot-path), and optionally `unit` (e.g. "m/s") — omit `unit` to let the runtime auto-derive it from the environment unit.
+
+CRITICAL: `property` MUST resolve to a single scalar number, never to a vector. Always include the axis suffix:
+- ✅ `"velocity.x"`, `"velocity.y"`, `"position.x"`, `"position.y"`, `"acceleration.x"`, `"acceleration.y"`
+- ✅ scalars: `"mass"`, `"angle"`, `"angularVelocity"`, `"restitution"`
+- ❌ NEVER `"velocity"`, `"position"`, or `"acceleration"` alone — these are 2D vectors and the UI will crash trying to render them. If you want to show speed magnitude, emit two separate OutputValueConfigs (one per axis) instead.
 
 Output JSON with this exact shape:
 ```json

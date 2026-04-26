@@ -57,8 +57,10 @@ STAGE_LABELS: dict[str, str] = {
 }
 
 
-def _build_stages(model: str | None) -> tuple[list[Stage], list[Stage]]:
-    """Return (sequential_stages, parallel_detail_stages). Both share the model."""
+def _build_stages(
+    model: str | None, provider: str | None = None
+) -> tuple[list[Stage], list[Stage]]:
+    """Return (sequential_stages, parallel_detail_stages). All share model+provider."""
     sequential: list[Stage] = [SkeletonStage(), ObjectsFillStage()]
     parallel: list[Stage] = [
         RenderablesFillStage(),
@@ -66,9 +68,11 @@ def _build_stages(model: str | None) -> tuple[list[Stage], list[Stage]]:
         GraphsFillStage(),
         OutputsFillStage(),
     ]
-    if model:
-        for s in (*sequential, *parallel):
+    for s in (*sequential, *parallel):
+        if model:
             s.model = model
+        if provider:
+            s.provider = provider
     return sequential, parallel
 
 
@@ -76,8 +80,9 @@ async def _run_stage(stage: Stage, scratch: Scratch) -> None:
     """Build messages, call the LLM, parse the response into scratch.artifacts."""
     started = time.monotonic()
     logger.info(
-        "stage[%s]: building messages (model=%s, output_budget=%d)",
+        "stage[%s]: building messages (provider=%s model=%s output_budget=%d)",
         stage.name,
+        stage.provider,
         stage.model,
         stage.output_budget,
     )
@@ -89,7 +94,10 @@ async def _run_stage(stage: Stage, scratch: Scratch) -> None:
         len(messages[0]["content"]) if messages else 0,
     )
     response = await call_llm(
-        messages, max_tokens=stage.output_budget, model=stage.model
+        messages,
+        max_tokens=stage.output_budget,
+        model=stage.model,
+        provider=stage.provider,
     )
     logger.info(
         "stage[%s]: LLM returned %d chars in %.2fs",
@@ -105,11 +113,16 @@ async def _run_stage(stage: Stage, scratch: Scratch) -> None:
     )
 
 
-async def run_sim_pipeline(messages: list[dict], model: str | None = None) -> dict:
+async def run_sim_pipeline(
+    messages: list[dict],
+    model: str | None = None,
+    *,
+    provider: str | None = None,
+) -> dict:
     """Non-streaming convenience wrapper: drain the SSE generator and return the config dict."""
     config: dict | None = None
     error: str | None = None
-    async for event in run_sim_pipeline_sse(messages, model=model):
+    async for event in run_sim_pipeline_sse(messages, model=model, provider=provider):
         # Pull the assembled config out of the content event when we see it.
         # Each event is a `data: {...}\n\n` SSE frame.
         if event.startswith("data: "):
@@ -133,20 +146,24 @@ async def run_sim_pipeline(messages: list[dict], model: str | None = None) -> di
 
 
 async def run_sim_pipeline_sse(
-    messages: list[dict], model: str | None = None
+    messages: list[dict],
+    model: str | None = None,
+    *,
+    provider: str | None = None,
 ) -> AsyncIterator[str]:
     """Yield SSE events while the pipeline runs.
 
     Detail stages run concurrently; their `done` events are emitted in
     completion order via asyncio.as_completed.
     """
-    sequential, parallel = _build_stages(model)
+    sequential, parallel = _build_stages(model, provider=provider)
     scratch = Scratch()
     scratch.history = list(messages)
 
     pipeline_started = time.monotonic()
     logger.info(
-        "sim_pipeline: starting (model=%s, n_messages_in=%d, sequential=%d, parallel=%d)",
+        "sim_pipeline: starting (provider=%s, model=%s, n_messages_in=%d, sequential=%d, parallel=%d)",
+        provider,
         model,
         len(messages),
         len(sequential),

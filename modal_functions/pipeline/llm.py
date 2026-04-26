@@ -271,8 +271,24 @@ async def stream_openai(
 # ---------- Dispatcher ----------
 
 
-def _selected_provider() -> str:
-    return os.environ.get("PIPELINE_LLM_PROVIDER", "openai").lower()
+def _resolve_provider(provider: str | None, model: str | None) -> str:
+    """Per-call provider selection.
+
+    Precedence: explicit `provider` arg > `PIPELINE_LLM_PROVIDER` env var > model
+    name autodetect (`skolegpt-*` → skolegpt, `gpt-*` / `o*` → openai) > "openai".
+    """
+    if provider:
+        return provider.lower()
+    env = os.environ.get("PIPELINE_LLM_PROVIDER")
+    if env:
+        return env.lower()
+    if model:
+        m = model.lower()
+        if m.startswith("skolegpt"):
+            return "skolegpt"
+        if m.startswith(("gpt-", "o1", "o3", "o4")):
+            return "openai"
+    return "openai"
 
 
 async def call_llm(
@@ -282,9 +298,15 @@ async def call_llm(
     temperature: float | None = None,
     model: str | None = None,
     reasoning_effort: str | None | object = ...,
+    provider: str | None = None,
 ) -> str:
-    """Provider-agnostic non-streaming call. Picks backend from PIPELINE_LLM_PROVIDER."""
-    if _selected_provider() == "skolegpt":
+    """Provider-agnostic non-streaming call.
+
+    Picks backend via `_resolve_provider` (explicit arg > env var > model autodetect).
+    """
+    backend = _resolve_provider(provider, model)
+    logger.info("call_llm: provider=%s model=%s", backend, model)
+    if backend == "skolegpt":
         return await call_gemma(
             messages,
             max_tokens=max_tokens,
@@ -306,9 +328,12 @@ async def stream_llm(
     temperature: float | None = None,
     model: str | None = None,
     reasoning_effort: str | None | object = ...,
+    provider: str | None = None,
 ) -> AsyncIterator[str]:
-    """Provider-agnostic streaming call. Picks backend from PIPELINE_LLM_PROVIDER."""
-    if _selected_provider() == "skolegpt":
+    """Provider-agnostic streaming call. See `call_llm` for selection rules."""
+    backend = _resolve_provider(provider, model)
+    logger.info("stream_llm: provider=%s model=%s", backend, model)
+    if backend == "skolegpt":
         async for token in stream_gemma(
             messages,
             max_tokens=max_tokens,

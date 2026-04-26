@@ -7,8 +7,19 @@ interface OutputProps {
 
 function Output({ config, value }: OutputProps) {
   const { label, unit = '' } = config;
-  const displayValue = typeof value === 'number' ? value.toFixed(2) : (value ?? '—');
-  
+  // Guard at runtime: a misconfigured `property` (e.g. "velocity" without an
+  // axis) can resolve to a Vec2Accessor instance instead of a number. React
+  // crashes if we hand it that object as a child, so coerce anything that
+  // isn't a primitive number/string to an em-dash placeholder.
+  let displayValue: string;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    displayValue = value.toFixed(2);
+  } else if (typeof value === 'string') {
+    displayValue = value;
+  } else {
+    displayValue = '—';
+  }
+
   return (
     <div className="flex flex-row items-center justify-between py-2 px-3 rounded whitespace-nowrap">
       <span className="text-sm text-gray-700 font-medium">{label}: </span>

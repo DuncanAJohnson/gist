@@ -17,10 +17,10 @@ export type AiProviderKind = 'openai' | 'skolegpt';
 
 export const ENABLED_PROVIDERS: readonly AiProviderKind[] = [
   'openai',
-  // 'skolegpt',
+  'skolegpt',
 ] as const;
 
-export const DEFAULT_PROVIDER: AiProviderKind = 'openai';
+export const DEFAULT_PROVIDER: AiProviderKind = 'skolegpt';
 
 export const PROVIDER_MODELS: Record<AiProviderKind, string> = {
   openai: 'gpt-5-mini',

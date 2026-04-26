@@ -42,7 +42,10 @@ class FanOut:
         async def run_one(stage: Stage):
             messages = stage.build_messages(scratch)
             response = await call_llm(
-                messages, max_tokens=stage.output_budget, model=stage.model
+                messages,
+                max_tokens=stage.output_budget,
+                model=stage.model,
+                provider=stage.provider,
             )
             return stage.name, stage.parse(response)
 
@@ -78,7 +81,10 @@ class Linear:
                     messages = stage.build_messages(scratch)
                     chunks: list[str] = []
                     async for token in stream_llm(
-                        messages, max_tokens=stage.output_budget, model=stage.model
+                        messages,
+                        max_tokens=stage.output_budget,
+                        model=stage.model,
+                        provider=stage.provider,
                     ):
                         chunks.append(token)
                         yield content_event(token)
@@ -86,7 +92,10 @@ class Linear:
                 else:
                     messages = stage.build_messages(scratch)
                     response = await call_llm(
-                        messages, max_tokens=stage.output_budget, model=stage.model
+                        messages,
+                        max_tokens=stage.output_budget,
+                        model=stage.model,
+                        provider=stage.provider,
                     )
                     scratch.artifacts[stage.name] = stage.parse(response)
                     yield progress_event(stage.name)

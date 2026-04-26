@@ -32,6 +32,7 @@ class Stage:
     output_budget: int = 1000
     input_budget: int = 8000
     model: str | None = None  # overrides PIPELINE provider's default model when set
+    provider: str | None = None  # overrides PIPELINE_LLM_PROVIDER env var when set ("openai" | "skolegpt")
 
     def build_messages(self, scratch: Scratch) -> list[dict]:
         raise NotImplementedError(f"{self.__class__.__name__}.build_messages")
