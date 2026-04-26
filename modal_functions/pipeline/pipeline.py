@@ -12,7 +12,7 @@ import asyncio
 import logging
 from typing import AsyncIterator, Callable
 
-from .llm import call_gemma, stream_gemma
+from .llm import call_llm, stream_llm
 from .sse import content_event, done_event, error_event, progress_event
 from .stage import Scratch, Stage
 
@@ -41,7 +41,9 @@ class FanOut:
     async def run(self, scratch: Scratch) -> None:
         async def run_one(stage: Stage):
             messages = stage.build_messages(scratch)
-            response = await call_gemma(messages, max_tokens=stage.output_budget)
+            response = await call_llm(
+                messages, max_tokens=stage.output_budget, model=stage.model
+            )
             return stage.name, stage.parse(response)
 
         results = await asyncio.gather(*(run_one(s) for s in self.stages))
@@ -75,16 +77,16 @@ class Linear:
                 elif is_final and self.stream_final:
                     messages = stage.build_messages(scratch)
                     chunks: list[str] = []
-                    async for token in stream_gemma(
-                        messages, max_tokens=stage.output_budget
+                    async for token in stream_llm(
+                        messages, max_tokens=stage.output_budget, model=stage.model
                     ):
                         chunks.append(token)
                         yield content_event(token)
                     scratch.artifacts[stage.name] = stage.parse("".join(chunks))
                 else:
                     messages = stage.build_messages(scratch)
-                    response = await call_gemma(
-                        messages, max_tokens=stage.output_budget
+                    response = await call_llm(
+                        messages, max_tokens=stage.output_budget, model=stage.model
                     )
                     scratch.artifacts[stage.name] = stage.parse(response)
                     yield progress_event(stage.name)

@@ -24,8 +24,13 @@ def error_event(message: str) -> str:
     return f"data: {json.dumps({'type': 'error', 'error': message})}\n\n"
 
 
-def progress_event(stage: str, status: str = "done") -> str:
-    return f"data: {json.dumps({'type': 'progress', 'stage': stage, 'status': status})}\n\n"
+def progress_event(
+    stage: str, status: str = "done", *, label: str | None = None
+) -> str:
+    payload: dict = {"type": "progress", "stage": stage, "status": status}
+    if label is not None:
+        payload["label"] = label
+    return f"data: {json.dumps(payload)}\n\n"
 
 
 async def as_sse(token_iter: AsyncIterator[str]) -> AsyncIterator[str]:

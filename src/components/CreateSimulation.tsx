@@ -16,6 +16,11 @@ interface CreateSimulationProps {
   compact?: boolean;
 }
 
+// Total number of pipeline stages emitted by the backend (skeleton + objects + 4
+// parallel detail stages). Used to convert per-stage `done` events into a percentage.
+// Keep in sync with `modal_functions/sim_pipeline/__init__.py:_build_stages`.
+const TOTAL_STAGES = 6;
+
 function CreateSimulation({
   isOpen,
   onClose,
@@ -28,6 +33,7 @@ function CreateSimulation({
   const [isStreaming, setIsStreaming] = useState(false);
   const [extractedJSON, setExtractedJSON] = useState<any>(null);
   const [progress, setProgress] = useState(0);
+  const [stageLabel, setStageLabel] = useState<string>('');
   const [showJSONInput, setShowJSONInput] = useState(false);
   const [jsonInput, setJsonInput] = useState('');
   const [jsonError, setJsonError] = useState<string | null>(null);
@@ -40,48 +46,12 @@ function CreateSimulation({
       setInput('');
       setExtractedJSON(null);
       setProgress(0);
+      setStageLabel('');
       setShowJSONInput(false);
       setJsonInput('');
       setJsonError(null);
     }
   }, [isOpen]);
-
-  // Fake loading progress that takes ~30 seconds
-  useEffect(() => {
-    if (!isStreaming) {
-      setProgress(0);
-      return;
-    }
-
-    const duration = 30000; // 30 seconds in milliseconds
-    const startTime = Date.now();
-    const updateInterval = 50; // Update every 50ms for smooth animation
-
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      if (elapsed >= duration) {
-        setProgress((prev) => Math.max(prev, 95)); // Don't override if already at 100%
-        clearInterval(interval);
-        return;
-      }
-
-      // Non-linear easing function for more realistic progress
-      // Starts fast, slows in middle, speeds up near end
-      const t = elapsed / duration;
-      // Using quadratic ease-in for faster start, cubic ease-out
-      const easedProgress = t < 0.5
-        ? 2 * t * t
-        : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      
-      setProgress((prev) => {
-        // Don't update if already at 100% (set by API completion)
-        if (prev >= 100) return prev;
-        return Math.min(95, easedProgress * 100); // Cap at 95% until actual completion
-      });
-    }, updateInterval);
-
-    return () => clearInterval(interval);
-  }, [isStreaming]);
 
   // Extract JSON from text. Models sometimes wrap the config in prose or
   // markdown code fences, so we strip fences first, then scan for the first
@@ -152,7 +122,10 @@ function CreateSimulation({
     }
   };
 
-  // Handle generating simulation with AI
+  // Handle generating simulation with AI. The backend streams Server-Sent
+  // Events: per-stage `progress` events (started/done with a human label),
+  // a single `content` event carrying the assembled SimulationConfig JSON,
+  // then `done`. On failure, a single `error` event closes the stream.
   const handleGenerate = async () => {
     if (!input.trim() || isStreaming) return;
 
@@ -177,43 +150,108 @@ function CreateSimulation({
 
     setInput('');
     setIsStreaming(true);
+    setProgress(0);
+    setStageLabel('Connecting…');
+
+    // Stages currently in flight (started but not yet done). When parallel
+    // detail stages run, multiple entries are present; we display the most
+    // recently started one's label.
+    const inFlight = new Map<string, string>();
+    let completedCount = 0;
+    let assembledContent = '';
+    let streamError: string | null = null;
 
     try {
       const response = await fetch(simulationAiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
         },
         body: JSON.stringify({
           messages: messages,
-          provider: provider,
           model: getModelForProvider(provider),
-          max_tokens: 100000,
         }),
       });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+      if (!response.body) {
+        throw new Error('Response has no body — streaming not supported by this transport.');
+      }
 
-      const data = await response.json();
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-      if (data.type === 'success') {
-        const assistantContent = data.content;
+      // Read the SSE stream. Events are delimited by `\n\n`; each event is a
+      // sequence of lines, only the `data: ...` lines carry the JSON payload.
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
 
-        const json = extractJSON(assistantContent);
-        if (json) {
-          setExtractedJSON(json);
-          if (onJSONExtracted) {
-            onJSONExtracted(json, userInput);
+        let sepIdx;
+        while ((sepIdx = buffer.indexOf('\n\n')) >= 0) {
+          const block = buffer.slice(0, sepIdx);
+          buffer = buffer.slice(sepIdx + 2);
+          for (const line of block.split('\n')) {
+            if (!line.startsWith('data: ')) continue;
+            const dataStr = line.slice(6);
+            let event: any;
+            try {
+              event = JSON.parse(dataStr);
+            } catch {
+              console.warn('Failed to parse SSE event:', dataStr);
+              continue;
+            }
+
+            if (event.type === 'progress') {
+              const { stage, status, label } = event;
+              const display: string = label || stage;
+              if (status === 'started') {
+                inFlight.set(stage, display);
+                setStageLabel(display);
+              } else if (status === 'done') {
+                inFlight.delete(stage);
+                completedCount += 1;
+                // Cap at 95% until we receive the final content + done so the
+                // bar doesn't sit at 100% while we're still parsing.
+                setProgress(Math.min(95, (completedCount / TOTAL_STAGES) * 100));
+                const stillRunning = Array.from(inFlight.values());
+                setStageLabel(stillRunning.length > 0
+                  ? stillRunning[stillRunning.length - 1]
+                  : 'Finalizing…');
+              }
+            } else if (event.type === 'content') {
+              assembledContent += event.content || '';
+            } else if (event.type === 'done') {
+              setProgress(100);
+              setStageLabel('Done');
+            } else if (event.type === 'error') {
+              streamError = event.error || 'Unknown error';
+            }
           }
-        } else {
-          console.warn('AI response did not contain a valid simulation JSON. Raw content:', assistantContent);
-          alert('The AI returned a response but no valid simulation JSON was found. Check the console for the raw output.');
         }
-      } else if (data.type === 'error') {
-        console.error('API error:', data.error);
-        alert(`Error: ${data.error}`);
+      }
+
+      if (streamError) {
+        console.error('Pipeline error:', streamError);
+        alert(`Error: ${streamError}`);
+        return;
+      }
+
+      const json = extractJSON(assembledContent);
+      if (json) {
+        setExtractedJSON(json);
+        if (onJSONExtracted) {
+          onJSONExtracted(json, userInput);
+        }
+      } else {
+        console.warn('AI stream finished but no valid simulation JSON was found. Raw content:', assembledContent);
+        alert('The AI returned a response but no valid simulation JSON was found. Check the console for the raw output.');
       }
     } catch (error) {
       console.error('Error calling chat API:', error);
@@ -257,7 +295,8 @@ function CreateSimulation({
         {isStreaming && (
           <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-blue-800">Generating simulation...</span>
+              <span className="text-sm font-medium text-blue-800">Generating simulation…</span>
+              <span className="text-xs text-blue-600">{Math.round(progress)}%</span>
             </div>
             <div className="w-full bg-blue-200 rounded-full h-2 overflow-hidden">
               <div
@@ -267,6 +306,9 @@ function CreateSimulation({
                 <div className="h-full w-full bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 animate-pulse"></div>
               </div>
             </div>
+            {stageLabel && (
+              <div className="mt-2 text-xs text-blue-700">{stageLabel}</div>
+            )}
           </div>
         )}
         <div className="mb-3">
@@ -370,7 +412,8 @@ function CreateSimulation({
               <div className="text-center mt-8 max-w-md mx-auto">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg px-6 py-4">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-base font-medium text-blue-800">Generating simulation...</span>
+                    <span className="text-base font-medium text-blue-800">Generating simulation…</span>
+                    <span className="text-sm text-blue-600">{Math.round(progress)}%</span>
                   </div>
                   <div className="w-full bg-blue-200 rounded-full h-3 overflow-hidden shadow-inner">
                     <div
@@ -380,6 +423,9 @@ function CreateSimulation({
                       <div className="h-full w-full bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 animate-pulse"></div>
                     </div>
                   </div>
+                  {stageLabel && (
+                    <div className="mt-3 text-sm text-blue-700">{stageLabel}</div>
+                  )}
                 </div>
               </div>
             )}
