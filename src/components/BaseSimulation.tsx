@@ -32,6 +32,10 @@ interface BaseSimulationProps {
   pickingPosition?: boolean;
   precomputeTimestepSeconds?: number;
   playbackSpeed?: number;
+  /** Optional override for the active engine's solver iteration count. */
+  solverIterations?: number;
+  /** Optional override for Planck's position-iteration count; ignored by other engines. */
+  positionIterations?: number;
 }
 
 // Wall thickness for environment boundaries
@@ -76,6 +80,8 @@ function BaseSimulation({
   pickingPosition,
   precomputeTimestepSeconds = DEFAULT_PRECOMPUTE_TIMESTEP_SECONDS,
   playbackSpeed = 1,
+  solverIterations,
+  positionIterations,
 }: BaseSimulationProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<PhysicsAdapter | null>(null);
@@ -99,12 +105,28 @@ function BaseSimulation({
   const onCanvasContainerReadyRef = useRef(onCanvasContainerReady);
   const precomputeTimestepRef = useRef(precomputeTimestepSeconds);
   const playbackSpeedRef = useRef(playbackSpeed);
+  const solverItersRef = useRef(solverIterations);
+  const positionItersRef = useRef(positionIterations);
   useEffect(() => { onInitRef.current = onInit; }, [onInit]);
   useEffect(() => { onUpdateRef.current = onUpdate; }, [onUpdate]);
   useEffect(() => { onControlsReadyRef.current = onControlsReady; }, [onControlsReady]);
   useEffect(() => { onCanvasContainerReadyRef.current = onCanvasContainerReady; }, [onCanvasContainerReady]);
   useEffect(() => { precomputeTimestepRef.current = precomputeTimestepSeconds; }, [precomputeTimestepSeconds]);
   useEffect(() => { playbackSpeedRef.current = playbackSpeed; }, [playbackSpeed]);
+  useEffect(() => { solverItersRef.current = solverIterations; }, [solverIterations]);
+  useEffect(() => { positionItersRef.current = positionIterations; }, [positionIterations]);
+
+  // Push iteration-count changes to the live adapter without re-creating it.
+  // Adapters that don't expose the knob (Matter today; Rapier for position
+  // iters) silently ignore it.
+  useEffect(() => {
+    if (solverIterations === undefined) return;
+    adapterRef.current?.setSolverIterations?.(solverIterations);
+  }, [solverIterations]);
+  useEffect(() => {
+    if (positionIterations === undefined) return;
+    adapterRef.current?.setPositionIterations?.(positionIterations);
+  }, [positionIterations]);
 
   useEffect(() => {
     if (!sceneRef.current) return;
@@ -134,6 +156,12 @@ function BaseSimulation({
         }
         adapter = a;
         adapterRef.current = a;
+        if (solverItersRef.current !== undefined) {
+          a.setSolverIterations?.(solverItersRef.current);
+        }
+        if (positionItersRef.current !== undefined) {
+          a.setPositionIterations?.(positionItersRef.current);
+        }
         setAdapterReady(true);
 
       if (onInitRef.current) {

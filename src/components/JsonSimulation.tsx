@@ -191,6 +191,14 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
   const [precomputeTimestepHz, setPrecomputeTimestepHz] = useState<number>(480);
 
+  // Constraint-solver iteration count; mapped per-engine in the adapters.
+  // 8 matches Planck's velocityIterations default and is a reasonable bump
+  // over Rapier's default of 4 for the high-restitution scenes Gist tends
+  // to render.
+  const [solverIterations, setSolverIterations] = useState<number>(8);
+  // Planck-only second knob; Rapier ignores it. 3 matches Planck's default.
+  const [positionIterations, setPositionIterations] = useState<number>(3);
+
   const [maxDuration, setMaxDuration] = useState<number>(10);
 
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
@@ -532,7 +540,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           }
 
           frameCacheRef.current = null;
-          const totalFrames = Math.max(1, Math.round(maxDuration * 60));
+          const totalFrames = Math.max(1, Math.round(maxDuration * 60) + 1);
           recordingBufferRef.current = [];
           prevVelocitiesRef.current = {};
           prevTimeRef.current = 0;
@@ -618,6 +626,8 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
       <BaseSimulation
         physicsEngine={activeEngine}
         precomputeTimestepSeconds={1 / precomputeTimestepHz}
+        solverIterations={solverIterations}
+        positionIterations={positionIterations}
         playbackSpeed={playbackSpeed}
         onUpdate={handleUpdate}
         onControlsReady={handleControlsReady}
@@ -653,6 +663,12 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
             timestepHz={precomputeTimestepHz}
             onTimestepChange={setPrecomputeTimestepHz}
             timestepDisabled={isRunning || precomputeState === 'precomputing'}
+            solverIterations={solverIterations}
+            onSolverIterationsChange={setSolverIterations}
+            solverIterationsDisabled={isRunning || precomputeState === 'precomputing'}
+            positionIterations={positionIterations}
+            onPositionIterationsChange={setPositionIterations}
+            positionIterationsDisabled={isRunning || precomputeState === 'precomputing'}
             onTweakJSON={simulationId ? handleTweakJSON : undefined}
           />
           <button

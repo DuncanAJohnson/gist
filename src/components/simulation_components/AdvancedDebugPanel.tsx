@@ -9,10 +9,52 @@ interface AdvancedDebugPanelProps {
   timestepHz: number;
   onTimestepChange: (hz: number) => void;
   timestepDisabled: boolean;
+  solverIterations: number;
+  onSolverIterationsChange: (iters: number) => void;
+  solverIterationsDisabled: boolean;
+  positionIterations: number;
+  onPositionIterationsChange: (iters: number) => void;
+  positionIterationsDisabled: boolean;
   onTweakJSON?: () => void;
 }
 
 const TIMESTEP_OPTIONS = [60, 120, 240, 480, 960, 1920];
+const ITER_OPTIONS = [1, 2, 3, 4, 8, 16, 32, 64];
+
+function IterRow({
+  label,
+  title,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  title: string;
+  value: number;
+  onChange: (n: number) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-xs text-gray-600" title={title}>
+        {label}
+      </span>
+      <select
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        disabled={disabled}
+        title={title}
+        className={`px-2 py-1 rounded-md border border-gray-300 bg-white text-xs text-gray-700 focus:outline-none cursor-pointer disabled:cursor-not-allowed ${disabled ? 'opacity-50' : ''}`}
+      >
+        {ITER_OPTIONS.map((n) => (
+          <option key={n} value={n}>
+            {n}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 function AdvancedDebugPanel({
   engine,
@@ -21,6 +63,12 @@ function AdvancedDebugPanel({
   timestepHz,
   onTimestepChange,
   timestepDisabled,
+  solverIterations,
+  onSolverIterationsChange,
+  solverIterationsDisabled,
+  positionIterations,
+  onPositionIterationsChange,
+  positionIterationsDisabled,
   onTweakJSON,
 }: AdvancedDebugPanelProps) {
   const [expanded, setExpanded] = useState(false);
@@ -64,6 +112,33 @@ function AdvancedDebugPanel({
               ))}
             </select>
           </div>
+          {engine === 'rapier' && (
+            <IterRow
+              label="Solver iters"
+              title="Rapier integrationParameters.numSolverIterations (default 4). Higher = more stable, more CPU."
+              value={solverIterations}
+              onChange={onSolverIterationsChange}
+              disabled={solverIterationsDisabled}
+            />
+          )}
+          {engine === 'planck' && (
+            <>
+              <IterRow
+                label="Velocity iters"
+                title="Planck velocityIterations (default 8). Resolves contact and joint velocities."
+                value={solverIterations}
+                onChange={onSolverIterationsChange}
+                disabled={solverIterationsDisabled}
+              />
+              <IterRow
+                label="Position iters"
+                title="Planck positionIterations (default 3). Resolves penetration and constraint drift."
+                value={positionIterations}
+                onChange={onPositionIterationsChange}
+                disabled={positionIterationsDisabled}
+              />
+            </>
+          )}
           {onTweakJSON && (
             <button
               onClick={onTweakJSON}

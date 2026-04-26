@@ -88,8 +88,30 @@ export interface PhysicsAdapter {
   restore(snap: WorldSnapshot): void;
 
   destroy(): void;
+
+  /**
+   * Override the engine's primary constraint-solver iteration count. Higher
+   * values trade CPU for stability on stiff stacks and high-restitution
+   * chains. Engines map this to whichever knob is most impactful:
+   *   - Rapier: integrationParameters.numSolverIterations (default 4)
+   *   - Planck: velocityIterations passed to world.step (default 8)
+   * Optional — adapters that don't expose a runtime knob may omit it.
+   */
+  setSolverIterations?(iters: number): void;
+
+  /**
+   * Override the engine's position-correction iteration count. Currently
+   * Planck-only — Rapier folds position correction into its single solver
+   * loop (numSolverIterations), so the Rapier adapter omits this method.
+   *   - Planck: positionIterations passed to world.step (default 3)
+   */
+  setPositionIterations?(iters: number): void;
 }
 
 export interface AdapterOptions {
   gravity?: Vec2;
+  /** See PhysicsAdapter.setSolverIterations. */
+  solverIterations?: number;
+  /** See PhysicsAdapter.setPositionIterations. Planck-only. */
+  positionIterations?: number;
 }
