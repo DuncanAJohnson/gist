@@ -149,7 +149,6 @@ function Library() {
               simulation={sim}
               endorsed={endorsedIds.has(sim.id)}
               onToggleEndorse={handleToggleEndorse}
-              endorsementDisplay={timeWindow === 'week' ? 'with-week' : 'total'}
             />
           ))}
         </div>

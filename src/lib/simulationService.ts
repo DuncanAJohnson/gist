@@ -18,6 +18,7 @@ export interface SimulationListItem {
   title: string | null;
   description: string | null;
   created_at: string;
+  published_at: string | null;
   parent_id: number | null;
   changes_made: string | null;
   published: boolean;
@@ -98,19 +99,24 @@ export async function getPublishedSimulations(opts: {
 }): Promise<SimulationListItem[]> {
   const weekAgo = new Date(Date.now() - WEEK_MS).toISOString();
 
-  const [allTimeRes, weekRes] = await Promise.all([
-    supabase
-      .from('simulations')
-      .select(
-        'id, title, description, created_at, parent_id, changes_made, published, simulation_endorsements(count)'
-      )
-      .eq('published', true),
-    supabase
-      .from('simulations')
-      .select('id, simulation_endorsements(count)')
-      .eq('published', true)
-      .gte('simulation_endorsements.created_at', weekAgo),
-  ]);
+  let allTimeQuery = supabase
+    .from('simulations')
+    .select(
+      'id, title, description, created_at, published_at, parent_id, changes_made, published, simulation_endorsements(count)'
+    )
+    .eq('published', true);
+  let weekQuery = supabase
+    .from('simulations')
+    .select('id, simulation_endorsements(count)')
+    .eq('published', true)
+    .gte('simulation_endorsements.created_at', weekAgo);
+
+  if (opts.window === 'week') {
+    allTimeQuery = allTimeQuery.gte('published_at', weekAgo);
+    weekQuery = weekQuery.gte('published_at', weekAgo);
+  }
+
+  const [allTimeRes, weekRes] = await Promise.all([allTimeQuery, weekQuery]);
 
   if (allTimeRes.error) {
     throw new Error(`Failed to fetch simulations: ${allTimeRes.error.message}`);
@@ -129,6 +135,7 @@ export async function getPublishedSimulations(opts: {
     title: row.title,
     description: row.description,
     created_at: row.created_at,
+    published_at: row.published_at ?? null,
     parent_id: row.parent_id,
     changes_made: row.changes_made,
     published: !!row.published,
