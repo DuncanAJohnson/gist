@@ -10,6 +10,11 @@ import os
 
 logger = logging.getLogger(__name__)
 
+# Mirrors the canvas constants in src/components/BaseSimulation.tsx so the
+# pipeline can reason about SI canvas dimensions when prompting the LLM.
+SIMULATION_WIDTH_PX = 800
+SIMULATION_HEIGHT_PX = 600
+
 
 def _first_existing(*candidates: str) -> str | None:
     for path in candidates:
@@ -42,7 +47,7 @@ def _manifest_path() -> str:
 
 
 _schema_block_cache: str | None = None
-_renderables_block_cache: str | None = None
+_manifest_names_block_cache: str | None = None
 
 
 def schema_block() -> str:
@@ -58,10 +63,15 @@ def schema_block() -> str:
     return _schema_block_cache
 
 
-def renderables_block() -> str:
-    """Return the approved renderables list, formatted as a markdown bullet list."""
-    global _renderables_block_cache
-    if _renderables_block_cache is None:
+def manifest_names_block() -> str:
+    """Return the approved svg names with display names — compact list for prompts.
+
+    Object configs reference items here via the `svg` field. Both the visual
+    sprite and the physical collider come from the manifest entry, so keeping
+    the prompt to just names (no vertices/colliders) keeps tokens low.
+    """
+    global _manifest_names_block_cache
+    if _manifest_names_block_cache is None:
         with open(_manifest_path()) as f:
             manifest = json.load(f)
         lines = []
@@ -73,9 +83,12 @@ def renderables_block() -> str:
             if not name:
                 continue
             lines.append(f"- {name} — {display}")
-        _renderables_block_cache = (
-            "## AVAILABLE RENDERABLES\n\n"
-            "Pick `visual.name` verbatim from the left-hand identifier. Do not invent names.\n\n"
+        _manifest_names_block_cache = (
+            "## AVAILABLE SVGs\n\n"
+            "Pick the object's `svg` field verbatim from the left-hand identifier. "
+            "Do not invent names. Each entry's collider shape and visual sprite "
+            "are bundled together — choose by real-world resemblance to the user's "
+            "request (e.g. `soccer_ball`, `brick_block`, `boat`).\n\n"
             + "\n".join(lines)
         )
-    return _renderables_block_cache
+    return _manifest_names_block_cache

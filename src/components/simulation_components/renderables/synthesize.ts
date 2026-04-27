@@ -1,5 +1,4 @@
 import { SIMULATION_WIDTH, SIMULATION_HEIGHT, WALL_THICKNESS } from '../../BaseSimulation';
-import type { Renderable } from '../../../schemas/simulation';
 import type { ObjectConfig } from '../objects/types';
 import type { ExperimentalDataConfig } from '../ExperimentalDataModal';
 import type { PixelRenderable, DataPositionResolver } from './types';
@@ -71,15 +70,15 @@ export function synthesizeWallRenderables(
 }
 
 /**
- * Default "body-outline" renderable for a physics object that the user hasn't
- * explicitly given a renderable for.
+ * Renderable that draws the object's SVG sprite at its bounding box. Every
+ * physics object gets one — the `svg` field on ObjectConfig is the single
+ * source of truth for both collider and visual.
  */
 export function synthesizeBodyRenderable(obj: ObjectConfig): PixelRenderable {
-  const color = (obj.body && 'color' in obj.body && obj.body.color) || '#4ecdc4';
   return {
     id: `__default_${obj.id}`,
     source: { type: 'body', bodyId: obj.id, followAngle: true },
-    visual: { type: 'body-outline', color },
+    visual: { type: 'renderable', name: obj.svg, width: obj.width, height: obj.height },
     opacity: 1,
     zIndex: 0,
   };
@@ -145,19 +144,5 @@ export function buildExperimentalDataResolver(
       // so the render layer's WorldToCanvas can handle them alongside physics.
       return { x: realX * unitScale, y: realY * unitScale, angle: 0 };
     },
-  };
-}
-
-/**
- * Convert a user-declared Renderable to the internal PixelRenderable form.
- * Values already live in SI — this just fills in defaults.
- */
-export function prepareRenderable(r: Renderable): PixelRenderable {
-  return {
-    id: r.id,
-    source: r.source,
-    visual: r.visual,
-    opacity: r.opacity ?? 1,
-    zIndex: r.zIndex ?? 0,
   };
 }

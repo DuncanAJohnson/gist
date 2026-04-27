@@ -39,10 +39,8 @@ import {
   synthesizeForceArrowRenderable,
   synthesizeExperimentalRenderable,
   buildExperimentalDataResolver,
-  prepareRenderable,
 } from './simulation_components/renderables/synthesize';
 import type { PixelRenderable, DataPositionResolver } from './simulation_components/renderables/types';
-import type { Renderable } from '../schemas/simulation';
 
 interface SimulationConfig {
   title?: string;
@@ -58,7 +56,6 @@ interface SimulationConfig {
   controls?: Array<ControlConfig>;
   outputs?: Array<OutputGroupConfig>;
   graphs?: Array<GraphConfig>;
-  renderables?: Array<Renderable>;
 }
 
 interface JsonSimulationProps {
@@ -91,7 +88,6 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     controls = [],
     outputs = [],
     graphs = [],
-    renderables: configRenderables = [],
   } = config;
 
   const pixelsPerUnit = environment.pixelsPerUnit ?? 10;
@@ -123,17 +119,10 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   const simulationTimeRef = useRef(0);
   const [canvasContainer, setCanvasContainer] = useState<HTMLDivElement | null>(null);
 
-  // Compose renderables in SI — no per-property pixel conversion.
+  // Compose renderables in SI — every object emits one SVG renderable from
+  // its `svg` field, plus walls, force arrows, and any experimental overlay.
   const pixelRenderables = useMemo<PixelRenderable[]>(() => {
-    const explicit = configRenderables.map(prepareRenderable);
-    const coveredBodyIds = new Set(
-      configRenderables
-        .filter((r) => r.source.type === 'body')
-        .map((r) => (r.source as { bodyId: string }).bodyId)
-    );
-    const defaults = objects
-      .filter((obj) => !coveredBodyIds.has(obj.id))
-      .map(synthesizeBodyRenderable);
+    const sprites = objects.map(synthesizeBodyRenderable);
     const forceArrows = objects
       .filter((obj) => obj.showForceArrows)
       .map(synthesizeForceArrowRenderable);
@@ -141,10 +130,10 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     const experimental = experimentalData
       ? [synthesizeExperimentalRenderable(experimentalData)]
       : [];
-    return [...walls, ...defaults, ...forceArrows, ...explicit, ...experimental].sort(
+    return [...walls, ...sprites, ...forceArrows, ...experimental].sort(
       (a, b) => a.zIndex - b.zIndex
     );
-  }, [configRenderables, objects, environment.walls, experimentalData, pixelsPerMeter]);
+  }, [objects, environment.walls, experimentalData, pixelsPerMeter]);
 
   const dataSources = useMemo<Record<string, DataPositionResolver>>(() => {
     if (!experimentalData) return {};

@@ -5,14 +5,17 @@
     "walls": [],
     "gravity": 9.8,
     "unit": "m",
-    "pixelsPerUnit": 10
+    "pixelsPerUnit": 10,
+    "physicsEngine": "rapier"
   },
   "objects": [
     {
       "id": "ball",
       "x": 40,
       "y": 10,
-      "body": { "type": "circle", "radius": 3, "color": "#ff6bff" },
+      "width": 6,
+      "height": 6,
+      "svg": "baseball",
       "velocity": { "x": 0, "y": 20 },
       "restitution": 0.8,
       "frictionAir": 0

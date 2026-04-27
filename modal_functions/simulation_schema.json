@@ -1,5 +1,5 @@
 {
-  "description": "Physics simulation configuration using real-world units with Matter.js engine.\n\nCOORDINATE SYSTEM (Real-World Physics):\n- Origin (0, 0) is at BOTTOM-LEFT corner\n- X increases to the right\n- Y increases UPWARD (like standard physics)\n- Positive Y velocity = upward motion\n\nUNITS & SCALE:\n- Default: unit=\"m\" (meters), pixelsPerUnit=100 → 8m x 6m canvas\n- For larger simulations: reduce pixelsPerUnit (e.g., 8 → 100m x 75m canvas)\n- For smaller simulations: increase pixelsPerUnit or use \"cm\"\n- Gravity default: 9.8 m/s² (Earth gravity)\n\nGUIDELINES:\n- Keep simulations simple: 1-3 objects, focus on 1-2 physics concepts\n- Always include at least one control for interactivity\n- Use outputs to show current state, graphs to show history\n- Match graph line colors to object colors for visual consistency\n- Use clear, educational labels\n- All values (positions, velocities, sizes) are in the configured unit\n\nGOOD COLOR CHOICES:\n- \"#ff6bff\" (pink/magenta)\n- \"#4ecdc4\" (teal/cyan)\n- \"#ff6b6b\" (coral/red)\n- \"#95e1d3\" (mint green)\n- \"#ffa07a\" (light salmon)\n\nEXAMPLE 1 - Vertical Ball Toss:\n{\n  \"title\": \"Toss Ball\",\n  \"description\": \"Toss a ball vertically and observe acceleration versus velocity\",\n  \"environment\": {\n    \"walls\": [],\n    \"gravity\": 9.8,\n    \"unit\": \"m\",\n    \"pixelsPerUnit\": 10\n  },\n  \"objects\": [\n    {\n      \"id\": \"ball\",\n      \"x\": 40,\n      \"y\": 10,\n      \"body\": {\n        \"type\": \"circle\",\n        \"radius\": 3,\n        \"color\": \"#ff6bff\"\n      },\n      \"velocity\": {\n        \"x\": 0,\n        \"y\": 20\n      },\n      \"restitution\": 0.8,\n      \"frictionAir\": 0\n    }\n  ],\n  \"controls\": [\n    {\n      \"type\": \"slider\",\n      \"label\": \"Initial Velocity\",\n      \"targetObj\": \"ball\",\n      \"property\": \"velocity.y\",\n      \"min\": 0,\n      \"max\": 30,\n      \"step\": 0.01,\n      \"defaultValue\": 20\n    }\n  ],\n  \"outputs\": [\n    {\n      \"title\": \"Ball Outputs\",\n      \"values\": [\n        {\n          \"label\": \"Velocity\",\n          \"targetObj\": \"ball\",\n          \"property\": \"velocity.y\",\n          \"unit\": \"m/s\"\n        },\n        {\n          \"label\": \"Acceleration\",\n          \"targetObj\": \"ball\",\n          \"property\": \"acceleration.y\",\n          \"unit\": \"m/s²\"\n        }\n      ]\n    }\n  ],\n  \"graphs\": [\n    {\n      \"type\": \"line\",\n      \"title\": \"Velocity and Acceleration Over Time\",\n      \"yAxisRange\": {\n        \"min\": -30,\n        \"max\": 30\n      },\n      \"yAxisLabel\": \"Value (m/s, m/s²)\",\n      \"lines\": [\n        {\n          \"label\": \"Velocity\",\n          \"targetObj\": \"ball\",\n          \"property\": \"velocity.y\",\n          \"color\": \"#ff6bff\"\n        },\n        {\n          \"label\": \"Acceleration\",\n          \"targetObj\": \"ball\",\n          \"property\": \"acceleration.y\",\n          \"color\": \"#4ecdc4\"\n        }\n      ]\n    }\n  ]\n}\n\nEXAMPLE 2 - Two Boxes Collision:\n{\n  \"title\": \"Two Boxes Collision\",\n  \"description\": \"Adjust the velocities to see the boxes move and collide\",\n  \"environment\": {\n    \"walls\": [\n      \"left\",\n      \"right\",\n      \"bottom\"\n    ],\n    \"gravity\": 9.8,\n    \"unit\": \"m\",\n    \"pixelsPerUnit\": 10\n  },\n  \"objects\": [\n    {\n      \"id\": \"boxA\",\n      \"x\": 15,\n      \"y\": 50,\n      \"body\": {\n        \"type\": \"rectangle\",\n        \"width\": 6,\n        \"height\": 6,\n        \"color\": \"#ff6bff\"\n      },\n      \"velocity\": {\n        \"x\": 5,\n        \"y\": 0\n      },\n      \"restitution\": 0.8,\n      \"frictionAir\": 0\n    },\n    {\n      \"id\": \"boxB\",\n      \"x\": 65,\n      \"y\": 40,\n      \"body\": {\n        \"type\": \"rectangle\",\n        \"width\": 6,\n        \"height\": 6,\n        \"color\": \"#4ecdc4\"\n      },\n      \"velocity\": {\n        \"x\": -5,\n        \"y\": 0\n      },\n      \"restitution\": 0.8,\n      \"frictionAir\": 0\n    }\n  ],\n  \"controls\": [\n    {\n      \"type\": \"slider\",\n      \"label\": \"Box A Velocity\",\n      \"targetObj\": \"boxA\",\n      \"property\": \"velocity.x\",\n      \"min\": -30,\n      \"max\": 30,\n      \"step\": 0.1,\n      \"defaultValue\": 5\n    },\n    {\n      \"type\": \"slider\",\n      \"label\": \"Box B Velocity\",\n      \"targetObj\": \"boxB\",\n      \"property\": \"velocity.x\",\n      \"min\": -30,\n      \"max\": 30,\n      \"step\": 0.1,\n      \"defaultValue\": -5\n    }\n  ],\n  \"outputs\": [\n    {\n      \"title\": \"Box A Outputs\",\n      \"values\": [\n        {\n          \"label\": \"Velocity X\",\n          \"targetObj\": \"boxA\",\n          \"property\": \"velocity.x\",\n          \"unit\": \"m/s\"\n        },\n        {\n          \"label\": \"Velocity Y\",\n          \"targetObj\": \"boxA\",\n          \"property\": \"velocity.y\",\n          \"unit\": \"m/s\"\n        }\n      ]\n    },\n    {\n      \"title\": \"Box B Outputs\",\n      \"values\": [\n        {\n          \"label\": \"Velocity X\",\n          \"targetObj\": \"boxB\",\n          \"property\": \"velocity.x\",\n          \"unit\": \"m/s\"\n        },\n        {\n          \"label\": \"Velocity Y\",\n          \"targetObj\": \"boxB\",\n          \"property\": \"velocity.y\",\n          \"unit\": \"m/s\"\n        }\n      ]\n    }\n  ],\n  \"graphs\": [\n    {\n      \"type\": \"line\",\n      \"title\": \"Horizontal Velocity Over Time\",\n      \"yAxisRange\": {\n        \"min\": -1,\n        \"max\": 1\n      },\n      \"yAxisLabel\": \"Velocity (m/s)\",\n      \"lines\": [\n        {\n          \"label\": \"Box A Velocity X\",\n          \"targetObj\": \"boxA\",\n          \"property\": \"velocity.x\",\n          \"color\": \"#ff6bff\"\n        },\n        {\n          \"label\": \"Box B Velocity X\",\n          \"targetObj\": \"boxB\",\n          \"property\": \"velocity.x\",\n          \"color\": \"#4ecdc4\"\n        }\n      ]\n    },\n    {\n      \"type\": \"line\",\n      \"title\": \"Horizontal Position Over Time\",\n      \"yAxisRange\": {\n        \"min\": -1,\n        \"max\": 1\n      },\n      \"yAxisLabel\": \"Position (m)\",\n      \"lines\": [\n        {\n          \"label\": \"Box A Position X\",\n          \"targetObj\": \"boxA\",\n          \"property\": \"position.x\",\n          \"color\": \"#ff6bff\"\n        },\n        {\n          \"label\": \"Box B Position X\",\n          \"targetObj\": \"boxB\",\n          \"property\": \"position.x\",\n          \"color\": \"#4ecdc4\"\n        }\n      ]\n    }\n  ]\n}",
+  "description": "Physics simulation configuration using real-world units.\n\nCOORDINATE SYSTEM (Real-World Physics):\n- Origin (0, 0) is at BOTTOM-LEFT corner of the simulation canvas\n- X increases to the right\n- Y increases UPWARD (like standard physics)\n- Positive Y velocity = upward motion\n\nCANVAS:\n- The simulation canvas is 800 × 600 pixels.\n- SI canvas size is (800 / pixelsPerUnit) × (600 / pixelsPerUnit) in the configured unit.\n- With pixelsPerUnit=10 and unit=\"m\" → 80m × 60m canvas.\n- Pick pixelsPerUnit so the LARGEST object is roughly 10–25% of the smaller (600 px) dimension.\n\nOBJECTS:\n- Each object is described by its center (x, y), bounding-box width and height, and an svg name from the public manifest.\n- The svg name drives BOTH the visual sprite AND the collider shape (rectangle / circle / convex hull). The collider is scaled to fit within width × height.\n- Width and height should reflect the typical real-world bounding box of the named object (e.g., a soccer_ball is ~0.22 m, a brick_block is ~0.5 m, a person is ~1.8 m tall).\n- Always pass the same configured unit; do not mix.\n\nGUIDELINES:\n- Keep simulations simple: 1-3 objects, focus on 1-2 physics concepts\n- Always include at least one control for interactivity\n- Use outputs to show current state, graphs to show history\n- Use clear, educational labels\n- All values (positions, velocities, sizes) are in the configured unit\n\nEXAMPLE 1 - Vertical Ball Toss:\n{\n  \"title\": \"Toss Ball\",\n  \"description\": \"Toss a ball vertically and observe acceleration versus velocity\",\n  \"environment\": {\n    \"walls\": [],\n    \"gravity\": 9.8,\n    \"unit\": \"m\",\n    \"pixelsPerUnit\": 10,\n    \"physicsEngine\": \"rapier\"\n  },\n  \"objects\": [\n    {\n      \"id\": \"ball\",\n      \"x\": 40,\n      \"y\": 10,\n      \"width\": 6,\n      \"height\": 6,\n      \"svg\": \"baseball\",\n      \"velocity\": {\n        \"x\": 0,\n        \"y\": 20\n      },\n      \"restitution\": 0.8,\n      \"frictionAir\": 0\n    }\n  ],\n  \"controls\": [\n    {\n      \"type\": \"slider\",\n      \"label\": \"Initial Velocity\",\n      \"targetObj\": \"ball\",\n      \"property\": \"velocity.y\",\n      \"min\": 0,\n      \"max\": 30,\n      \"step\": 0.01,\n      \"defaultValue\": 20\n    }\n  ],\n  \"outputs\": [\n    {\n      \"title\": \"Ball Outputs\",\n      \"values\": [\n        {\n          \"label\": \"Velocity\",\n          \"targetObj\": \"ball\",\n          \"property\": \"velocity.y\",\n          \"unit\": \"m/s\"\n        },\n        {\n          \"label\": \"Acceleration\",\n          \"targetObj\": \"ball\",\n          \"property\": \"acceleration.y\",\n          \"unit\": \"m/s²\"\n        }\n      ]\n    }\n  ],\n  \"graphs\": [\n    {\n      \"type\": \"line\",\n      \"title\": \"Velocity and Acceleration Over Time\",\n      \"yAxisRange\": {\n        \"min\": -30,\n        \"max\": 30\n      },\n      \"yAxisLabel\": \"Value (m/s, m/s²)\",\n      \"lines\": [\n        {\n          \"label\": \"Velocity\",\n          \"targetObj\": \"ball\",\n          \"property\": \"velocity.y\",\n          \"color\": \"#ff6bff\"\n        },\n        {\n          \"label\": \"Acceleration\",\n          \"targetObj\": \"ball\",\n          \"property\": \"acceleration.y\",\n          \"color\": \"#4ecdc4\"\n        }\n      ]\n    }\n  ]\n}\n\nEXAMPLE 2 - Two Boxes Collision:\n{\n  \"title\": \"Two Boxes Collision\",\n  \"description\": \"Adjust the velocities to see the boxes move and collide\",\n  \"environment\": {\n    \"walls\": [\n      \"left\",\n      \"right\",\n      \"bottom\"\n    ],\n    \"gravity\": 9.8,\n    \"unit\": \"m\",\n    \"pixelsPerUnit\": 10,\n    \"physicsEngine\": \"rapier\"\n  },\n  \"objects\": [\n    {\n      \"id\": \"boxA\",\n      \"x\": 15,\n      \"y\": 50,\n      \"width\": 6,\n      \"height\": 6,\n      \"svg\": \"box\",\n      \"velocity\": {\n        \"x\": 5,\n        \"y\": 0\n      },\n      \"restitution\": 0.8,\n      \"frictionAir\": 0\n    },\n    {\n      \"id\": \"boxB\",\n      \"x\": 65,\n      \"y\": 40,\n      \"width\": 6,\n      \"height\": 6,\n      \"svg\": \"box\",\n      \"velocity\": {\n        \"x\": -5,\n        \"y\": 0\n      },\n      \"restitution\": 0.8,\n      \"frictionAir\": 0\n    }\n  ],\n  \"controls\": [\n    {\n      \"type\": \"slider\",\n      \"label\": \"Box A Velocity\",\n      \"targetObj\": \"boxA\",\n      \"property\": \"velocity.x\",\n      \"min\": -30,\n      \"max\": 30,\n      \"step\": 0.1,\n      \"defaultValue\": 5\n    },\n    {\n      \"type\": \"slider\",\n      \"label\": \"Box B Velocity\",\n      \"targetObj\": \"boxB\",\n      \"property\": \"velocity.x\",\n      \"min\": -30,\n      \"max\": 30,\n      \"step\": 0.1,\n      \"defaultValue\": -5\n    }\n  ],\n  \"outputs\": [\n    {\n      \"title\": \"Box A Outputs\",\n      \"values\": [\n        {\n          \"label\": \"Velocity X\",\n          \"targetObj\": \"boxA\",\n          \"property\": \"velocity.x\",\n          \"unit\": \"m/s\"\n        },\n        {\n          \"label\": \"Velocity Y\",\n          \"targetObj\": \"boxA\",\n          \"property\": \"velocity.y\",\n          \"unit\": \"m/s\"\n        }\n      ]\n    },\n    {\n      \"title\": \"Box B Outputs\",\n      \"values\": [\n        {\n          \"label\": \"Velocity X\",\n          \"targetObj\": \"boxB\",\n          \"property\": \"velocity.x\",\n          \"unit\": \"m/s\"\n        },\n        {\n          \"label\": \"Velocity Y\",\n          \"targetObj\": \"boxB\",\n          \"property\": \"velocity.y\",\n          \"unit\": \"m/s\"\n        }\n      ]\n    }\n  ],\n  \"graphs\": [\n    {\n      \"type\": \"line\",\n      \"title\": \"Horizontal Velocity Over Time\",\n      \"yAxisRange\": {\n        \"min\": -1,\n        \"max\": 1\n      },\n      \"yAxisLabel\": \"Velocity (m/s)\",\n      \"lines\": [\n        {\n          \"label\": \"Box A Velocity X\",\n          \"targetObj\": \"boxA\",\n          \"property\": \"velocity.x\",\n          \"color\": \"#ff6bff\"\n        },\n        {\n          \"label\": \"Box B Velocity X\",\n          \"targetObj\": \"boxB\",\n          \"property\": \"velocity.x\",\n          \"color\": \"#4ecdc4\"\n        }\n      ]\n    },\n    {\n      \"type\": \"line\",\n      \"title\": \"Horizontal Position Over Time\",\n      \"yAxisRange\": {\n        \"min\": -1,\n        \"max\": 1\n      },\n      \"yAxisLabel\": \"Position (m)\",\n      \"lines\": [\n        {\n          \"label\": \"Box A Position X\",\n          \"targetObj\": \"boxA\",\n          \"property\": \"position.x\",\n          \"color\": \"#ff6bff\"\n        },\n        {\n          \"label\": \"Box B Position X\",\n          \"targetObj\": \"boxB\",\n          \"property\": \"position.x\",\n          \"color\": \"#4ecdc4\"\n        }\n      ]\n    }\n  ]\n}",
   "type": "object",
   "properties": {
     "title": {
@@ -45,7 +45,7 @@
           ]
         },
         "pixelsPerUnit": {
-          "description": "Scale factor: how many pixels equal one unit. Default: 10 (10px = 1m, giving 80m x 60m canvas). For larger simulations, use smaller values (e.g., 8 for 100m x 75m canvas).",
+          "description": "Scale factor: how many pixels equal one unit. The simulation canvas is 800×600 pixels, so the SI canvas size is (800/pixelsPerUnit) × (600/pixelsPerUnit). Pick this value so the largest object is roughly 10–25% of the smaller canvas dimension.",
           "default": 10,
           "type": "number"
         },
@@ -70,11 +70,11 @@
       "additionalProperties": false
     },
     "objects": {
-      "description": "Array of physics objects in the simulation. 1-3 objects recommended.",
+      "description": "Array of physics objects in the simulation. 1-3 objects recommended. Each object's collider shape and visual sprite both come from its `svg` manifest entry, scaled to width × height.",
       "default": [],
       "type": "array",
       "items": {
-        "description": "A physics object in the simulation. Configure shape, position, velocity, and physics properties. Uses real-world units with Y-up coordinate system.",
+        "description": "A physics object in the simulation. Carries position, bounding-box size, an SVG manifest name (which drives both visual and collider), and optional physics properties.",
         "type": "object",
         "properties": {
           "id": {
@@ -82,146 +82,24 @@
             "type": "string"
           },
           "x": {
-            "description": "Initial X position in configured units. With default settings (pixelsPerUnit=10, unit=\"m\"), canvas is 80m wide. X=0 is left edge.",
+            "description": "Initial X position of the object's center, in configured units. With default settings (pixelsPerUnit=10, unit=\"m\"), canvas is 80m wide. X=0 is left edge.",
             "type": "number"
           },
           "y": {
-            "description": "Initial Y position in configured units. With default settings, (pixelsPerUnit=10, unit=\"m\"), canvas is 60m tall. Y=0 is bottom edge, Y increases upward.",
+            "description": "Initial Y position of the object's center, in configured units. With default settings, canvas is 60m tall. Y=0 is bottom edge, Y increases upward.",
             "type": "number"
           },
-          "body": {
-            "description": "Shape configuration for a physics body. Choose from: rectangle, circle, polygon, or vertex (custom shape).",
-            "oneOf": [
-              {
-                "description": "Rectangular body shape. Use for boxes, platforms, walls.",
-                "type": "object",
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "rectangle"
-                    ]
-                  },
-                  "width": {
-                    "description": "Width in configured units (with default pixelsPerUnit=10 and unit=\"m\", 4-8m recommended for visibility)",
-                    "type": "number"
-                  },
-                  "height": {
-                    "description": "Height in configured units (with default pixelsPerUnit=10 and unit=\"m\", 4-8m recommended for visibility)",
-                    "type": "number"
-                  },
-                  "color": {
-                    "description": "Hex color (e.g., \"#ff6bff\"). Good choices: \"#ff6bff\" (pink), \"#4ecdc4\" (teal), \"#ff6b6b\" (coral), \"#95e1d3\" (mint)",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "type",
-                  "width",
-                  "height"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "description": "Circular body shape. Use for balls, wheels, planets.",
-                "type": "object",
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "circle"
-                    ]
-                  },
-                  "radius": {
-                    "description": "Radius in configured units (with default pixelsPerUnit=10 and unit=\"m\", 2-4m recommended for visibility)",
-                    "type": "number"
-                  },
-                  "color": {
-                    "description": "Hex color (e.g., \"#ff6bff\"). Good choices: \"#ff6bff\" (pink), \"#4ecdc4\" (teal), \"#ff6b6b\" (coral), \"#95e1d3\" (mint)",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "type",
-                  "radius"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "description": "Regular polygon body shape. Use for triangles, pentagons, hexagons.",
-                "type": "object",
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "polygon"
-                    ]
-                  },
-                  "sides": {
-                    "description": "Number of sides (3 = triangle, 5 = pentagon, 6 = hexagon, etc.)",
-                    "type": "number"
-                  },
-                  "radius": {
-                    "description": "Radius from center to vertices in configured units (with default pixelsPerUnit=10 and unit=\"m\", 2-4m recommended for visibility)",
-                    "type": "number"
-                  },
-                  "color": {
-                    "description": "Hex color (e.g., \"#ff6bff\")",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "type",
-                  "sides",
-                  "radius"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "description": "Custom polygon defined by vertices. Use for irregular shapes, ramps, custom obstacles.",
-                "type": "object",
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "vertex"
-                    ]
-                  },
-                  "vertices": {
-                    "description": "Array of {x, y} points defining the polygon vertices in order",
-                    "type": "array",
-                    "items": {
-                      "description": "2D vector for position, velocity, or acceleration. Coordinate system: origin (0,0) at BOTTOM-LEFT, X increases right, Y increases upward (real-world physics coordinates).",
-                      "type": "object",
-                      "properties": {
-                        "x": {
-                          "description": "X component. For velocity: positive = rightward, negative = leftward. For position: depends on pixelsPerUnit scale.",
-                          "type": "number"
-                        },
-                        "y": {
-                          "description": "Y component. For velocity: positive = downward, negative = upward. For position: Y increases upward from origin at bottom-left.",
-                          "type": "number"
-                        }
-                      },
-                      "required": [
-                        "x",
-                        "y"
-                      ],
-                      "additionalProperties": false
-                    }
-                  },
-                  "color": {
-                    "description": "Hex color (e.g., \"#ff6bff\")",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "type",
-                  "vertices"
-                ],
-                "additionalProperties": false
-              }
-            ]
+          "width": {
+            "description": "Bounding-box width in configured units. The actual collider shape (rectangle, circle, or convex hull) is looked up from the SVG manifest by `svg` and scaled into this box.",
+            "type": "number"
+          },
+          "height": {
+            "description": "Bounding-box height in configured units. The actual collider shape is looked up from the SVG manifest by `svg` and scaled into this box.",
+            "type": "number"
+          },
+          "svg": {
+            "description": "Name of a renderable from public/renderables/manifest.json (e.g., \"soccer_ball\", \"brick_block\", \"boat\"). Drives both the visual sprite and the physical collider shape, scaled to width × height.",
+            "type": "string"
           },
           "velocity": {
             "description": "Initial linear velocity {x, y} in units/second. Positive Y = upward motion. Typical range: -30 to 30 m/s.",
@@ -306,7 +184,9 @@
           "id",
           "x",
           "y",
-          "body"
+          "width",
+          "height",
+          "svg"
         ],
         "additionalProperties": false
       }
@@ -515,7 +395,7 @@
                       "type": "string"
                     },
                     "color": {
-                      "description": "Line color as hex (e.g., \"#ff6bff\"). Match object colors for visual consistency.",
+                      "description": "Line color as hex (e.g., \"#ff6bff\").",
                       "type": "string"
                     },
                     "targetObj": {
@@ -547,242 +427,6 @@
           }
         ]
       }
-    },
-    "renderables": {
-      "description": "Visual elements decoupled from physics bodies. Use to attach images/sprites to objects, or add purely visual overlays. Objects without an explicit renderable get a default shape renderable auto-generated from their body config.",
-      "default": [],
-      "type": "array",
-      "items": {
-        "description": "A visual element decoupled from physics. Declare what to draw (visual) and where (source).",
-        "type": "object",
-        "properties": {
-          "id": {
-            "description": "Unique identifier for this renderable",
-            "type": "string"
-          },
-          "source": {
-            "description": "Where to draw a renderable. \"body\" tracks a physics object, \"data\" interpolates imported data, \"fixed\" is a static position.",
-            "oneOf": [
-              {
-                "type": "object",
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "body"
-                    ]
-                  },
-                  "bodyId": {
-                    "description": "ID of a physics object to follow",
-                    "type": "string"
-                  },
-                  "followAngle": {
-                    "description": "If true, rotate visual with body. Default: true",
-                    "default": true,
-                    "type": "boolean"
-                  }
-                },
-                "required": [
-                  "type",
-                  "bodyId",
-                  "followAngle"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "data"
-                    ]
-                  },
-                  "dataId": {
-                    "description": "ID of a data source (e.g., \"experimental\" for imported data)",
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "type",
-                  "dataId"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "fixed"
-                    ]
-                  },
-                  "x": {
-                    "description": "X position in configured units (real-world, Y-up)",
-                    "type": "number"
-                  },
-                  "y": {
-                    "description": "Y position in configured units (real-world, Y-up)",
-                    "type": "number"
-                  },
-                  "angle": {
-                    "description": "Angle in radians",
-                    "default": 0,
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "type",
-                  "x",
-                  "y",
-                  "angle"
-                ],
-                "additionalProperties": false
-              }
-            ]
-          },
-          "visual": {
-            "description": "What to draw at the renderable's position.",
-            "oneOf": [
-              {
-                "description": "A shape drawn on the canvas.",
-                "type": "object",
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "shape"
-                    ]
-                  },
-                  "shape": {
-                    "type": "string",
-                    "enum": [
-                      "circle",
-                      "rectangle",
-                      "polygon"
-                    ]
-                  },
-                  "color": {
-                    "description": "Fill color as hex (e.g., \"#ff6bff\")",
-                    "type": "string"
-                  },
-                  "width": {
-                    "description": "Width in configured units (rectangle only)",
-                    "type": "number"
-                  },
-                  "height": {
-                    "description": "Height in configured units (rectangle only)",
-                    "type": "number"
-                  },
-                  "radius": {
-                    "description": "Radius in configured units (circle and polygon)",
-                    "type": "number"
-                  },
-                  "sides": {
-                    "description": "Number of sides (polygon only)",
-                    "type": "number"
-                  },
-                  "stroke": {
-                    "description": "Stroke color as hex",
-                    "type": "string"
-                  },
-                  "strokeWidth": {
-                    "description": "Stroke width in pixels",
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "type",
-                  "shape",
-                  "color"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "description": "An image or SVG sprite drawn on the canvas.",
-                "type": "object",
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "image"
-                    ]
-                  },
-                  "src": {
-                    "description": "URL or data URI of the image/SVG to render",
-                    "type": "string"
-                  },
-                  "width": {
-                    "description": "Width in configured units",
-                    "type": "number"
-                  },
-                  "height": {
-                    "description": "Height in configured units",
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "type",
-                  "src",
-                  "width",
-                  "height"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "description": "A bundled image/SVG referenced by name. Use instead of \"image\" when a built-in asset is available.",
-                "type": "object",
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "renderable"
-                    ]
-                  },
-                  "name": {
-                    "description": "Name of a bundled renderable from the manifest (e.g., \"pumpkin\")",
-                    "type": "string"
-                  },
-                  "width": {
-                    "description": "Width in configured units",
-                    "type": "number"
-                  },
-                  "height": {
-                    "description": "Height in configured units",
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "type",
-                  "name",
-                  "width",
-                  "height"
-                ],
-                "additionalProperties": false
-              }
-            ]
-          },
-          "opacity": {
-            "description": "Opacity (0-1). Default: 1",
-            "default": 1,
-            "type": "number"
-          },
-          "zIndex": {
-            "description": "Draw order. Higher values draw on top. Default: 0",
-            "default": 0,
-            "type": "number"
-          }
-        },
-        "required": [
-          "id",
-          "source",
-          "visual",
-          "opacity",
-          "zIndex"
-        ],
-        "additionalProperties": false
-      }
     }
   },
   "required": [
@@ -792,8 +436,7 @@
     "objects",
     "controls",
     "outputs",
-    "graphs",
-    "renderables"
+    "graphs"
   ],
   "additionalProperties": false
 }

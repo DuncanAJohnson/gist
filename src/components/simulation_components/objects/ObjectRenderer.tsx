@@ -1,18 +1,18 @@
 import { useEffect, forwardRef } from 'react';
 import { usePhysics } from '../../../contexts/PhysicsContext';
-import { getBodyFactory } from './registry';
 import type { ObjectConfig } from './types';
-import type { BodyDef, PhysicsBody } from '../../../physics/types';
-
-// Ensure all body types are registered
-import './bodies';
+import type { BodyDef, PhysicsBody, ShapeDescriptor } from '../../../physics/types';
+import { getManifestItem } from '../../../lib/renderableManifest';
+import { scaleManifestColliderToShape } from '../../../physics/shapeHelpers';
 
 const ObjectRenderer = forwardRef<PhysicsBody, ObjectConfig>(function ObjectRenderer(
   {
     id,
     x,
     y,
-    body,
+    width,
+    height,
+    svg,
     velocity,
     acceleration,
     restitution = 0.8,
@@ -30,15 +30,18 @@ const ObjectRenderer = forwardRef<PhysicsBody, ObjectConfig>(function ObjectRend
   const adapter = usePhysics();
 
   useEffect(() => {
-    if (!adapter || !body) return;
+    if (!adapter) return;
 
-    const factory = getBodyFactory(body.type);
-    if (!factory) {
-      console.warn(`Unknown body type: ${body.type}`);
-      return;
+    const item = getManifestItem(svg);
+    let shape: ShapeDescriptor;
+    if (item) {
+      shape = scaleManifestColliderToShape(item.physical_properties.collider, width, height);
+    } else {
+      console.warn(
+        `ObjectRenderer: svg "${svg}" not found in manifest; falling back to a plain rectangle collider.`,
+      );
+      shape = { type: 'rectangle', width, height };
     }
-
-    const shape = factory(body);
 
     const def: BodyDef = {
       id,

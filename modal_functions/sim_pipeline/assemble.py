@@ -17,7 +17,6 @@ def assemble_simulation_config(artifacts: dict[str, Any]) -> dict:
     """
     skeleton = artifacts.get("skeleton") or {}
     objects_blob = artifacts.get("objects") or {}
-    renderables_blob = artifacts.get("renderables") or {}
     controls_blob = artifacts.get("controls") or {}
     graphs_blob = artifacts.get("graphs") or {}
     outputs_blob = artifacts.get("outputs") or {}
@@ -30,5 +29,4 @@ def assemble_simulation_config(artifacts: dict[str, Any]) -> dict:
         "controls": controls_blob.get("controls", []),
         "outputs": outputs_blob.get("outputs", []),
         "graphs": graphs_blob.get("graphs", []),
-        "renderables": renderables_blob.get("renderables", []),
     }

@@ -40,7 +40,6 @@ from .controls_fill import ControlsFillStage
 from .graphs_fill import GraphsFillStage
 from .objects_fill import ObjectsFillStage
 from .outputs_fill import OutputsFillStage
-from .renderables_fill import RenderablesFillStage
 from .skeleton import SkeletonStage
 
 logger = logging.getLogger(__name__)
@@ -50,7 +49,6 @@ logger = logging.getLogger(__name__)
 STAGE_LABELS: dict[str, str] = {
     "skeleton": "Drafting outline",
     "objects": "Placing objects",
-    "renderables": "Picking sprites",
     "controls": "Configuring controls",
     "graphs": "Designing graphs",
     "outputs": "Adding readouts",
@@ -63,7 +61,6 @@ def _build_stages(
     """Return (sequential_stages, parallel_detail_stages). All share model+provider."""
     sequential: list[Stage] = [SkeletonStage(), ObjectsFillStage()]
     parallel: list[Stage] = [
-        RenderablesFillStage(),
         ControlsFillStage(),
         GraphsFillStage(),
         OutputsFillStage(),
@@ -216,13 +213,12 @@ async def run_sim_pipeline_sse(
         )
         config = assemble_simulation_config(scratch.artifacts)
         logger.info(
-            "sim_pipeline: assembled config: title=%r objects=%d controls=%d graphs=%d outputs=%d renderables=%d",
+            "sim_pipeline: assembled config: title=%r objects=%d controls=%d graphs=%d outputs=%d",
             config.get("title"),
             len(config.get("objects", [])),
             len(config.get("controls", [])),
             len(config.get("graphs", [])),
             len(config.get("outputs", [])),
-            len(config.get("renderables", [])),
         )
         yield content_event(json.dumps(config))
         yield done_event()
@@ -243,7 +239,6 @@ __all__ = [
     "STAGE_LABELS",
     "SkeletonStage",
     "ObjectsFillStage",
-    "RenderablesFillStage",
     "ControlsFillStage",
     "GraphsFillStage",
     "OutputsFillStage",
