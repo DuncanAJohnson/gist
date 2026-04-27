@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { SimulationListItem as SimulationListItemType } from '../lib/simulationService';
 import SimulationPreview from './SimulationPreview';
+import { useLanguage } from '../contexts/LanguageContext';
+import type { TranslationKey } from '../locales';
 
 interface SimulationListItemProps {
   simulation: SimulationListItemType;
@@ -11,21 +13,23 @@ interface SimulationListItemProps {
   showProvenance?: boolean;
 }
 
-function formatRelativeTime(from: Date, now: number): string {
+type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
+
+function formatRelativeTime(from: Date, now: number, t: Translator): string {
   const seconds = Math.max(0, Math.floor((now - from.getTime()) / 1000));
-  if (seconds < 60) return 'just now';
+  if (seconds < 60) return t('time.justNow');
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} min${minutes === 1 ? '' : 's'} ago`;
+  if (minutes < 60) return t(minutes === 1 ? 'time.minAgo' : 'time.minsAgo', { n: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} hr${hours === 1 ? '' : 's'} ago`;
+  if (hours < 24) return t(hours === 1 ? 'time.hrAgo' : 'time.hrsAgo', { n: hours });
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days} day${days === 1 ? '' : 's'} ago`;
+  if (days < 7) return t(days === 1 ? 'time.dayAgo' : 'time.daysAgo', { n: days });
   const weeks = Math.floor(days / 7);
-  if (weeks < 5) return `${weeks} wk${weeks === 1 ? '' : 's'} ago`;
+  if (weeks < 5) return t(weeks === 1 ? 'time.wkAgo' : 'time.wksAgo', { n: weeks });
   const months = Math.floor(days / 30);
-  if (months < 12) return `${months} mo${months === 1 ? '' : 's'} ago`;
+  if (months < 12) return t(months === 1 ? 'time.moAgo' : 'time.mosAgo', { n: months });
   const years = Math.floor(days / 365);
-  return `${years} yr${years === 1 ? '' : 's'} ago`;
+  return t(years === 1 ? 'time.yrAgo' : 'time.yrsAgo', { n: years });
 }
 
 function SimulationListItem({
@@ -36,17 +40,18 @@ function SimulationListItem({
   showProvenance = true,
 }: SimulationListItemProps) {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const date = new Date(simulation.published_at ?? simulation.created_at);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => window.clearInterval(interval);
   }, []);
-  const timeString = formatRelativeTime(date, now);
+  const timeString = formatRelativeTime(date, now, t);
 
   const descriptionPreview = simulation.description
     ? simulation.description.substring(0, descriptionPreviewLength) + (simulation.description.length > descriptionPreviewLength ? '...' : '')
-    : 'No description';
+    : t('list.noDescription');
 
   const handleEndorseClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -110,7 +115,7 @@ function SimulationListItem({
               {timeString}
             </span>
             <h3 className="text-lg font-semibold text-gray-800 truncate">
-              {simulation.title || 'Untitled Simulation'}
+              {simulation.title || t('list.untitled')}
             </h3>
           </div>
           <p className="text-gray-600 text-sm mb-2 line-clamp-2">
@@ -119,7 +124,7 @@ function SimulationListItem({
           {showProvenance && (
             <div className="text-xs text-gray-500">
               {simulation.parent_id === null ? (
-                <span>New Simulation</span>
+                <span>{t('list.newSimulation')}</span>
               ) : (
                 <span>
                   <button
@@ -130,7 +135,7 @@ function SimulationListItem({
                     }}
                     className="text-primary hover:underline bg-transparent border-0 p-0 cursor-pointer"
                   >
-                    Remixed from Simulation {simulation.parent_id}
+                    {t('list.remixedFrom', { id: simulation.parent_id })}
                   </button>
                   {simulation.changes_made && simulation.changes_made !== 'Loading...' && (
                     <>: {simulation.changes_made}</>
@@ -144,6 +149,7 @@ function SimulationListItem({
           endorsed,
           total: simulation.endorsement_count,
           onClick: handleEndorseClick,
+          t,
         })}
       </div>
       {previewPos && (
@@ -162,15 +168,16 @@ interface RenderEndorsementArgs {
   endorsed: boolean;
   total: number;
   onClick: (e: React.MouseEvent) => void;
+  t: Translator;
 }
 
-function renderEndorsement({ endorsed, total, onClick }: RenderEndorsementArgs) {
+function renderEndorsement({ endorsed, total, onClick, t }: RenderEndorsementArgs) {
   const buttonBase =
     'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors border';
   const buttonColors = endorsed
     ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
     : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100';
-  const ariaLabel = endorsed ? 'Remove endorsement' : 'Endorse';
+  const ariaLabel = endorsed ? t('list.removeEndorsement') : t('list.endorse');
   const heart = endorsed ? '♥' : '♡';
 
   return (

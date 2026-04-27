@@ -10,6 +10,7 @@ import {
   getEndorsedSimulationIds,
 } from '../../lib/simulationService';
 import { getBrowserId } from '../../lib/browserId';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface SimulationHeaderProps {
   title?: string;
@@ -26,6 +27,7 @@ function SimulationHeader({
   simulationId,
   currentJSON,
 }: SimulationHeaderProps) {
+  const { t } = useLanguage();
   const [showEditPopup, setShowEditPopup] = useState(false);
   const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
   // True while the remix popup is mid-stream — prevents click-outside from
@@ -177,7 +179,7 @@ function SimulationHeader({
                     ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
                     : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                 }`}
-                aria-label={endorsed ? 'Remove endorsement' : 'Endorse'}
+                aria-label={endorsed ? t('list.removeEndorsement') : t('list.endorse')}
               >
                 <span aria-hidden>{endorsed ? '♥' : '♡'}</span>
                 <span>{endorsementCount}</span>
@@ -188,21 +190,21 @@ function SimulationHeader({
                 onClick={handleTogglePublish}
                 className="px-4 py-2 rounded-lg transition-colors font-medium text-sm bg-green-600 text-white hover:bg-green-700"
               >
-                Publish
+                {t('header.publish')}
               </button>
             ) : isPublisher ? (
               <button
                 onClick={handleTogglePublish}
                 className="px-4 py-2 rounded-lg transition-colors font-medium text-sm bg-gray-200 text-gray-700 hover:bg-gray-300"
               >
-                Published ✓
+                {t('header.published')}
               </button>
             ) : (
               <span
                 className="px-4 py-2 rounded-lg font-medium text-sm bg-gray-100 text-gray-600 border border-gray-200"
-                title="Only the publisher can unpublish this simulation"
+                title={t('header.publishedTooltip')}
               >
-                Published ✓
+                {t('header.published')}
               </span>
             )}
           </>
@@ -214,7 +216,7 @@ function SimulationHeader({
               onClick={() => setShowFeedbackPopup(!showFeedbackPopup)}
               className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium text-sm"
             >
-              Give Feedback
+              {t('header.giveFeedback')}
             </button>
             {showFeedbackPopup && (
               <div
@@ -237,7 +239,7 @@ function SimulationHeader({
               onClick={() => setShowEditPopup(!showEditPopup)}
               className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm"
             >
-              Remix
+              {t('header.remix')}
             </button>
             {showEditPopup && (
               <div
