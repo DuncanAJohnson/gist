@@ -171,7 +171,14 @@ function SimulationHeader({
       <div className="flex flex-col items-start px-8 py-4 gap-4">
         <div className="flex items-center gap-4">
           <div>
-            {title && <h1 className="m-0 text-gray-800 text-3xl font-semibold">{title}</h1>}
+            {title && (
+              <h1 className="m-0 text-gray-800 text-3xl font-semibold">
+                {title}
+                {simulationId !== undefined && (
+                  <span className="text-gray-400 font-normal"> - #{simulationId}</span>
+                )}
+              </h1>
+            )}
             {description && (
               <p className="mt-2 mb-0 text-gray-600 text-base leading-relaxed">
                 {description}
