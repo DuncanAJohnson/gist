@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import SimulationControls, { type PrecomputeState, type PrecomputeProgress } from './SimulationControls';
 import CreateSimulation from '../CreateSimulation';
 import FeedbackModal from './FeedbackModal';
 import {
@@ -15,43 +14,17 @@ import { getBrowserId } from '../../lib/browserId';
 interface SimulationHeaderProps {
   title?: string;
   description?: string;
-  isRunning: boolean;
-  onPlay: () => void;
-  onPause: () => void;
-  onReset: () => void;
   onEdit?: (json: any, userPrompt: string | null) => void;
   simulationId?: number;
   currentJSON?: any;
-  maxDuration: number;
-  onMaxDurationChange: (v: number) => void;
-  precomputeState: PrecomputeState;
-  precomputeProgress: PrecomputeProgress | null;
-  playbackSpeed: number;
-  onPlaybackSpeedChange: (speed: number) => void;
-  replayFrameIndex: number;
-  totalFrames: number;
-  onSeek: (frameIndex: number) => void;
 }
 
 function SimulationHeader({
   title,
   description,
-  isRunning,
-  onPlay,
-  onPause,
-  onReset,
   onEdit,
   simulationId,
   currentJSON,
-  maxDuration,
-  onMaxDurationChange,
-  precomputeState,
-  precomputeProgress,
-  playbackSpeed,
-  onPlaybackSpeedChange,
-  replayFrameIndex,
-  totalFrames,
-  onSeek,
 }: SimulationHeaderProps) {
   const [showEditPopup, setShowEditPopup] = useState(false);
   const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
@@ -188,37 +161,24 @@ function SimulationHeader({
         </div>
       </div>
 
-      {/* Right side - Controls, Feedback, and Edit button */}
+      {/* Right side - Endorse, Feedback, and Edit button */}
       <div className="flex flex-row items-center justify-center gap-4 px-8 py-4 relative">
-        <SimulationControls
-          isRunning={isRunning}
-          onPlay={onPlay}
-          onPause={onPause}
-          onReset={onReset}
-          maxDuration={maxDuration}
-          onMaxDurationChange={onMaxDurationChange}
-          precomputeState={precomputeState}
-          precomputeProgress={precomputeProgress}
-          playbackSpeed={playbackSpeed}
-          onPlaybackSpeedChange={onPlaybackSpeedChange}
-          replayFrameIndex={replayFrameIndex}
-          totalFrames={totalFrames}
-          onSeek={onSeek}
-        />
         {simulationId && metaLoaded && (
           <>
-            <button
-              onClick={handleToggleEndorse}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
-                endorsed
-                  ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-              aria-label={endorsed ? 'Remove endorsement' : 'Endorse'}
-            >
-              <span aria-hidden>{endorsed ? '♥' : '♡'}</span>
-              <span>{endorsementCount}</span>
-            </button>
+            {published && (
+              <button
+                onClick={handleToggleEndorse}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                  endorsed
+                    ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+                aria-label={endorsed ? 'Remove endorsement' : 'Endorse'}
+              >
+                <span aria-hidden>{endorsed ? '♥' : '♡'}</span>
+                <span>{endorsementCount}</span>
+              </button>
+            )}
             {!published ? (
               <button
                 onClick={handleTogglePublish}

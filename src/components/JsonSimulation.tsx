@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BaseSimulation, { type SimulationControls as BaseSimulationControls, CANVAS_HEIGHT, WALL_THICKNESS } from './BaseSimulation';
 import type { PhysicsAdapter, PhysicsBody, Vec2 } from '../physics/types';
-import type { PrecomputeState, PrecomputeProgress } from './simulation_components/SimulationControls';
+import SimulationControls, { type PrecomputeState, type PrecomputeProgress } from './simulation_components/SimulationControls';
 import Environment from './simulation_components/Environment';
 import Panel from './simulation_components/Panel';
 import Scale from './simulation_components/Scale';
@@ -556,6 +556,119 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     }
   }, [selectedObjectId, objects]);
 
+  const handlePlay = async () => {
+    const sim = simulationControlsRef.current;
+    if (!sim) return;
+
+    // Drop selection so the edit overlay disappears once the sim starts.
+    setSelectedObjectId(null);
+
+    const currentKey = JSON.stringify({
+      controls: controlValues,
+      duration: maxDuration,
+      engine: activeEngine,
+      timestepHz: precomputeTimestepHz,
+    });
+
+    if (frameCacheRef.current && frameCacheRef.current.key === currentKey) {
+      const frames = frameCacheRef.current.frames;
+      setReplayTotalFrames(frames.length);
+      if (jsonModeRef.current !== 'replay' || replayCursorRef.current >= frames.length) {
+        setGraphData(graphs.map(() => []));
+        jsonModeRef.current = 'replay';
+        setPrecomputeState('ready');
+        sim.startReplay(handleReplayFrame, frames.length);
+      }
+      sim.play();
+      setIsRunning(true);
+      return;
+    }
+
+    frameCacheRef.current = null;
+    const totalFrames = Math.max(1, Math.round(maxDuration * 60) + 1);
+    recordingBufferRef.current = [];
+    prevVelocitiesRef.current = {};
+    prevTimeRef.current = 0;
+    setGraphData(graphs.map(() => []));
+
+    sim.reset();
+    controls.forEach((control) => {
+      if (control.type === 'slider' || control.type === 'toggle') {
+        handleControlChange(control, controlValues[control.label]);
+      }
+    });
+    jsonModeRef.current = 'precomputing';
+    setPrecomputeState('precomputing');
+    setPrecomputeProgress({ framesDone: 0, totalFrames, estimatedMsRemaining: 0 });
+    const startedAt = performance.now();
+
+    try {
+      await sim.precompute(totalFrames, (framesDone) => {
+        const elapsed = performance.now() - startedAt;
+        const estimatedTotal = framesDone > 0 ? (elapsed / framesDone) * totalFrames : 0;
+        const remaining = Math.max(0, estimatedTotal - elapsed);
+        setPrecomputeProgress({
+          framesDone,
+          totalFrames,
+          estimatedMsRemaining: remaining,
+        });
+      });
+    } catch (err) {
+      console.error('Pre-compute failed:', err);
+      jsonModeRef.current = 'idle';
+      setPrecomputeState('idle');
+      setPrecomputeProgress(null);
+      return;
+    }
+
+    const recordedFrames = recordingBufferRef.current;
+    recordingBufferRef.current = null;
+    frameCacheRef.current = { key: currentKey, frames: recordedFrames };
+
+    setGraphData(graphs.map(() => []));
+
+    jsonModeRef.current = 'replay';
+    setPrecomputeState('ready');
+    setPrecomputeProgress(null);
+    setReplayTotalFrames(recordedFrames.length);
+    sim.startReplay(handleReplayFrame, recordedFrames.length);
+    sim.play();
+    setIsRunning(true);
+  };
+
+  const handlePause = () => {
+    simulationControls?.pause();
+    setIsRunning(false);
+  };
+
+  const handleReset = () => {
+    const sim = simulationControlsRef.current;
+    if (!sim) return;
+
+    if (frameCacheRef.current) {
+      setIsRunning(false);
+      setGraphData(graphs.map(() => []));
+      jsonModeRef.current = 'replay';
+      setPrecomputeState('ready');
+      sim.pause();
+      sim.startReplay(handleReplayFrame, frameCacheRef.current.frames.length);
+      return;
+    }
+
+    sim.reset();
+    setIsRunning(false);
+    setGraphData(graphs.map(() => []));
+    prevVelocitiesRef.current = {};
+    prevTimeRef.current = 0;
+    setTimeout(() => {
+      controls.forEach((control) => {
+        if (control.type === 'slider') {
+          handleControlChange(control, controlValues[control.label]);
+        }
+      });
+    }, 0);
+  };
+
   return (
     <div>
       {showJsonEditor && (
@@ -585,129 +698,9 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
       <SimulationHeader
         title={title}
         description={description}
-        isRunning={isRunning}
         simulationId={simulationId}
         currentJSON={editedConfig}
         onEdit={simulationId ? handleEdit : undefined}
-        maxDuration={maxDuration}
-        onMaxDurationChange={setMaxDuration}
-        precomputeState={precomputeState}
-        precomputeProgress={precomputeProgress}
-        playbackSpeed={playbackSpeed}
-        onPlaybackSpeedChange={setPlaybackSpeed}
-        replayFrameIndex={replayFrameIndex}
-        totalFrames={replayTotalFrames}
-        onSeek={(frameIndex) => simulationControlsRef.current?.seekReplay(frameIndex)}
-        onPlay={async () => {
-          const sim = simulationControlsRef.current;
-          if (!sim) return;
-
-          // Drop selection so the edit overlay disappears once the sim starts.
-          setSelectedObjectId(null);
-
-          const currentKey = JSON.stringify({
-            controls: controlValues,
-            duration: maxDuration,
-            engine: activeEngine,
-            timestepHz: precomputeTimestepHz,
-          });
-
-          if (frameCacheRef.current && frameCacheRef.current.key === currentKey) {
-            const frames = frameCacheRef.current.frames;
-            setReplayTotalFrames(frames.length);
-            if (jsonModeRef.current !== 'replay' || replayCursorRef.current >= frames.length) {
-              setGraphData(graphs.map(() => []));
-              jsonModeRef.current = 'replay';
-              setPrecomputeState('ready');
-              sim.startReplay(handleReplayFrame, frames.length);
-            }
-            sim.play();
-            setIsRunning(true);
-            return;
-          }
-
-          frameCacheRef.current = null;
-          const totalFrames = Math.max(1, Math.round(maxDuration * 60) + 1);
-          recordingBufferRef.current = [];
-          prevVelocitiesRef.current = {};
-          prevTimeRef.current = 0;
-          setGraphData(graphs.map(() => []));
-
-          sim.reset();
-          controls.forEach((control) => {
-            if (control.type === 'slider' || control.type === 'toggle') {
-              handleControlChange(control, controlValues[control.label]);
-            }
-          });
-          jsonModeRef.current = 'precomputing';
-          setPrecomputeState('precomputing');
-          setPrecomputeProgress({ framesDone: 0, totalFrames, estimatedMsRemaining: 0 });
-          const startedAt = performance.now();
-
-          try {
-            await sim.precompute(totalFrames, (framesDone) => {
-              const elapsed = performance.now() - startedAt;
-              const estimatedTotal = framesDone > 0 ? (elapsed / framesDone) * totalFrames : 0;
-              const remaining = Math.max(0, estimatedTotal - elapsed);
-              setPrecomputeProgress({
-                framesDone,
-                totalFrames,
-                estimatedMsRemaining: remaining,
-              });
-            });
-          } catch (err) {
-            console.error('Pre-compute failed:', err);
-            jsonModeRef.current = 'idle';
-            setPrecomputeState('idle');
-            setPrecomputeProgress(null);
-            return;
-          }
-
-          const recordedFrames = recordingBufferRef.current;
-          recordingBufferRef.current = null;
-          frameCacheRef.current = { key: currentKey, frames: recordedFrames };
-
-          setGraphData(graphs.map(() => []));
-
-          jsonModeRef.current = 'replay';
-          setPrecomputeState('ready');
-          setPrecomputeProgress(null);
-          setReplayTotalFrames(recordedFrames.length);
-          sim.startReplay(handleReplayFrame, recordedFrames.length);
-          sim.play();
-          setIsRunning(true);
-        }}
-        onPause={() => {
-          simulationControls?.pause();
-          setIsRunning(false);
-        }}
-        onReset={() => {
-          const sim = simulationControlsRef.current;
-          if (!sim) return;
-
-          if (frameCacheRef.current) {
-            setIsRunning(false);
-            setGraphData(graphs.map(() => []));
-            jsonModeRef.current = 'replay';
-            setPrecomputeState('ready');
-            sim.pause();
-            sim.startReplay(handleReplayFrame, frameCacheRef.current.frames.length);
-            return;
-          }
-
-          sim.reset();
-          setIsRunning(false);
-          setGraphData(graphs.map(() => []));
-          prevVelocitiesRef.current = {};
-          prevTimeRef.current = 0;
-          setTimeout(() => {
-            controls.forEach((control) => {
-              if (control.type === 'slider') {
-                handleControlChange(control, controlValues[control.label]);
-              }
-            });
-          }, 0);
-        }}
       />
 
       <BaseSimulation
@@ -722,20 +715,39 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         onCanvasClick={handleCanvasClick}
         pickingPosition={pickingPosition}
       >
-        {/* Controls */}
-        {controls.length > 0 && (
-          <Panel title="Controls" className="col-start-1 row-start-1">
-          {controls.map((control) => (
-            <ControlRenderer
-              key={`${control.targetObj}.${control.property}`}
-              control={control}
-              value={controlValues[control.label]}
-              disabled={isRunning}
-              onChange={(value: number | boolean) => handleControlChange(control, value as number)}
+        {/* Playback + Controls */}
+        <div className="col-start-1 row-start-1 flex flex-col gap-4">
+          <Panel title="Playback">
+            <SimulationControls
+              isRunning={isRunning}
+              onPlay={handlePlay}
+              onPause={handlePause}
+              onReset={handleReset}
+              maxDuration={maxDuration}
+              onMaxDurationChange={setMaxDuration}
+              precomputeState={precomputeState}
+              precomputeProgress={precomputeProgress}
+              playbackSpeed={playbackSpeed}
+              onPlaybackSpeedChange={setPlaybackSpeed}
+              replayFrameIndex={replayFrameIndex}
+              totalFrames={replayTotalFrames}
+              onSeek={(frameIndex) => simulationControlsRef.current?.seekReplay(frameIndex)}
             />
-          ))}
-        </Panel>
-        )}
+          </Panel>
+          {controls.length > 0 && (
+            <Panel title="Controls">
+              {controls.map((control) => (
+                <ControlRenderer
+                  key={`${control.targetObj}.${control.property}`}
+                  control={control}
+                  value={controlValues[control.label]}
+                  disabled={isRunning}
+                  onChange={(value: number | boolean) => handleControlChange(control, value as number)}
+                />
+              ))}
+            </Panel>
+          )}
+        </div>
 
         {/* Scale + Import Experimental Data */}
         <div className="col-start-1 row-start-2 justify-self-end flex flex-col gap-3 items-end">
