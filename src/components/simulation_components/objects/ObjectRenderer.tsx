@@ -86,8 +86,9 @@ const ObjectRenderer = forwardRef<PhysicsBody, ObjectConfig>(function ObjectRend
         }
       }
     };
+    // ref is intentionally excluded — refs are stable callbacks/objects from the parent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adapter, id]);
+  }, [adapter, id, x, y, width, height, svg, angle, mass, isStatic]);
 
   return null;
 });

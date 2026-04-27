@@ -19,6 +19,12 @@ export interface SimulationControls {
   ) => void;
   seekReplay: (frameIndex: number) => void;
   clearReplay: () => void;
+  /**
+   * Re-capture the "initial" world snapshot used by reset(). Call after
+   * mutating object configs (e.g. user edits while paused) so subsequent
+   * reset()/precompute() use the edited state as the starting pose.
+   */
+  recaptureInitialSnapshot: () => void;
 }
 
 interface BaseSimulationProps {
@@ -324,6 +330,9 @@ function BaseSimulation({
             simulationTimeRef.current = 0;
             accumulator = 0;
             resetBodiesToInitial();
+          },
+          recaptureInitialSnapshot: () => {
+            initialSnapshotRef.current = cloneSnapshot(a.snapshot());
           },
         });
       }

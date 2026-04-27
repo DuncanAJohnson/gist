@@ -33,6 +33,10 @@ import DataDownload from './simulation_components/DataDownload';
 import ExperimentalDataModal, { type ExperimentalDataConfig, type ModalFormState, DEFAULT_MODAL_FORM_STATE } from './simulation_components/ExperimentalDataModal';
 // Render Layer
 import RenderLayer from './simulation_components/renderables/RenderLayer';
+// Edit overlay + unsaved-changes indicator
+import EditOverlay from './simulation_components/EditOverlay';
+import UnsavedChangesIndicator from './simulation_components/UnsavedChangesIndicator';
+import type { ObjectEditCommit } from '../lib/editGeometry';
 import {
   synthesizeWallRenderables,
   synthesizeBodyRenderable,
@@ -80,6 +84,20 @@ type Frame = {
 
 function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   const navigate = useNavigate();
+
+  // editedConfig is the source of truth for everything downstream — direct
+  // manipulation edits (move/resize via EditOverlay) write to this state.
+  // Resync from `config` only when simulationId changes (i.e. after navigation
+  // to a different simulation), not on every prop change, so in-flight edits
+  // aren't clobbered by upstream re-renders.
+  const [editedConfig, setEditedConfig] = useState<SimulationConfig>(config);
+  useEffect(() => {
+    setEditedConfig(config);
+    setSelectedObjectId(null);
+    setHasUnsavedChanges(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [simulationId]);
+
   const {
     title,
     description,
@@ -88,7 +106,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     controls = [],
     outputs = [],
     graphs = [],
-  } = config;
+  } = editedConfig;
 
   const pixelsPerUnit = environment.pixelsPerUnit ?? 10;
   const gravityMagnitude = environment.gravity ?? 9.8;
@@ -168,6 +186,12 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   const [simulationControls, setSimulationControls] = useState<SimulationControls | null>(null);
   const simulationControlsRef = useRef<SimulationControls | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+
+  // Click-to-edit state. Edits are drafts: they update editedConfig and physics
+  // bodies, but don't persist until the user clicks Save now in the indicator.
+  const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Session-local engine override. Resets on reload — the config's
   // environment.physicsEngine is always the starting point. Both the override
@@ -476,11 +500,67 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     setModalFormState(prev => ({ ...prev, ...update }));
   }, []);
 
+  // Apply a click-edit commit (move or resize) to editedConfig, mark unsaved,
+  // invalidate the precompute frame cache, and re-capture the world snapshot
+  // so reset()/precompute() use the edited state as the new initial pose.
+  const commitObjectEdit = useCallback(
+    (id: string, partial: ObjectEditCommit) => {
+      setEditedConfig((prev) => ({
+        ...prev,
+        objects: (prev.objects ?? []).map((o) =>
+          o.id === id ? { ...o, ...partial } : o,
+        ),
+      }));
+      setHasUnsavedChanges(true);
+      frameCacheRef.current = null;
+      recordingBufferRef.current = null;
+      prevVelocitiesRef.current = {};
+      prevTimeRef.current = 0;
+      // Wait one tick for ObjectRenderer to recreate the body with new
+      // dimensions before snapshotting.
+      setTimeout(() => {
+        simulationControlsRef.current?.recaptureInitialSnapshot();
+      }, 100);
+    },
+    [],
+  );
+
+  const handleSaveEdits = useCallback(async () => {
+    if (!simulationId) return;
+    setIsSaving(true);
+    try {
+      const newSimulationId = await createSimulation(
+        editedConfig,
+        false,
+        simulationId,
+        null,
+      );
+      setHasUnsavedChanges(false);
+      navigate(`/simulation/${newSimulationId}`);
+    } catch (error) {
+      console.error('Failed to save edited simulation:', error);
+      alert('Failed to save edited simulation. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [editedConfig, simulationId, navigate]);
+
+  const editModeActive = !isRunning && !pickingPosition;
+
+  // Drop a stale selection if the object disappears (e.g., simulationId change
+  // races, or future features that remove objects).
+  useEffect(() => {
+    if (!selectedObjectId) return;
+    if (!objects.some((o) => o.id === selectedObjectId)) {
+      setSelectedObjectId(null);
+    }
+  }, [selectedObjectId, objects]);
+
   return (
     <div>
       {showJsonEditor && (
         <JsonEditor
-          initialJSON={config}
+          initialJSON={editedConfig}
           onSave={handleSaveTweakedJSON}
           onClose={() => setShowJsonEditor(false)}
         />
@@ -507,7 +587,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         description={description}
         isRunning={isRunning}
         simulationId={simulationId}
-        currentJSON={config}
+        currentJSON={editedConfig}
         onEdit={simulationId ? handleEdit : undefined}
         maxDuration={maxDuration}
         onMaxDurationChange={setMaxDuration}
@@ -521,6 +601,9 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         onPlay={async () => {
           const sim = simulationControlsRef.current;
           if (!sim) return;
+
+          // Drop selection so the edit overlay disappears once the sim starts.
+          setSelectedObjectId(null);
 
           const currentKey = JSON.stringify({
             controls: controlValues,
@@ -785,7 +868,24 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           pixelsPerUnit={pixelsPerMeter}
           gravity={gravityVec}
         />
+        {/* Click-to-edit overlay (active only while paused) */}
+        <EditOverlay
+          canvasContainer={canvasContainer}
+          editModeActive={editModeActive}
+          editedObjects={objects}
+          selectedObjectId={selectedObjectId}
+          onSelect={setSelectedObjectId}
+          onCommitEdit={commitObjectEdit}
+          objRefs={objRefs}
+          pixelsPerMeter={pixelsPerMeter}
+          unitScale={unitScale}
+        />
       </BaseSimulation>
+      <UnsavedChangesIndicator
+        visible={hasUnsavedChanges && simulationId !== undefined}
+        saving={isSaving}
+        onSave={handleSaveEdits}
+      />
     </div>
   );
 }
