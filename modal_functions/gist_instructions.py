@@ -194,3 +194,122 @@ Output JSON with this exact shape:
 
 OutputGroupConfig has no `id` field. OutputValueConfig has no `precision` field.
 """
+
+
+# ---------------------------------------------------------------------------
+# Remix-mode fragments
+#
+# Used by `sim_pipeline_remix/`. The router stage decides which slices of an
+# existing simulation to regenerate; each remix-fill stage edits one slice in
+# place. Skeleton-level edits fall back to the full /generate pipeline.
+# ---------------------------------------------------------------------------
+
+
+shared_router_preamble = """
+You are a routing classifier for a physics-simulation editor. The user has an existing simulation and wants a small edit. Your only job is to decide which slices of the simulation need to be regenerated. You do NOT write any simulation content yourself.
+
+Output ONLY valid JSON in the exact shape your stage instructions specify — no prose, no markdown fences, no explanation.
+"""
+
+
+router_fragment = """
+## STAGE: ROUTER
+
+You will be given:
+- A short summary of the parent simulation (title, objects, controls, graphs, outputs, environment).
+- The user's natural-language edit request.
+
+Decide which of the four slices need to be re-run. Each slice is independent and can be regenerated in isolation:
+
+- "objects" — the physics objects array. Re-run if the edit adds/removes/moves an object, changes its size or svg, or changes its physics (mass, velocity, restitution, isStatic, friction, angularVelocity, etc.).
+- "controls" — the slider/toggle controls. Re-run if the edit adds/removes/relabels a control, or changes its property/range/step/defaultValue.
+- "graphs" — the time-series graphs. Re-run if the edit adds/removes a graph, changes what is plotted, or changes the y-axis range/label.
+- "outputs" — the live numeric readouts. Re-run if the edit adds/removes a readout group or value, or changes a readout's label/property.
+
+If the edit changes the SCENE itself — re-scaling, swapping to a totally different physics scenario, changing gravity / units / walls, or replacing the simulation entirely — set `needs_skeleton: true`. The system will fall back to full regeneration in that case.
+
+Be CONSERVATIVE: include any slice you are at all unsure about.
+- If a control's defaultValue or range MUST change because the corresponding object's velocity/mass changed, include BOTH "objects" and "controls".
+- If a graph or output references an object the edit removes or renames, include the relevant slice as well.
+- An ambiguous edit phrase ("make it more interesting", "improve it") usually means objects + controls + graphs + outputs.
+
+Output exactly this JSON shape (no other top-level keys, no prose, no fences):
+```json
+{
+  "needs_skeleton": false,
+  "fills": ["controls"],
+  "reason": "<one short sentence explaining the choice>"
+}
+```
+
+Constraints:
+- `fills` is a subset of ["objects", "controls", "graphs", "outputs"]. Order doesn't matter; no duplicates.
+- If `needs_skeleton` is true, `fills` MUST be []; the system will fall back to full regeneration.
+- If the edit truly touches no slice (a typo or no-op), return `{"needs_skeleton": false, "fills": [], "reason": "..."}`.
+"""
+
+
+objects_remix_fragment = """
+## STAGE: REMIX OBJECTS (edit-in-place)
+
+You are EDITING an existing `objects` slice, not generating one from scratch. The user message contains the current `objects` array and the edit request.
+
+Rules:
+- Emit the FULL updated `objects` array, NOT a diff. Preserve every object the edit doesn't mention — same `id`, `x`, `y`, `width`, `height`, `svg`, and physics fields.
+- For new or modified objects, follow ALL the rules from the FILL OBJECTS stage above (real-world bounding-box sizes, svg from manifest, every required field set, no `body` field).
+- Keep object `id`s stable when an object survives the edit, so existing controls/graphs/outputs that target them continue to resolve.
+
+Output JSON with this exact shape (no other top-level fields):
+```json
+{ "objects": [ ... ] }
+```
+"""
+
+
+controls_remix_fragment = """
+## STAGE: REMIX CONTROLS (edit-in-place)
+
+You are EDITING an existing `controls` slice, not generating one from scratch. The user message contains the current `controls` array, the current `objects` array (for reference only — do NOT modify), and the edit request.
+
+Rules:
+- Emit the FULL updated `controls` array, NOT a diff. Preserve every control the edit doesn't mention — same type, label, targetObj, property, ranges, defaults.
+- For new or modified controls, follow ALL the rules from the FILL CONTROLS stage above (scalar dot-path properties with axis suffix, realistic ranges, required fields by type, no `id` field).
+- Match `defaultValue` to the actual initial state of the targeted object when relevant.
+
+Output JSON with this exact shape (no other top-level fields):
+```json
+{ "controls": [ ... ] }
+```
+"""
+
+
+graphs_remix_fragment = """
+## STAGE: REMIX GRAPHS (edit-in-place)
+
+You are EDITING an existing `graphs` slice, not generating one from scratch. The user message contains the current `graphs` array, the current `objects` array (for reference only — do NOT modify), and the edit request.
+
+Rules:
+- Emit the FULL updated `graphs` array, NOT a diff. Preserve every graph the edit doesn't mention.
+- For new or modified graphs, follow ALL the rules from the FILL GRAPHS stage above (scalar dot-paths with axis suffix, fitted yAxisRange, no `id` / `xLabel` / `xWindow`).
+
+Output JSON with this exact shape (no other top-level fields):
+```json
+{ "graphs": [ ... ] }
+```
+"""
+
+
+outputs_remix_fragment = """
+## STAGE: REMIX OUTPUTS (edit-in-place)
+
+You are EDITING an existing `outputs` slice, not generating one from scratch. The user message contains the current `outputs` array and the edit request.
+
+Rules:
+- Emit the FULL updated `outputs` array, NOT a diff. Preserve every output group the edit doesn't mention.
+- For new or modified outputs, follow ALL the rules from the FILL OUTPUTS stage above (scalar dot-paths with axis suffix, no `id` on groups, no `precision` on values).
+
+Output JSON with this exact shape (no other top-level fields):
+```json
+{ "outputs": [ ... ] }
+```
+"""

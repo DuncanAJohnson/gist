@@ -90,12 +90,14 @@ async def _run_stage(stage: Stage, scratch: Scratch) -> None:
         len(messages),
         len(messages[0]["content"]) if messages else 0,
     )
-    response = await call_llm(
-        messages,
-        max_tokens=stage.output_budget,
-        model=stage.model,
-        provider=stage.provider,
-    )
+    llm_kwargs: dict = {
+        "max_tokens": stage.output_budget,
+        "model": stage.model,
+        "provider": stage.provider,
+    }
+    if stage.reasoning_effort is not None:
+        llm_kwargs["reasoning_effort"] = stage.reasoning_effort
+    response = await call_llm(messages, **llm_kwargs)
     logger.info(
         "stage[%s]: LLM returned %d chars in %.2fs",
         stage.name,

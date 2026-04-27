@@ -28,6 +28,9 @@ function SimulationHeader({
 }: SimulationHeaderProps) {
   const [showEditPopup, setShowEditPopup] = useState(false);
   const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
+  // True while the remix popup is mid-stream — prevents click-outside from
+  // dismissing the popup and discarding an in-flight generation.
+  const [editPopupLocked, setEditPopupLocked] = useState(false);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const feedbackButtonRef = useRef<HTMLButtonElement>(null);
@@ -75,6 +78,7 @@ function SimulationHeader({
     const handleClickOutside = (event: MouseEvent) => {
       if (
         showEditPopup &&
+        !editPopupLocked &&
         popupRef.current &&
         !popupRef.current.contains(event.target as Node) &&
         editButtonRef.current &&
@@ -97,7 +101,7 @@ function SimulationHeader({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showEditPopup, showFeedbackPopup]);
+  }, [showEditPopup, showFeedbackPopup, editPopupLocked]);
 
   const handleJSONExtracted = (json: any, userPrompt: string | null) => {
     if (onEdit) {
@@ -246,6 +250,7 @@ function SimulationHeader({
                   existingJSON={currentJSON}
                   onJSONExtracted={handleJSONExtracted}
                   onClose={() => setShowEditPopup(false)}
+                  onStreamingChange={setEditPopupLocked}
                   compact={true}
                 />
               </div>

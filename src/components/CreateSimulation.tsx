@@ -14,12 +14,16 @@ interface CreateSimulationProps {
   onJSONExtracted?: (json: any, userPrompt: string | null) => void;
   existingJSON?: any;
   compact?: boolean;
+  // Notifies the parent when streaming starts/stops so the parent can lock
+  // close-on-click-outside (or any other dismissal path) until the run ends.
+  onStreamingChange?: (streaming: boolean) => void;
 }
 
-// Total number of pipeline stages emitted by the backend (skeleton + objects + 4
-// parallel detail stages). Used to convert per-stage `done` events into a percentage.
+// Default progress denominator for the /generate pipeline (skeleton + objects
+// + 3 parallel detail stages = 6). The /remix pipeline emits a `plan` event
+// with its own dynamic stage count, which overrides this default.
 // Keep in sync with `modal_functions/sim_pipeline/__init__.py:_build_stages`.
-const TOTAL_STAGES = 6;
+const GENERATE_TOTAL_STAGES = 6;
 
 function CreateSimulation({
   isOpen,
@@ -27,6 +31,7 @@ function CreateSimulation({
   onJSONExtracted,
   existingJSON,
   compact = false,
+  onStreamingChange,
 }: CreateSimulationProps) {
   const navigate = useNavigate();
   const [input, setInput] = useState('');
@@ -39,6 +44,7 @@ function CreateSimulation({
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [provider, setProvider] = useState<AiProviderKind>(DEFAULT_PROVIDER);
   const simulationAiUrl = (import.meta as any).env.VITE_SIMULATION_AI_URL;
+  const simulationRemixUrl = (import.meta as any).env.VITE_SIMULATION_REMIX_URL;
 
   // Reset state when modal closes
   useEffect(() => {
@@ -52,6 +58,12 @@ function CreateSimulation({
       setJsonError(null);
     }
   }, [isOpen]);
+
+  // Surface streaming state to the parent so it can disable dismissal paths
+  // (click-outside, close button) while a generation/remix is in flight.
+  useEffect(() => {
+    if (onStreamingChange) onStreamingChange(isStreaming);
+  }, [isStreaming, onStreamingChange]);
 
   // Extract JSON from text. Models sometimes wrap the config in prose or
   // markdown code fences, so we strip fences first, then scan for the first
@@ -122,120 +134,201 @@ function CreateSimulation({
     }
   };
 
-  // Handle generating simulation with AI. The backend streams Server-Sent
-  // Events: per-stage `progress` events (started/done with a human label),
-  // a single `content` event carrying the assembled SimulationConfig JSON,
-  // then `done`. On failure, a single `error` event closes the stream.
+  // Stream-and-parse one SSE pipeline run. Handles the shared `progress`/
+  // `content`/`done`/`error` events plus the remix-only `plan` and `fallback`
+  // events. The caller picks the URL, payload, and starting denominator so the
+  // same helper drives both /generate and /remix.
+  const runSseStream = async (
+    url: string,
+    body: any,
+    initialTotalStages: number
+  ): Promise<{ assembledContent: string; fallbackReason: string | null; streamError: string | null }> => {
+    let totalStages = initialTotalStages;
+    let completedCount = 0;
+    let assembledContent = '';
+    let streamError: string | null = null;
+    let fallbackReason: string | null = null;
+    const inFlight = new Map<string, string>();
+    // Local progress mirror so we can ratchet — `setProgress(prev => …)` would
+    // also work, but keeping a local copy avoids any state-batching surprises.
+    let progressShown = 0;
+    const advanceProgress = (next: number) => {
+      const ratcheted = Math.max(progressShown, Math.min(95, next));
+      if (ratcheted !== progressShown) {
+        progressShown = ratcheted;
+        setProgress(ratcheted);
+      }
+    };
+
+    setProgress(0);
+    setStageLabel('Connecting…');
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    if (!response.body) {
+      throw new Error('Response has no body — streaming not supported by this transport.');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    // Read the SSE stream. Events are delimited by `\n\n`; each event is a
+    // sequence of lines, only the `data: ...` lines carry the JSON payload.
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let sepIdx;
+      while ((sepIdx = buffer.indexOf('\n\n')) >= 0) {
+        const block = buffer.slice(0, sepIdx);
+        buffer = buffer.slice(sepIdx + 2);
+        for (const line of block.split('\n')) {
+          if (!line.startsWith('data: ')) continue;
+          const dataStr = line.slice(6);
+          let event: any;
+          try {
+            event = JSON.parse(dataStr);
+          } catch {
+            console.warn('Failed to parse SSE event:', dataStr);
+            continue;
+          }
+
+          if (event.type === 'progress') {
+            const { stage, status, label } = event;
+            const display: string = label || stage;
+            if (status === 'started') {
+              inFlight.set(stage, display);
+              setStageLabel(display);
+            } else if (status === 'done') {
+              inFlight.delete(stage);
+              completedCount += 1;
+              // Cap at 95% until we receive the final content + done so the
+              // bar doesn't sit at 100% while we're still parsing.
+              advanceProgress((completedCount / Math.max(totalStages, 1)) * 100);
+              const stillRunning = Array.from(inFlight.values());
+              setStageLabel(stillRunning.length > 0
+                ? stillRunning[stillRunning.length - 1]
+                : 'Finalizing…');
+            }
+          } else if (event.type === 'plan') {
+            // Remix router has chosen the fills; size the progress bar to match
+            // the actual stage count and re-evaluate immediately so the bar
+            // doesn't sit at the conservative initial denominator.
+            const t = typeof event.total_stages === 'number' ? event.total_stages : null;
+            if (t && t > 0) {
+              totalStages = t;
+              advanceProgress((completedCount / Math.max(totalStages, 1)) * 100);
+            }
+          } else if (event.type === 'fallback') {
+            fallbackReason = (event.reason as string) || 'Falling back to full generation';
+          } else if (event.type === 'content') {
+            assembledContent += event.content || '';
+          } else if (event.type === 'done') {
+            progressShown = 100;
+            setProgress(100);
+            setStageLabel('Done');
+          } else if (event.type === 'error') {
+            streamError = event.error || 'Unknown error';
+          }
+        }
+      }
+    }
+
+    return { assembledContent, fallbackReason, streamError };
+  };
+
+  // Handle generating simulation with AI. For new sims, posts to the /generate
+  // endpoint. For remixes (existingJSON set), posts to the /remix endpoint;
+  // the router stage there picks a minimal subset of fills to re-run, and on
+  // skeleton-level edits emits a `fallback` event prompting us to re-call
+  // /generate with the legacy "edit this simulation" message format.
   const handleGenerate = async () => {
     if (!input.trim() || isStreaming) return;
 
     const userInput = input.trim();
-    const messages = existingJSON
-      ? [
-          {
-            role: 'user' as const,
-            content: `I want to edit this simulation. Current JSON: ${JSON.stringify(existingJSON, null, 2)}`,
-          },
-          {
-            role: 'user' as const,
-            content: userInput,
-          },
-        ]
-      : [
-          {
-            role: 'user' as const,
-            content: userInput,
-          },
-        ];
+    const isRemix = !!existingJSON;
+
+    if (isRemix && !simulationRemixUrl) {
+      alert('Remix endpoint is not configured (VITE_SIMULATION_REMIX_URL).');
+      return;
+    }
 
     setInput('');
     setIsStreaming(true);
-    setProgress(0);
-    setStageLabel('Connecting…');
-
-    // Stages currently in flight (started but not yet done). When parallel
-    // detail stages run, multiple entries are present; we display the most
-    // recently started one's label.
-    const inFlight = new Map<string, string>();
-    let completedCount = 0;
-    let assembledContent = '';
-    let streamError: string | null = null;
 
     try {
-      const response = await fetch(simulationAiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-        },
-        body: JSON.stringify({
-          messages: messages,
-          provider: provider,
-          model: getModelForProvider(provider),
-        }),
-      });
+      let assembledContent = '';
+      let streamError: string | null = null;
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      if (!response.body) {
-        throw new Error('Response has no body — streaming not supported by this transport.');
-      }
+      if (isRemix) {
+        // First attempt: the selective /remix endpoint. Start with a denominator
+        // that assumes the worst case (router + all 4 fills); the `plan` event
+        // narrows it once we know which fills are actually running. This keeps
+        // the bar from snapping to 95% on the router-done event when only a
+        // subset of fills will follow.
+        const remixResult = await runSseStream(
+          simulationRemixUrl,
+          {
+            messages: [{ role: 'user', content: userInput }],
+            parent_json: existingJSON,
+            provider: provider,
+            model: getModelForProvider(provider),
+          },
+          5
+        );
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      // Read the SSE stream. Events are delimited by `\n\n`; each event is a
-      // sequence of lines, only the `data: ...` lines carry the JSON payload.
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        let sepIdx;
-        while ((sepIdx = buffer.indexOf('\n\n')) >= 0) {
-          const block = buffer.slice(0, sepIdx);
-          buffer = buffer.slice(sepIdx + 2);
-          for (const line of block.split('\n')) {
-            if (!line.startsWith('data: ')) continue;
-            const dataStr = line.slice(6);
-            let event: any;
-            try {
-              event = JSON.parse(dataStr);
-            } catch {
-              console.warn('Failed to parse SSE event:', dataStr);
-              continue;
-            }
-
-            if (event.type === 'progress') {
-              const { stage, status, label } = event;
-              const display: string = label || stage;
-              if (status === 'started') {
-                inFlight.set(stage, display);
-                setStageLabel(display);
-              } else if (status === 'done') {
-                inFlight.delete(stage);
-                completedCount += 1;
-                // Cap at 95% until we receive the final content + done so the
-                // bar doesn't sit at 100% while we're still parsing.
-                setProgress(Math.min(95, (completedCount / TOTAL_STAGES) * 100));
-                const stillRunning = Array.from(inFlight.values());
-                setStageLabel(stillRunning.length > 0
-                  ? stillRunning[stillRunning.length - 1]
-                  : 'Finalizing…');
-              }
-            } else if (event.type === 'content') {
-              assembledContent += event.content || '';
-            } else if (event.type === 'done') {
-              setProgress(100);
-              setStageLabel('Done');
-            } else if (event.type === 'error') {
-              streamError = event.error || 'Unknown error';
-            }
-          }
+        if (remixResult.streamError) {
+          streamError = remixResult.streamError;
+        } else if (remixResult.fallbackReason) {
+          // Router determined the edit needs full regeneration. Re-call /generate
+          // with the legacy two-message payload so the full pipeline runs.
+          console.info('Remix fell back to full generate:', remixResult.fallbackReason);
+          setStageLabel('Re-generating from scratch…');
+          const generateResult = await runSseStream(
+            simulationAiUrl,
+            {
+              messages: [
+                {
+                  role: 'user',
+                  content: `I want to edit this simulation. Current JSON: ${JSON.stringify(existingJSON, null, 2)}`,
+                },
+                { role: 'user', content: userInput },
+              ],
+              provider: provider,
+              model: getModelForProvider(provider),
+            },
+            GENERATE_TOTAL_STAGES
+          );
+          assembledContent = generateResult.assembledContent;
+          streamError = generateResult.streamError;
+        } else {
+          assembledContent = remixResult.assembledContent;
         }
+      } else {
+        const generateResult = await runSseStream(
+          simulationAiUrl,
+          {
+            messages: [{ role: 'user', content: userInput }],
+            provider: provider,
+            model: getModelForProvider(provider),
+          },
+          GENERATE_TOTAL_STAGES
+        );
+        assembledContent = generateResult.assembledContent;
+        streamError = generateResult.streamError;
       }
 
       if (streamError) {
@@ -246,6 +339,12 @@ function CreateSimulation({
 
       const json = extractJSON(assembledContent);
       if (json) {
+        // Detect the soft no-op case in remix mode: the router decided no
+        // fills were needed, so the backend echoed the parent unchanged.
+        if (isRemix && existingJSON && JSON.stringify(json) === JSON.stringify(existingJSON)) {
+          alert('No changes needed — that edit didn\'t require any updates.');
+          return;
+        }
         setExtractedJSON(json);
         if (onJSONExtracted) {
           onJSONExtracted(json, userInput);
