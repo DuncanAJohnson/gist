@@ -5,7 +5,7 @@ import type { PhysicsAdapter, PhysicsBody, Vec2 } from '../physics/types';
 import type { PrecomputeState, PrecomputeProgress } from './simulation_components/SimulationControls';
 import Environment from './simulation_components/Environment';
 import Panel from './simulation_components/Panel';
-import Scale from './simulation_components/Scale';
+import ScaleSlider from './simulation_components/ScaleSlider';
 import SimulationHeader from './simulation_components/SimulationHeader';
 import JsonEditor from './JsonEditor';
 import AdvancedDebugPanel from './simulation_components/AdvancedDebugPanel';
@@ -38,6 +38,7 @@ import {
   synthesizeBodyRenderable,
   synthesizeForceArrowRenderable,
   synthesizeExperimentalRenderable,
+  synthesizeGridRenderable,
   buildExperimentalDataResolver,
   prepareRenderable,
 } from './simulation_components/renderables/synthesize';
@@ -94,16 +95,32 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     renderables: configRenderables = [],
   } = config;
 
-  const pixelsPerUnit = environment.pixelsPerUnit ?? 10;
+  // Config-declared zoom. The slider's session-local state initializes from
+  // here on mount and resets back to it on "Reset". Mutating the slider does
+  // NOT write back to the JSON — saved sims keep their authored zoom.
+  const configPixelsPerUnit = environment.pixelsPerUnit ?? 10;
+  const [pixelsPerUnit, setPixelsPerUnit] = useState<number>(configPixelsPerUnit);
   const gravityMagnitude = environment.gravity ?? 9.8;
 
   // SI cutover: config values are declared in `environment.unit`. Convert all
   // dimensional values (lengths, velocities, accelerations, gravity) to SI
   // meters at this boundary — everything below runs pure SI. The render layer
   // uses `pixelsPerMeter` so user-set `pixelsPerUnit` still behaves as
-  // "pixels per user unit" for Scale/overlays.
+  // "pixels per user unit" for the scale slider, the grid, and overlays.
   const unitScale = useMemo(() => unitToMeters(environment.unit ?? 'm'), [environment.unit]);
   const pixelsPerMeter = pixelsPerUnit / unitScale;
+  // Physics walls and the visual wall renderables are anchored to the JSON-
+  // declared scale, NOT the slider. Otherwise zooming would silently move
+  // collision boundaries. The slider only changes how SI projects to canvas
+  // pixels (via the live pixelsPerMeter in WorldToCanvas), so at higher zoom
+  // the walls render off-canvas and objects can travel beyond the visible
+  // edge while still being inside the simulated play area.
+  const configPixelsPerMeter = configPixelsPerUnit / unitScale;
+  // Pure render-side factor: how much bigger the visible canvas is than the
+  // JSON-declared canvas. zoomFactor = 1 at default zoom, > 1 when zoomed in.
+  // Drives the scaled canvas dimensions in BaseSimulation/RenderLayer so the
+  // wider play area is reachable via scrollbars.
+  const zoomFactor = pixelsPerUnit / configPixelsPerUnit;
   const siGravityMagnitude = gravityMagnitude * unitScale;
   const gravityVec: Vec2 = useMemo(() => ({ x: 0, y: -siGravityMagnitude }), [siGravityMagnitude]);
 
@@ -113,6 +130,10 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   );
 
   const [showJsonEditor, setShowJsonEditor] = useState(false);
+
+  // Cosmetic graph-paper grid behind the simulation. Session-local; on by
+  // default. Doesn't affect the bake cache, so toggling mid-replay is safe.
+  const [showGrid, setShowGrid] = useState<boolean>(true);
 
   // Experimental data overlay state
   const [showExperimentalModal, setShowExperimentalModal] = useState(false);
@@ -137,14 +158,19 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     const forceArrows = objects
       .filter((obj) => obj.showForceArrows)
       .map(synthesizeForceArrowRenderable);
-    const walls = synthesizeWallRenderables(environment.walls ?? [], pixelsPerMeter);
+    const walls = synthesizeWallRenderables(environment.walls ?? [], configPixelsPerMeter);
     const experimental = experimentalData
       ? [synthesizeExperimentalRenderable(experimentalData)]
       : [];
-    return [...walls, ...defaults, ...forceArrows, ...explicit, ...experimental].sort(
+    // Grid uses the user-unit pixelsPerUnit (not pixelsPerMeter) so labels
+    // read in the sim's configured unit. zIndex (-20) sorts it under walls.
+    const grid = showGrid
+      ? [synthesizeGridRenderable(pixelsPerUnit, UNIT_ABBREV[environment.unit ?? 'm'], zoomFactor)]
+      : [];
+    return [...grid, ...walls, ...defaults, ...forceArrows, ...explicit, ...experimental].sort(
       (a, b) => a.zIndex - b.zIndex
     );
-  }, [configRenderables, objects, environment.walls, experimentalData, pixelsPerMeter]);
+  }, [configRenderables, objects, environment.walls, environment.unit, experimentalData, configPixelsPerMeter, pixelsPerUnit, showGrid, zoomFactor]);
 
   const dataSources = useMemo<Record<string, DataPositionResolver>>(() => {
     if (!experimentalData) return {};
@@ -464,13 +490,19 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
   const handleCanvasClick = useCallback((canvasX: number, canvasY: number) => {
     if (!pickingPosition) return;
-    // Convert canvas pixel back to the config's user unit (not SI).
-    const w2c = new WorldToCanvas(pixelsPerUnit, CANVAS_HEIGHT, WALL_THICKNESS);
+    // Click coords arrive in scaled-canvas pixels (scrollLeft/Top already
+    // applied by BaseSimulation). Scale the canvas height and wall offset to
+    // match so fromPoint inverts correctly.
+    const w2c = new WorldToCanvas(
+      pixelsPerUnit,
+      CANVAS_HEIGHT * zoomFactor,
+      WALL_THICKNESS * zoomFactor,
+    );
     const userPos = w2c.fromPoint({ x: canvasX, y: canvasY });
     setPickedPosition(userPos);
     setPickingPosition(false);
     setShowExperimentalModal(true);
-  }, [pickingPosition, pixelsPerUnit]);
+  }, [pickingPosition, pixelsPerUnit, zoomFactor]);
 
   const handleCanvasContainerReady = useCallback((container: HTMLDivElement) => {
     setCanvasContainer(container);
@@ -667,9 +699,11 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
         {/* Scale + Import Experimental Data */}
         <div className="col-start-1 row-start-2 justify-self-end flex flex-col gap-3 items-end">
-          <Scale
-            pixelsPerUnit={pixelsPerUnit}
+          <ScaleSlider
+            value={pixelsPerUnit}
+            onChange={setPixelsPerUnit}
             unit={environment.unit ?? 'm'}
+            defaultValue={configPixelsPerUnit}
           />
           <AdvancedDebugPanel
             engine={activeEngine}
@@ -684,6 +718,8 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
             positionIterations={positionIterations}
             onPositionIterationsChange={setPositionIterations}
             positionIterationsDisabled={isRunning || precomputeState === 'precomputing'}
+            showGrid={showGrid}
+            onShowGridChange={setShowGrid}
             onTweakJSON={simulationId ? handleTweakJSON : undefined}
           />
           <button
@@ -702,11 +738,12 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           )}
         </div>
 
-        {/* Environment - SI gravity and bounds */}
+        {/* Environment - SI gravity and bounds. Walls use the JSON-declared
+            scale so they don't move when the user drags the zoom slider. */}
         <Environment
           walls={environment.walls}
           gravity={siGravityMagnitude}
-          pixelsPerUnit={pixelsPerMeter}
+          pixelsPerUnit={configPixelsPerMeter}
         />
 
         {/* Objects - pre-scaled to SI at the config boundary */}
@@ -794,6 +831,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           simulationTimeRef={simulationTimeRef}
           canvasContainer={canvasContainer}
           pixelsPerUnit={pixelsPerMeter}
+          zoomFactor={zoomFactor}
           gravity={gravityVec}
         />
       </BaseSimulation>

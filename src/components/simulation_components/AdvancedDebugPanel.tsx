@@ -15,6 +15,8 @@ interface AdvancedDebugPanelProps {
   positionIterations: number;
   onPositionIterationsChange: (iters: number) => void;
   positionIterationsDisabled: boolean;
+  showGrid: boolean;
+  onShowGridChange: (v: boolean) => void;
   onTweakJSON?: () => void;
 }
 
@@ -69,6 +71,8 @@ function AdvancedDebugPanel({
   positionIterations,
   onPositionIterationsChange,
   positionIterationsDisabled,
+  showGrid,
+  onShowGridChange,
   onTweakJSON,
 }: AdvancedDebugPanelProps) {
   const [expanded, setExpanded] = useState(false);
@@ -139,6 +143,20 @@ function AdvancedDebugPanel({
               />
             </>
           )}
+          <div className="flex items-center justify-between gap-3">
+            <span
+              className="text-xs text-gray-600"
+              title="Background graph-paper grid with axis labels in the configured unit."
+            >
+              Show grid
+            </span>
+            <input
+              type="checkbox"
+              checked={showGrid}
+              onChange={(e) => onShowGridChange(e.target.checked)}
+              className="cursor-pointer"
+            />
+          </div>
           {onTweakJSON && (
             <button
               onClick={onTweakJSON}

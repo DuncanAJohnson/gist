@@ -35,9 +35,39 @@ export interface ForceArrowVisual {
 }
 
 /**
+ * Internal background-grid visual. Graph-paper grid drawn behind the
+ * simulation. Major-line spacing is snapped to a 1/2/5×10ⁿ value in the
+ * configured user unit so the grid auto-scales with pixelsPerUnit.
+ */
+export interface BackgroundGridVisual {
+  type: 'background-grid';
+  /** Pixels per user unit — drives both line spacing and label values. */
+  pixelsPerUnit: number;
+  /** Unit suffix appended to axis labels (e.g. "m", "ft"). Empty = no suffix. */
+  unitLabel: string;
+  /** Play-area dimensions in canvas pixels, anchored at the resolved position. */
+  playWidthPx: number;
+  playHeightPx: number;
+  /** Target px between major lines; niceStep snaps to 1/2/5×10ⁿ. Default 80. */
+  targetMajorPx?: number;
+  /** Minor divisions per major. Default 5. */
+  minorPerMajor?: number;
+  majorColor?: string;
+  minorColor?: string;
+  labelColor?: string;
+  /** Show numeric axis labels along the bottom and left edges. Default true. */
+  showLabels?: boolean;
+}
+
+/**
  * All visuals RenderLayer can draw (schema visuals + internal synthesized ones).
  */
-export type PixelVisual = Visual | MarkerVisual | BodyOutlineVisual | ForceArrowVisual;
+export type PixelVisual =
+  | Visual
+  | MarkerVisual
+  | BodyOutlineVisual
+  | ForceArrowVisual
+  | BackgroundGridVisual;
 
 /**
  * A renderable prepared for RenderLayer. All numeric values in `source` and

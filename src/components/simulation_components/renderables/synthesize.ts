@@ -86,6 +86,41 @@ export function synthesizeBodyRenderable(obj: ObjectConfig): PixelRenderable {
 }
 
 /**
+ * Background-grid renderable. Anchored at the world origin (bottom-left of the
+ * play area in canvas space) and sized to fill the play area exactly. The
+ * drawer handles all niceStep math; this synthesizer just fixes the geometry.
+ *
+ * `pixelsPerUserUnit` is the user-facing px-per-unit value (the same one
+ * `Scale` displays), NOT the SI pixelsPerMeter that WorldToCanvas operates in,
+ * so labels read in the sim's configured unit.
+ *
+ * `zoomFactor` scales the play-area dimensions to match the scaled canvas
+ * when the user zooms in via the slider. At zoomFactor=1 the grid covers
+ * exactly SIMULATION_WIDTH × SIMULATION_HEIGHT canvas pixels.
+ *
+ * zIndex is set below the wall renderables (-10) so walls paint over the grid.
+ */
+export function synthesizeGridRenderable(
+  pixelsPerUserUnit: number,
+  unitLabel: string,
+  zoomFactor: number = 1,
+): PixelRenderable {
+  return {
+    id: '__background_grid',
+    source: { type: 'fixed', x: 0, y: 0, angle: 0 },
+    visual: {
+      type: 'background-grid',
+      pixelsPerUnit: pixelsPerUserUnit,
+      unitLabel,
+      playWidthPx: SIMULATION_WIDTH * zoomFactor,
+      playHeightPx: SIMULATION_HEIGHT * zoomFactor,
+    },
+    opacity: 1,
+    zIndex: -20,
+  };
+}
+
+/**
  * Force-arrow renderable for a physics object with showForceArrows enabled.
  */
 export function synthesizeForceArrowRenderable(obj: ObjectConfig): PixelRenderable {
