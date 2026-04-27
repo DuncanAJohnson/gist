@@ -21,25 +21,44 @@ const SCALE_MAX = 40;
  * environment.pixelsPerUnit in the JSON instead; the slider is purely visual.
  */
 function ScaleSlider({ value, onChange, unit, defaultValue }: ScaleSliderProps) {
-  const [minBound, setMinBound] = useState<number>(defaultValue);
-  const [maxBound, setMaxBound] = useState<number>(Math.max(SCALE_MAX, defaultValue));
+  const initialMin = defaultValue;
+  const initialMax = Math.max(SCALE_MAX, defaultValue);
 
-  // Keep `value` inside the active bounds. Snapping to the nearest edge is
-  // less surprising than letting the slider thumb sit at a number it can't
-  // actually slide back to.
-  useEffect(() => {
-    if (value < minBound) onChange(minBound);
-    else if (value > maxBound) onChange(maxBound);
-  }, [minBound, maxBound, value, onChange]);
+  const [minBound, setMinBound] = useState<number>(initialMin);
+  const [maxBound, setMaxBound] = useState<number>(initialMax);
 
-  const unitLabel = UNIT_ABBREV[unit];
-  // Floor the slider at defaultValue so zooming out never shrinks the play
-  // area inside the canvas (which would leave empty space around it). Users
-  // who want a larger world should edit environment.pixelsPerUnit in the JSON.
-  // The min text-input still accepts smaller values for transparency, but
-  // the slider itself won't honor them.
+  // Draft strings hold what's typed; bounds only commit on blur or Enter.
+  // Per-keystroke commits would let intermediate values like "0" (while
+  // typing "20") drive the canvas to zero size mid-edit.
+  const [minDraft, setMinDraft] = useState<string>(String(initialMin));
+  const [maxDraft, setMaxDraft] = useState<string>(String(initialMax));
+
+  const commitMin = () => {
+    const n = Number(minDraft);
+    if (Number.isFinite(n) && n > 0) setMinBound(n);
+    else setMinDraft(String(minBound));
+  };
+  const commitMax = () => {
+    const n = Number(maxDraft);
+    if (Number.isFinite(n) && n > 0) setMaxBound(n);
+    else setMaxDraft(String(maxBound));
+  };
+
+  // Slider effective range. safeMin floors at defaultValue so zooming out
+  // never shrinks the play area inside the canvas; safeMax keeps the upper
+  // edge sensible even if the user typed something silly.
   const safeMin = Math.max(defaultValue, Math.min(minBound, maxBound));
   const safeMax = Math.max(safeMin, maxBound);
+
+  // Snap value into the active SAFE range when bounds change. Using safeMin/
+  // safeMax (not raw minBound/maxBound) prevents a stray maxBound below the
+  // floor from pulling the canvas down to a sub-default zoom.
+  useEffect(() => {
+    if (value < safeMin) onChange(safeMin);
+    else if (value > safeMax) onChange(safeMax);
+  }, [safeMin, safeMax, value, onChange]);
+
+  const unitLabel = UNIT_ABBREV[unit];
 
   return (
     <div className="flex flex-col gap-1.5 px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-md w-[220px]">
@@ -65,11 +84,12 @@ function ScaleSlider({ value, onChange, unit, defaultValue }: ScaleSliderProps) 
           min
           <input
             type="number"
-            value={minBound}
+            value={minDraft}
             min={1}
-            onChange={(e) => {
-              const n = Number(e.target.value);
-              if (Number.isFinite(n) && n > 0) setMinBound(n);
+            onChange={(e) => setMinDraft(e.target.value)}
+            onBlur={commitMin}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
             }}
             className="w-12 border border-gray-300 rounded px-1 py-0.5 text-right text-gray-700"
           />
@@ -78,11 +98,12 @@ function ScaleSlider({ value, onChange, unit, defaultValue }: ScaleSliderProps) 
           max
           <input
             type="number"
-            value={maxBound}
+            value={maxDraft}
             min={1}
-            onChange={(e) => {
-              const n = Number(e.target.value);
-              if (Number.isFinite(n) && n > 0) setMaxBound(n);
+            onChange={(e) => setMaxDraft(e.target.value)}
+            onBlur={commitMax}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
             }}
             className="w-12 border border-gray-300 rounded px-1 py-0.5 text-right text-gray-700"
           />

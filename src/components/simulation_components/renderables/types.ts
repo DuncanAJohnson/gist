@@ -111,6 +111,10 @@ export interface DrawContext {
   w2c: WorldToCanvas;
   /** SI gravity (m/s²), used by force-arrow visuals. */
   gravity: Vec2;
+  /** Visible portion of the canvas inside its scrollable container, in
+   * canvas pixels. Used by visuals that pin to the viewport (e.g. axis
+   * labels) so they stay in view when the user scrolls a zoomed canvas. */
+  viewport: { left: number; top: number; width: number; height: number };
 }
 
 export type VisualDrawFn = (drawCtx: DrawContext, visual: PixelVisual) => void;

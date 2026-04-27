@@ -38,11 +38,13 @@ function RenderLayer({
   const pixelsPerUnitRef = useRef(pixelsPerUnit);
   const zoomFactorRef = useRef(zoomFactor);
   const gravityRef = useRef(gravity);
+  const containerRef = useRef(canvasContainer);
   renderablesRef.current = renderables;
   dataSourcesRef.current = dataSources;
   pixelsPerUnitRef.current = pixelsPerUnit;
   zoomFactorRef.current = zoomFactor;
   gravityRef.current = gravity;
+  containerRef.current = canvasContainer;
 
   // Mount an overlay canvas inside the BaseSimulation container. Initial
   // dimensions read from the zoomFactor ref so a remount mid-zoom (e.g. engine
@@ -96,6 +98,18 @@ function RenderLayer({
             ch,
             WALL_THICKNESS * zoomFactorRef.current,
           );
+          // Visible portion of the (possibly larger) canvas inside its
+          // scrollable parent. Read each frame so visuals that anchor to the
+          // viewport (axis labels) track the user's scroll position.
+          const container = containerRef.current;
+          const viewport = container
+            ? {
+                left: container.scrollLeft,
+                top: container.scrollTop,
+                width: container.clientWidth,
+                height: container.clientHeight,
+              }
+            : { left: 0, top: 0, width: cw, height: ch };
           const resolveCtx = {
             objRefs: objRefs.current ?? {},
             dataSources: dataSourcesRef.current,
@@ -116,6 +130,7 @@ function RenderLayer({
                 opacity: r.opacity,
                 w2c,
                 gravity: gravityRef.current,
+                viewport,
               },
               r.visual
             );

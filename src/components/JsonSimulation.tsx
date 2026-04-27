@@ -508,6 +508,118 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     setCanvasContainer(container);
   }, []);
 
+  // Wheel + Ctrl/Cmd zooms (and trackpad pinch — browsers synthesize ctrlKey
+  // on pinch). Plain wheel falls through to the container's overflow:auto so
+  // the user can pan a zoomed canvas with regular scroll. Pinning the world
+  // point under the cursor keeps the gesture feeling like "zoom into here"
+  // rather than "rescale around the top-left corner".
+  const pendingScrollRef = useRef<{ left: number; top: number } | null>(null);
+
+  // Float accumulator. The visible pixelsPerUnit is integer (slider step = 1),
+  // but trackpad pinch sends tiny per-event deltas (deltaY ≈ 2-5) that round
+  // to no change every time and never visibly zoom. Accumulating in a float
+  // ref lets small deltas eventually cross an integer boundary.
+  const floatValueRef = useRef<number>(configPixelsPerUnit);
+
+  // Resync the float accumulator whenever pixelsPerUnit changes by a non-
+  // wheel route (slider drag, Reset button, JSON tweak). Keeping the float
+  // in sync prevents a stale accumulator from making the next pinch jump
+  // back to a previous zoom level.
+  useEffect(() => {
+    if (Math.round(floatValueRef.current) !== pixelsPerUnit) {
+      floatValueRef.current = pixelsPerUnit;
+    }
+  }, [pixelsPerUnit]);
+
+  useEffect(() => {
+    if (!canvasContainer) return;
+
+    // Shared zoom application. multiplier is the ratio to multiply the float
+    // accumulator by; cursor coords are container-relative pixels (the
+    // visible position of the cursor inside the scrollable wrapper).
+    const applyZoom = (
+      multiplier: number,
+      cursorContainerX: number,
+      cursorContainerY: number,
+    ) => {
+      const cursorCanvasX = cursorContainerX + canvasContainer.scrollLeft;
+      const cursorCanvasY = cursorContainerY + canvasContainer.scrollTop;
+      setPixelsPerUnit((current) => {
+        floatValueRef.current = floatValueRef.current * multiplier;
+        // Floor the float at configPixelsPerUnit too, not just the integer
+        // result — otherwise repeated zoom-out at the floor would build up a
+        // hidden "debt" the user must zoom-in past before anything visible
+        // happens.
+        if (floatValueRef.current < configPixelsPerUnit) {
+          floatValueRef.current = configPixelsPerUnit;
+        }
+        const next = Math.round(floatValueRef.current);
+        if (next === current) return current;
+        const ratio = next / current;
+        pendingScrollRef.current = {
+          left: cursorCanvasX * ratio - cursorContainerX,
+          top: cursorCanvasY * ratio - cursorContainerY,
+        };
+        return next;
+      });
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (e.deltaY === 0) return;
+      e.preventDefault();
+      const rect = canvasContainer.getBoundingClientRect();
+      // 0.9985^deltaY: roughly constant perceptual zoom rate per delta. Tiny
+      // trackpad ticks accumulate via the float ref; mouse-notch deltaY≈100
+      // moves about 14% per click.
+      const multiplier = Math.pow(0.9985, e.deltaY);
+      applyZoom(multiplier, e.clientX - rect.left, e.clientY - rect.top);
+    };
+
+    // Safari fires its own gesturestart/gesturechange/gestureend for trackpad
+    // pinch instead of (or in addition to) wheel events. e.scale is the
+    // cumulative pinch ratio since gesturestart, so we track lastScale and
+    // apply only the incremental ratio per change event.
+    let lastScale = 1;
+    let gestureCursorX = 0;
+    let gestureCursorY = 0;
+    const onGestureStart = (e: Event & { clientX: number; clientY: number; scale?: number }) => {
+      e.preventDefault();
+      lastScale = 1;
+      const rect = canvasContainer.getBoundingClientRect();
+      gestureCursorX = e.clientX - rect.left;
+      gestureCursorY = e.clientY - rect.top;
+    };
+    const onGestureChange = (e: Event & { scale?: number }) => {
+      e.preventDefault();
+      const scale = e.scale ?? 1;
+      const multiplier = scale / lastScale;
+      lastScale = scale;
+      applyZoom(multiplier, gestureCursorX, gestureCursorY);
+    };
+
+    // passive:false so we can preventDefault — without it, Ctrl+wheel and
+    // gesture events would also trigger the browser's page zoom.
+    canvasContainer.addEventListener('wheel', onWheel, { passive: false });
+    canvasContainer.addEventListener('gesturestart', onGestureStart as EventListener, { passive: false });
+    canvasContainer.addEventListener('gesturechange', onGestureChange as EventListener, { passive: false });
+    return () => {
+      canvasContainer.removeEventListener('wheel', onWheel);
+      canvasContainer.removeEventListener('gesturestart', onGestureStart as EventListener);
+      canvasContainer.removeEventListener('gesturechange', onGestureChange as EventListener);
+    };
+  }, [canvasContainer, configPixelsPerUnit]);
+
+  // Apply the wheel-zoom's "pin cursor" scroll AFTER the canvas has resized
+  // (RenderLayer's child effect fires before this parent effect). Setting
+  // scrollLeft before the buffer grew would clamp it to the old scroll range.
+  useEffect(() => {
+    if (!canvasContainer || !pendingScrollRef.current) return;
+    canvasContainer.scrollLeft = pendingScrollRef.current.left;
+    canvasContainer.scrollTop = pendingScrollRef.current.top;
+    pendingScrollRef.current = null;
+  }, [pixelsPerUnit, canvasContainer]);
+
   const handleExperimentalConfirm = useCallback((config: ExperimentalDataConfig) => {
     setExperimentalData(config);
     setShowExperimentalModal(false);

@@ -100,6 +100,7 @@ function drawBackgroundGrid(drawCtx: DrawContext, visual: PixelVisual) {
       right,
       top,
       bottom,
+      drawCtx.viewport,
     );
   }
 
@@ -148,10 +149,13 @@ function drawGridLines(
 }
 
 /**
- * Numeric axis labels along the bottom and left edges of the play area.
- * X-labels sit just above the bottom edge; Y-labels just right of the left
- * edge. The Y k=0 label is skipped because the X k=0 label already labels the
- * origin.
+ * Numeric axis labels anchored to the visible portion of the play area —
+ * i.e. (play area) ∩ (viewport). X-labels sit just above the visible bottom
+ * edge; Y-labels just right of the visible left edge. As the user scrolls a
+ * zoomed canvas, labels stay pinned to the visible corner and their *values*
+ * update to reflect whatever world coordinates that corner now shows. The Y
+ * k=0 label is skipped because X k=0 already labels the origin when both
+ * axes' zero lines are visible together.
  */
 function drawAxisLabels(
   ctx: CanvasRenderingContext2D,
@@ -165,25 +169,34 @@ function drawAxisLabels(
   right: number,
   top: number,
   bottom: number,
+  viewport: { left: number; top: number; width: number; height: number },
 ) {
+  // Intersection of play area and viewport in canvas pixels. Labels live on
+  // these edges so they track scroll position without ever drifting outside
+  // the play area.
+  const visLeft = Math.max(left, viewport.left);
+  const visRight = Math.min(right, viewport.left + viewport.width);
+  const visTop = Math.max(top, viewport.top);
+  const visBottom = Math.min(bottom, viewport.top + viewport.height);
+
   ctx.textAlign = 'left';
   ctx.textBaseline = 'bottom';
-  const minKx = Math.ceil((left - ox) / majorPx);
-  const maxKx = Math.floor((right - ox) / majorPx);
+  const minKx = Math.ceil((visLeft - ox) / majorPx);
+  const maxKx = Math.floor((visRight - ox) / majorPx);
   for (let k = minKx; k <= maxKx; k++) {
     const x = ox + k * majorPx;
     const value = k * majorUserStep;
-    ctx.fillText(formatLabel(value, decimals, unitLabel), x + LABEL_PAD, bottom - LABEL_PAD);
+    ctx.fillText(formatLabel(value, decimals, unitLabel), x + LABEL_PAD, visBottom - LABEL_PAD);
   }
 
   ctx.textBaseline = 'middle';
-  const minKy = Math.ceil((oy - bottom) / majorPx);
-  const maxKy = Math.floor((oy - top) / majorPx);
+  const minKy = Math.ceil((oy - visBottom) / majorPx);
+  const maxKy = Math.floor((oy - visTop) / majorPx);
   for (let k = minKy; k <= maxKy; k++) {
     if (k === 0) continue;
     const y = oy - k * majorPx;
     const value = k * majorUserStep;
-    ctx.fillText(formatLabel(value, decimals, unitLabel), left + LABEL_PAD, y);
+    ctx.fillText(formatLabel(value, decimals, unitLabel), visLeft + LABEL_PAD, y);
   }
 }
 
