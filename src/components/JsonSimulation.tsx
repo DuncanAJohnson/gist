@@ -510,9 +510,25 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     setModalFormState(prev => ({ ...prev, ...update }));
   }, []);
 
+  // Set true on each edit commit, cleared when the next sim.reset() flushes
+  // the recapture. We can't recapture inside commitObjectEdit (the body hasn't
+  // been rebuilt yet) and effect-ordering against ObjectRenderer's body
+  // rebuild isn't reliable enough — but by the time the user can next click
+  // Play or Reset, ObjectRenderer's effect from the commit has definitely
+  // fired, so flushing on those user actions is race-free.
+  const pendingRecaptureRef = useRef(false);
+
+  const flushPendingRecapture = useCallback(() => {
+    if (pendingRecaptureRef.current) {
+      simulationControlsRef.current?.recaptureInitialSnapshot();
+      pendingRecaptureRef.current = false;
+    }
+  }, []);
+
   // Apply a click-edit commit (move or resize) to editedConfig, mark unsaved,
-  // invalidate the precompute frame cache, and re-capture the world snapshot
-  // so reset()/precompute() use the edited state as the new initial pose.
+  // and invalidate the precompute frame cache. The world snapshot will be
+  // re-captured before the next sim.reset() (see flushPendingRecapture),
+  // which uses the rebuilt body's new pose as the initial state.
   const commitObjectEdit = useCallback(
     (id: string, partial: ObjectEditCommit) => {
       setEditedConfig((prev) => ({
@@ -526,11 +542,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
       recordingBufferRef.current = null;
       prevVelocitiesRef.current = {};
       prevTimeRef.current = 0;
-      // Wait one tick for ObjectRenderer to recreate the body with new
-      // dimensions before snapshotting.
-      setTimeout(() => {
-        simulationControlsRef.current?.recaptureInitialSnapshot();
-      }, 100);
+      pendingRecaptureRef.current = true;
     },
     [],
   );
@@ -612,6 +624,10 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     prevTimeRef.current = 0;
     setGraphData(graphs.map(() => []));
 
+    // Bake any pending edits into the initial snapshot before the reset
+    // restores from it; otherwise sim.reset() teleports bodies back to the
+    // pre-edit pose and precompute records the wrong trajectory.
+    flushPendingRecapture();
     sim.reset();
     controls.forEach((control) => {
       if (control.type === 'slider' || control.type === 'toggle') {
@@ -677,6 +693,8 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
       return;
     }
 
+    // Apply edits to the initial snapshot before restoring from it.
+    flushPendingRecapture();
     sim.reset();
     setIsRunning(false);
     setSimIsDirty(false);
