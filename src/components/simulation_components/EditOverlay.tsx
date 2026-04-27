@@ -25,10 +25,22 @@ import {
 interface EditOverlayProps {
   canvasContainer: HTMLDivElement | null;
   editModeActive: boolean;
+  /**
+   * When true and editModeActive is false, body clicks bubble up via
+   * onResetPromptRequested instead of selecting/editing — used to surface a
+   * "reset the sim to move objects" prompt while running or paused mid-sim.
+   */
+  clickShowsResetPrompt: boolean;
   editedObjects: ObjectConfig[];
   selectedObjectId: string | null;
   onSelect: (id: string | null) => void;
   onCommitEdit: (id: string, partial: ObjectEditCommit) => void;
+  /**
+   * Called when the user clicks an object body while editing is locked. The
+   * overlay reports viewport (page) coordinates so a popup can be positioned
+   * next to the click.
+   */
+  onResetPromptRequested?: (clientX: number, clientY: number) => void;
   objRefs: RefObject<Record<string, PhysicsBody>>;
   pixelsPerMeter: number;
   unitScale: number;
@@ -46,10 +58,12 @@ function isCircleObject(svg: string): boolean {
 function EditOverlay({
   canvasContainer,
   editModeActive,
+  clickShowsResetPrompt,
   editedObjects,
   selectedObjectId,
   onSelect,
   onCommitEdit,
+  onResetPromptRequested,
   objRefs,
   pixelsPerMeter,
   unitScale,
@@ -60,17 +74,21 @@ function EditOverlay({
 
   // Live-pointer refs so the rAF loop and event handlers always see fresh values.
   const editModeActiveRef = useRef(editModeActive);
+  const clickShowsResetPromptRef = useRef(clickShowsResetPrompt);
   const editedObjectsRef = useRef(editedObjects);
   const selectedObjectIdRef = useRef(selectedObjectId);
   const onSelectRef = useRef(onSelect);
   const onCommitEditRef = useRef(onCommitEdit);
+  const onResetPromptRequestedRef = useRef(onResetPromptRequested);
   const pixelsPerMeterRef = useRef(pixelsPerMeter);
   const unitScaleRef = useRef(unitScale);
   editModeActiveRef.current = editModeActive;
+  clickShowsResetPromptRef.current = clickShowsResetPrompt;
   editedObjectsRef.current = editedObjects;
   selectedObjectIdRef.current = selectedObjectId;
   onSelectRef.current = onSelect;
   onCommitEditRef.current = onCommitEdit;
+  onResetPromptRequestedRef.current = onResetPromptRequested;
   pixelsPerMeterRef.current = pixelsPerMeter;
   unitScaleRef.current = unitScale;
 
@@ -95,16 +113,20 @@ function EditOverlay({
     };
   }, [canvasContainer]);
 
-  // Toggle pointer-events based on edit mode.
+  // Toggle pointer-events: capture clicks both for edit mode and for the
+  // "click while running/dirty → show reset prompt" affordance.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    canvas.style.pointerEvents = editModeActive ? 'auto' : 'none';
+    const interactive = editModeActive || clickShowsResetPrompt;
+    canvas.style.pointerEvents = interactive ? 'auto' : 'none';
     if (!editModeActive) {
-      canvas.style.cursor = 'default';
       dragStateRef.current = { kind: 'idle' };
     }
-  }, [editModeActive]);
+    if (!interactive) {
+      canvas.style.cursor = 'default';
+    }
+  }, [editModeActive, clickShowsResetPrompt]);
 
   // Pointer event handlers.
   useEffect(() => {
@@ -128,12 +150,35 @@ function EditOverlay({
       editedObjectsRef.current.find((o) => o.id === id);
 
     const onPointerDown = (e: PointerEvent) => {
-      if (!editModeActiveRef.current) return;
       if (e.button !== 0) return;
       const p = getPointer(e);
       lastPointerRef.current = p;
       const w2c = buildW2C();
       const unit = unitScaleRef.current;
+
+      // Editing is locked (sim running or paused mid-sim) — if a body was
+      // clicked, hand the viewport-space click coords up so a "reset to edit"
+      // prompt can appear.
+      if (!editModeActiveRef.current) {
+        if (!clickShowsResetPromptRef.current) return;
+        const objects = editedObjectsRef.current;
+        for (let i = objects.length - 1; i >= 0; i--) {
+          // Use live body position (the sim may be moving) rather than the
+          // static editedConfig position so hit-tests track what the user sees.
+          const obj = objects[i];
+          const body = objRefs.current?.[obj.id];
+          const liveObj: ObjectConfig = body
+            ? { ...obj, x: body.position.x / unit, y: body.position.y / unit }
+            : obj;
+          const aabb = getObjectAABBPx(liveObj, w2c, unit);
+          if (hitBody(p, aabb)) {
+            onResetPromptRequestedRef.current?.(e.clientX, e.clientY);
+            e.preventDefault();
+            return;
+          }
+        }
+        return;
+      }
 
       const selId = selectedObjectIdRef.current;
       if (selId) {
@@ -201,12 +246,32 @@ function EditOverlay({
     };
 
     const onPointerMove = (e: PointerEvent) => {
-      if (!editModeActiveRef.current) return;
       const p = getPointer(e);
       lastPointerRef.current = p;
       const state = dragStateRef.current;
       const w2c = buildW2C();
       const unit = unitScaleRef.current;
+
+      if (!editModeActiveRef.current) {
+        // Hint that bodies are clickable; clicking will trigger the reset prompt.
+        if (clickShowsResetPromptRef.current) {
+          let cursor = 'default';
+          const objects = editedObjectsRef.current;
+          for (let i = objects.length - 1; i >= 0; i--) {
+            const obj = objects[i];
+            const body = objRefs.current?.[obj.id];
+            const liveObj: ObjectConfig = body
+              ? { ...obj, x: body.position.x / unit, y: body.position.y / unit }
+              : obj;
+            if (hitBody(p, getObjectAABBPx(liveObj, w2c, unit))) {
+              cursor = 'pointer';
+              break;
+            }
+          }
+          canvas.style.cursor = cursor;
+        }
+        return;
+      }
 
       if (state.kind === 'dragging-body') {
         const body = objRefs.current?.[state.id];

@@ -95,6 +95,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     setEditedConfig(config);
     setSelectedObjectId(null);
     setHasUnsavedChanges(false);
+    setSimIsDirty(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [simulationId]);
 
@@ -192,6 +193,15 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // True once the sim has been advanced (play started) since last reset. While
+  // dirty we lock object editing — the user must reset first so edits apply
+  // to a clean initial state, not mid-sim positions.
+  const [simIsDirty, setSimIsDirty] = useState(false);
+
+  // Popup shown when the user clicks an object while editing is locked. Stores
+  // viewport coords so the bubble can be positioned next to the click.
+  const [resetPromptAt, setResetPromptAt] = useState<{ x: number; y: number } | null>(null);
 
   // Session-local engine override. Resets on reload — the config's
   // environment.physicsEngine is always the starting point. Both the override
@@ -545,7 +555,10 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     }
   }, [editedConfig, simulationId, navigate]);
 
-  const editModeActive = !isRunning && !pickingPosition;
+  // Edit mode is only active when the sim is fully at rest at its initial
+  // pose: not running, not picking experimental position, and not dirty from a
+  // previous play that hasn't been reset yet.
+  const editModeActive = !isRunning && !pickingPosition && !simIsDirty;
 
   // Drop a stale selection if the object disappears (e.g., simulationId change
   // races, or future features that remove objects).
@@ -556,12 +569,20 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     }
   }, [selectedObjectId, objects]);
 
+  // Dismiss the "reset to edit" prompt automatically once editing is allowed
+  // again (e.g. user reset the sim from the header controls).
+  useEffect(() => {
+    if (editModeActive && resetPromptAt) setResetPromptAt(null);
+  }, [editModeActive, resetPromptAt]);
+
   const handlePlay = async () => {
     const sim = simulationControlsRef.current;
     if (!sim) return;
 
-    // Drop selection so the edit overlay disappears once the sim starts.
+    // Drop selection so the edit overlay disappears once the sim starts; and
+    // mark dirty so editing stays locked until the user resets.
     setSelectedObjectId(null);
+    setSimIsDirty(true);
 
     const currentKey = JSON.stringify({
       controls: controlValues,
@@ -647,6 +668,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
     if (frameCacheRef.current) {
       setIsRunning(false);
+      setSimIsDirty(false);
       setGraphData(graphs.map(() => []));
       jsonModeRef.current = 'replay';
       setPrecomputeState('ready');
@@ -657,6 +679,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
     sim.reset();
     setIsRunning(false);
+    setSimIsDirty(false);
     setGraphData(graphs.map(() => []));
     prevVelocitiesRef.current = {};
     prevTimeRef.current = 0;
@@ -884,15 +907,55 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         <EditOverlay
           canvasContainer={canvasContainer}
           editModeActive={editModeActive}
+          clickShowsResetPrompt={!editModeActive && !pickingPosition && (isRunning || simIsDirty)}
           editedObjects={objects}
           selectedObjectId={selectedObjectId}
           onSelect={setSelectedObjectId}
           onCommitEdit={commitObjectEdit}
+          onResetPromptRequested={(clientX, clientY) =>
+            setResetPromptAt({ x: clientX, y: clientY })
+          }
           objRefs={objRefs}
           pixelsPerMeter={pixelsPerMeter}
           unitScale={unitScale}
         />
       </BaseSimulation>
+      {resetPromptAt && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setResetPromptAt(null)}
+          />
+          <div
+            className="fixed z-50 bg-white rounded-lg shadow-lg border border-slate-200 px-4 py-3 max-w-xs"
+            style={{
+              left: Math.min(resetPromptAt.x + 12, window.innerWidth - 280),
+              top: Math.min(resetPromptAt.y + 12, window.innerHeight - 120),
+            }}
+          >
+            <p className="text-sm text-slate-700 mb-2">
+              You have to reset the sim to move objects around.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setResetPromptAt(null)}
+                className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setResetPromptAt(null);
+                  handleReset();
+                }}
+                className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+              >
+                Reset now
+              </button>
+            </div>
+          </div>
+        </>
+      )}
       <UnsavedChangesIndicator
         visible={hasUnsavedChanges && simulationId !== undefined}
         saving={isSaving}
