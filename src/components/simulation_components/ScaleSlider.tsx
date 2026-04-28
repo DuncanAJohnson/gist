@@ -9,20 +9,19 @@ interface ScaleSliderProps {
   defaultValue: number;
 }
 
-const SCALE_MAX = 40;
-
 /**
  * Session-local zoom slider. Drives the render scale (pixels per user unit)
  * without mutating environment.pixelsPerUnit on the persisted config.
  *
- * The slider's range defaults to [defaultValue, max(SCALE_MAX, defaultValue)]
- * — zoom-IN only — but the min/max number inputs let the user widen the range
- * if they really want to. To make the simulated world itself larger, edit
- * environment.pixelsPerUnit in the JSON instead; the slider is purely visual.
+ * The slider's range defaults to [defaultValue, defaultValue * 10] — zoom-IN
+ * only, up to 10x — but the min/max number inputs let the user widen the
+ * range if they really want to. To make the simulated world itself larger,
+ * edit environment.pixelsPerUnit in the JSON instead; the slider is purely
+ * visual.
  */
 function ScaleSlider({ value, onChange, unit, defaultValue }: ScaleSliderProps) {
   const initialMin = defaultValue;
-  const initialMax = Math.max(SCALE_MAX, defaultValue);
+  const initialMax = defaultValue * 10;
 
   const [minBound, setMinBound] = useState<number>(initialMin);
   const [maxBound, setMaxBound] = useState<number>(initialMax);
