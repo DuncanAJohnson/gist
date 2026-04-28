@@ -14,6 +14,9 @@ interface RenderLayerProps {
   simulationTimeRef: RefObject<number>;
   canvasContainer: HTMLDivElement | null;
   pixelsPerUnit: number;
+  /** Render-side zoom (live pixelsPerUnit / configPixelsPerUnit). The canvas
+   * buffer scales by this; physics is unaffected. Defaults to 1. */
+  zoomFactor?: number;
   gravity: Vec2;
 }
 
@@ -24,6 +27,7 @@ function RenderLayer({
   simulationTimeRef,
   canvasContainer,
   pixelsPerUnit,
+  zoomFactor = 1,
   gravity,
 }: RenderLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -32,18 +36,24 @@ function RenderLayer({
   const renderablesRef = useRef(renderables);
   const dataSourcesRef = useRef(dataSources);
   const pixelsPerUnitRef = useRef(pixelsPerUnit);
+  const zoomFactorRef = useRef(zoomFactor);
   const gravityRef = useRef(gravity);
+  const containerRef = useRef(canvasContainer);
   renderablesRef.current = renderables;
   dataSourcesRef.current = dataSources;
   pixelsPerUnitRef.current = pixelsPerUnit;
+  zoomFactorRef.current = zoomFactor;
   gravityRef.current = gravity;
+  containerRef.current = canvasContainer;
 
-  // Mount an overlay canvas inside the BaseSimulation container.
+  // Mount an overlay canvas inside the BaseSimulation container. Initial
+  // dimensions read from the zoomFactor ref so a remount mid-zoom (e.g. engine
+  // switch) doesn't briefly snap back to default size.
   useEffect(() => {
     if (!canvasContainer) return;
     const canvas = document.createElement('canvas');
-    canvas.width = CANVAS_WIDTH;
-    canvas.height = CANVAS_HEIGHT;
+    canvas.width = CANVAS_WIDTH * zoomFactorRef.current;
+    canvas.height = CANVAS_HEIGHT * zoomFactorRef.current;
     canvas.style.position = 'absolute';
     canvas.style.top = '0';
     canvas.style.left = '0';
@@ -58,6 +68,16 @@ function RenderLayer({
     };
   }, [canvasContainer]);
 
+  // Resize the canvas buffer when the zoom slider moves. Setting width/height
+  // attributes clears the buffer; the next rAF tick repaints, so a single
+  // dropped frame is the only visible artifact.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.width = CANVAS_WIDTH * zoomFactor;
+    canvas.height = CANVAS_HEIGHT * zoomFactor;
+  }, [zoomFactor]);
+
   // rAF draw loop: always redraw at browser frame rate, reading live physics state.
   useEffect(() => {
     let rafId: number;
@@ -67,15 +87,29 @@ function RenderLayer({
       if (canvas) {
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          const cw = canvas.width;
+          const ch = canvas.height;
+          ctx.clearRect(0, 0, cw, ch);
           ctx.fillStyle = '#fafafa';
-          ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          ctx.fillRect(0, 0, cw, ch);
 
           const w2c = new WorldToCanvas(
             pixelsPerUnitRef.current,
-            CANVAS_HEIGHT,
-            WALL_THICKNESS,
+            ch,
+            WALL_THICKNESS * zoomFactorRef.current,
           );
+          // Visible portion of the (possibly larger) canvas inside its
+          // scrollable parent. Read each frame so visuals that anchor to the
+          // viewport (axis labels) track the user's scroll position.
+          const container = containerRef.current;
+          const viewport = container
+            ? {
+                left: container.scrollLeft,
+                top: container.scrollTop,
+                width: container.clientWidth,
+                height: container.clientHeight,
+              }
+            : { left: 0, top: 0, width: cw, height: ch };
           const resolveCtx = {
             objRefs: objRefs.current ?? {},
             dataSources: dataSourcesRef.current,
@@ -96,6 +130,7 @@ function RenderLayer({
                 opacity: r.opacity,
                 w2c,
                 gravity: gravityRef.current,
+                viewport,
               },
               r.visual
             );

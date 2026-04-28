@@ -359,8 +359,11 @@ function BaseSimulation({
     const container = sceneRef.current;
     const handleClick = (e: MouseEvent) => {
       const rect = container.getBoundingClientRect();
-      const canvasX = e.clientX - rect.left;
-      const canvasY = e.clientY - rect.top;
+      // The canvas may be larger than the visible container when zoomed in;
+      // add the scroll offsets so callers receive coords in canvas-pixel
+      // space, not viewport-relative-to-container space.
+      const canvasX = e.clientX - rect.left + container.scrollLeft;
+      const canvasY = e.clientY - rect.top + container.scrollTop;
       onCanvasClick(canvasX, canvasY);
     };
 
@@ -370,8 +373,9 @@ function BaseSimulation({
 
   return (
     <div className="grid grid-cols-[1fr_auto_1fr] grid-rows-[auto_auto] gap-8 items-start px-8 py-8 max-w-[1800px] mx-auto">
-      <div className={`col-start-2 row-start-1 rounded-lg shadow-md overflow-hidden ${pickingPosition ? 'cursor-crosshair' : ''}`} ref={sceneRef}>
-        {/* Canvas will be rendered here */}
+      <div className={`col-start-2 row-start-1 rounded-lg shadow-md overflow-auto ${pickingPosition ? 'cursor-crosshair' : ''}`} ref={sceneRef}>
+        {/* Canvas will be rendered here. overflow-auto lets the scaled canvas
+            scroll within the fixed display size when zoomed in. */}
       </div>
       {adapterReady && adapterRef.current && (
         <PhysicsProvider adapter={adapterRef.current}>

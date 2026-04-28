@@ -5,7 +5,7 @@ import type { PhysicsAdapter, PhysicsBody, Vec2 } from '../physics/types';
 import SimulationControls, { type PrecomputeState, type PrecomputeProgress } from './simulation_components/SimulationControls';
 import Environment from './simulation_components/Environment';
 import Panel from './simulation_components/Panel';
-import Scale from './simulation_components/Scale';
+import ScaleSlider from './simulation_components/ScaleSlider';
 import SimulationHeader from './simulation_components/SimulationHeader';
 import JsonEditor from './JsonEditor';
 import AdvancedDebugPanel from './simulation_components/AdvancedDebugPanel';
@@ -42,6 +42,7 @@ import {
   synthesizeBodyRenderable,
   synthesizeForceArrowRenderable,
   synthesizeExperimentalRenderable,
+  synthesizeGridRenderable,
   buildExperimentalDataResolver,
 } from './simulation_components/renderables/synthesize';
 import type { PixelRenderable, DataPositionResolver } from './simulation_components/renderables/types';
@@ -109,16 +110,32 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     graphs = [],
   } = editedConfig;
 
-  const pixelsPerUnit = environment.pixelsPerUnit ?? 10;
+  // Config-declared zoom. The slider's session-local state initializes from
+  // here on mount and resets back to it on "Reset". Mutating the slider does
+  // NOT write back to the JSON — saved sims keep their authored zoom.
+  const configPixelsPerUnit = environment.pixelsPerUnit ?? 10;
+  const [pixelsPerUnit, setPixelsPerUnit] = useState<number>(configPixelsPerUnit);
   const gravityMagnitude = environment.gravity ?? 9.8;
 
   // SI cutover: config values are declared in `environment.unit`. Convert all
   // dimensional values (lengths, velocities, accelerations, gravity) to SI
   // meters at this boundary — everything below runs pure SI. The render layer
   // uses `pixelsPerMeter` so user-set `pixelsPerUnit` still behaves as
-  // "pixels per user unit" for Scale/overlays.
+  // "pixels per user unit" for the scale slider, the grid, and overlays.
   const unitScale = useMemo(() => unitToMeters(environment.unit ?? 'm'), [environment.unit]);
   const pixelsPerMeter = pixelsPerUnit / unitScale;
+  // Physics walls and the visual wall renderables are anchored to the JSON-
+  // declared scale, NOT the slider. Otherwise zooming would silently move
+  // collision boundaries. The slider only changes how SI projects to canvas
+  // pixels (via the live pixelsPerMeter in WorldToCanvas), so at higher zoom
+  // the walls render off-canvas and objects can travel beyond the visible
+  // edge while still being inside the simulated play area.
+  const configPixelsPerMeter = configPixelsPerUnit / unitScale;
+  // Pure render-side factor: how much bigger the visible canvas is than the
+  // JSON-declared canvas. zoomFactor = 1 at default zoom, > 1 when zoomed in.
+  // Drives the scaled canvas dimensions in BaseSimulation/RenderLayer so the
+  // wider play area is reachable via scrollbars.
+  const zoomFactor = pixelsPerUnit / configPixelsPerUnit;
   const siGravityMagnitude = gravityMagnitude * unitScale;
   const gravityVec: Vec2 = useMemo(() => ({ x: 0, y: -siGravityMagnitude }), [siGravityMagnitude]);
 
@@ -128,6 +145,10 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   );
 
   const [showJsonEditor, setShowJsonEditor] = useState(false);
+
+  // Cosmetic graph-paper grid behind the simulation. Session-local; on by
+  // default. Doesn't affect the bake cache, so toggling mid-replay is safe.
+  const [showGrid, setShowGrid] = useState<boolean>(true);
 
   // Experimental data overlay state
   const [showExperimentalModal, setShowExperimentalModal] = useState(false);
@@ -145,14 +166,19 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     const forceArrows = objects
       .filter((obj) => obj.showForceArrows)
       .map(synthesizeForceArrowRenderable);
-    const walls = synthesizeWallRenderables(environment.walls ?? [], pixelsPerMeter);
+    const walls = synthesizeWallRenderables(environment.walls ?? [], configPixelsPerMeter);
     const experimental = experimentalData
       ? [synthesizeExperimentalRenderable(experimentalData)]
       : [];
-    return [...walls, ...sprites, ...forceArrows, ...experimental].sort(
+    // Grid uses the user-unit pixelsPerUnit (not pixelsPerMeter) so labels
+    // read in the sim's configured unit. zIndex (-20) sorts it under walls.
+    const grid = showGrid
+      ? [synthesizeGridRenderable(pixelsPerUnit, UNIT_ABBREV[environment.unit ?? 'm'], zoomFactor)]
+      : [];
+    return [...grid, ...walls, ...sprites, ...forceArrows, ...experimental].sort(
       (a, b) => a.zIndex - b.zIndex
     );
-  }, [objects, environment.walls, experimentalData, pixelsPerMeter]);
+  }, [objects, environment.walls, environment.unit, experimentalData, configPixelsPerMeter, pixelsPerUnit, showGrid, zoomFactor]);
 
   const dataSources = useMemo<Record<string, DataPositionResolver>>(() => {
     if (!experimentalData) return {};
@@ -487,17 +513,135 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
   const handleCanvasClick = useCallback((canvasX: number, canvasY: number) => {
     if (!pickingPosition) return;
-    // Convert canvas pixel back to the config's user unit (not SI).
-    const w2c = new WorldToCanvas(pixelsPerUnit, CANVAS_HEIGHT, WALL_THICKNESS);
+    // Click coords arrive in scaled-canvas pixels (scrollLeft/Top already
+    // applied by BaseSimulation). Scale the canvas height and wall offset to
+    // match so fromPoint inverts correctly.
+    const w2c = new WorldToCanvas(
+      pixelsPerUnit,
+      CANVAS_HEIGHT * zoomFactor,
+      WALL_THICKNESS * zoomFactor,
+    );
     const userPos = w2c.fromPoint({ x: canvasX, y: canvasY });
     setPickedPosition(userPos);
     setPickingPosition(false);
     setShowExperimentalModal(true);
-  }, [pickingPosition, pixelsPerUnit]);
+  }, [pickingPosition, pixelsPerUnit, zoomFactor]);
 
   const handleCanvasContainerReady = useCallback((container: HTMLDivElement) => {
     setCanvasContainer(container);
   }, []);
+
+  // Wheel + Ctrl/Cmd zooms (and trackpad pinch — browsers synthesize ctrlKey
+  // on pinch). Plain wheel falls through to the container's overflow:auto so
+  // the user can pan a zoomed canvas with regular scroll. Pinning the world
+  // point under the cursor keeps the gesture feeling like "zoom into here"
+  // rather than "rescale around the top-left corner".
+  const pendingScrollRef = useRef<{ left: number; top: number } | null>(null);
+
+  // Float accumulator. The visible pixelsPerUnit is integer (slider step = 1),
+  // but trackpad pinch sends tiny per-event deltas (deltaY ≈ 2-5) that round
+  // to no change every time and never visibly zoom. Accumulating in a float
+  // ref lets small deltas eventually cross an integer boundary.
+  const floatValueRef = useRef<number>(configPixelsPerUnit);
+
+  // Resync the float accumulator whenever pixelsPerUnit changes by a non-
+  // wheel route (slider drag, Reset button, JSON tweak). Keeping the float
+  // in sync prevents a stale accumulator from making the next pinch jump
+  // back to a previous zoom level.
+  useEffect(() => {
+    if (Math.round(floatValueRef.current) !== pixelsPerUnit) {
+      floatValueRef.current = pixelsPerUnit;
+    }
+  }, [pixelsPerUnit]);
+
+  useEffect(() => {
+    if (!canvasContainer) return;
+
+    // Shared zoom application. multiplier is the ratio to multiply the float
+    // accumulator by; cursor coords are container-relative pixels (the
+    // visible position of the cursor inside the scrollable wrapper).
+    const applyZoom = (
+      multiplier: number,
+      cursorContainerX: number,
+      cursorContainerY: number,
+    ) => {
+      const cursorCanvasX = cursorContainerX + canvasContainer.scrollLeft;
+      const cursorCanvasY = cursorContainerY + canvasContainer.scrollTop;
+      setPixelsPerUnit((current) => {
+        floatValueRef.current = floatValueRef.current * multiplier;
+        // Floor the float at configPixelsPerUnit too, not just the integer
+        // result — otherwise repeated zoom-out at the floor would build up a
+        // hidden "debt" the user must zoom-in past before anything visible
+        // happens.
+        if (floatValueRef.current < configPixelsPerUnit) {
+          floatValueRef.current = configPixelsPerUnit;
+        }
+        const next = Math.round(floatValueRef.current);
+        if (next === current) return current;
+        const ratio = next / current;
+        pendingScrollRef.current = {
+          left: cursorCanvasX * ratio - cursorContainerX,
+          top: cursorCanvasY * ratio - cursorContainerY,
+        };
+        return next;
+      });
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (e.deltaY === 0) return;
+      e.preventDefault();
+      const rect = canvasContainer.getBoundingClientRect();
+      // 0.9985^deltaY: roughly constant perceptual zoom rate per delta. Tiny
+      // trackpad ticks accumulate via the float ref; mouse-notch deltaY≈100
+      // moves about 14% per click.
+      const multiplier = Math.pow(0.9985, e.deltaY);
+      applyZoom(multiplier, e.clientX - rect.left, e.clientY - rect.top);
+    };
+
+    // Safari fires its own gesturestart/gesturechange/gestureend for trackpad
+    // pinch instead of (or in addition to) wheel events. e.scale is the
+    // cumulative pinch ratio since gesturestart, so we track lastScale and
+    // apply only the incremental ratio per change event.
+    let lastScale = 1;
+    let gestureCursorX = 0;
+    let gestureCursorY = 0;
+    const onGestureStart = (e: Event & { clientX: number; clientY: number; scale?: number }) => {
+      e.preventDefault();
+      lastScale = 1;
+      const rect = canvasContainer.getBoundingClientRect();
+      gestureCursorX = e.clientX - rect.left;
+      gestureCursorY = e.clientY - rect.top;
+    };
+    const onGestureChange = (e: Event & { scale?: number }) => {
+      e.preventDefault();
+      const scale = e.scale ?? 1;
+      const multiplier = scale / lastScale;
+      lastScale = scale;
+      applyZoom(multiplier, gestureCursorX, gestureCursorY);
+    };
+
+    // passive:false so we can preventDefault — without it, Ctrl+wheel and
+    // gesture events would also trigger the browser's page zoom.
+    canvasContainer.addEventListener('wheel', onWheel, { passive: false });
+    canvasContainer.addEventListener('gesturestart', onGestureStart as EventListener, { passive: false });
+    canvasContainer.addEventListener('gesturechange', onGestureChange as EventListener, { passive: false });
+    return () => {
+      canvasContainer.removeEventListener('wheel', onWheel);
+      canvasContainer.removeEventListener('gesturestart', onGestureStart as EventListener);
+      canvasContainer.removeEventListener('gesturechange', onGestureChange as EventListener);
+    };
+  }, [canvasContainer, configPixelsPerUnit]);
+
+  // Apply the wheel-zoom's "pin cursor" scroll AFTER the canvas has resized
+  // (RenderLayer's child effect fires before this parent effect). Setting
+  // scrollLeft before the buffer grew would clamp it to the old scroll range.
+  useEffect(() => {
+    if (!canvasContainer || !pendingScrollRef.current) return;
+    canvasContainer.scrollLeft = pendingScrollRef.current.left;
+    canvasContainer.scrollTop = pendingScrollRef.current.top;
+    pendingScrollRef.current = null;
+  }, [pixelsPerUnit, canvasContainer]);
 
   const handleExperimentalConfirm = useCallback((config: ExperimentalDataConfig) => {
     setExperimentalData(config);
@@ -795,9 +939,11 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
         {/* Scale + Import Experimental Data */}
         <div className="col-start-1 row-start-2 justify-self-end flex flex-col gap-3 items-end">
-          <Scale
-            pixelsPerUnit={pixelsPerUnit}
+          <ScaleSlider
+            value={pixelsPerUnit}
+            onChange={setPixelsPerUnit}
             unit={environment.unit ?? 'm'}
+            defaultValue={configPixelsPerUnit}
           />
           <AdvancedDebugPanel
             engine={activeEngine}
@@ -812,6 +958,8 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
             positionIterations={positionIterations}
             onPositionIterationsChange={setPositionIterations}
             positionIterationsDisabled={isRunning || precomputeState === 'precomputing'}
+            showGrid={showGrid}
+            onShowGridChange={setShowGrid}
             onTweakJSON={simulationId ? handleTweakJSON : undefined}
           />
           <button
@@ -830,11 +978,12 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           )}
         </div>
 
-        {/* Environment - SI gravity and bounds */}
+        {/* Environment - SI gravity and bounds. Walls use the JSON-declared
+            scale so they don't move when the user drags the zoom slider. */}
         <Environment
           walls={environment.walls}
           gravity={siGravityMagnitude}
-          pixelsPerUnit={pixelsPerMeter}
+          pixelsPerUnit={configPixelsPerMeter}
         />
 
         {/* Objects - pre-scaled to SI at the config boundary */}
@@ -922,6 +1071,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           simulationTimeRef={simulationTimeRef}
           canvasContainer={canvasContainer}
           pixelsPerUnit={pixelsPerMeter}
+          zoomFactor={zoomFactor}
           gravity={gravityVec}
         />
         {/* Click-to-edit overlay (active only while paused) */}
