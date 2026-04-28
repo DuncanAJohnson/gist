@@ -1009,7 +1009,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         {/* Graphs */}
         {graphs.length > 0 && (
           <Panel className="col-start-3 row-start-1">
-            <div className={`grid gap-8 ${
+            <div className={`grid gap-3 md:gap-5 xl:gap-8 ${
               graphs.length <= 2 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'
             }`}>
               {graphs.map((graph, graphIndex) => {
@@ -1041,8 +1041,8 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
         {/* Outputs */}
         {outputs.length > 0 && (
-          <Panel className="col-start-2 row-start-2 min-w-[800px] justify-center">
-            <div className="flex flex-row gap-6 justify-center">
+          <Panel className="col-start-2 row-start-2 xl:min-w-[800px] justify-center">
+            <div className="flex flex-row gap-3 md:gap-4 xl:gap-6 justify-center">
               {outputs.map((group, index) => (
                 <OutputGroup
                   key={index}

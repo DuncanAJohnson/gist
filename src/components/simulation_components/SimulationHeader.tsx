@@ -147,7 +147,7 @@ function SimulationHeader({
 
   return (
     <div className="flex flex-row bg-gray-50 rounded-lg shadow-sm justify-between items-center relative">
-      <div className="flex flex-col items-start px-8 py-4 gap-4">
+      <div className="flex flex-col items-start px-3 py-2 md:px-5 md:py-3 xl:px-8 xl:py-4 gap-2 md:gap-3 xl:gap-4">
         <div className="flex items-center gap-4">
           <div>
             {title && (
@@ -168,7 +168,7 @@ function SimulationHeader({
       </div>
 
       {/* Right side - Endorse, Feedback, and Edit button */}
-      <div className="flex flex-row items-center justify-center gap-4 px-8 py-4 relative">
+      <div className="flex flex-row items-center justify-center gap-2 md:gap-3 xl:gap-4 px-3 py-2 md:px-5 md:py-3 xl:px-8 xl:py-4 relative">
         {simulationId && metaLoaded && (
           <>
             {published && (

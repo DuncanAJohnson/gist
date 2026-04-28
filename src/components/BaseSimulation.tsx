@@ -374,7 +374,7 @@ function BaseSimulation({
   }, [pickingPosition, onCanvasClick]);
 
   return (
-    <div className="grid grid-cols-[1fr_minmax(0,880px)_1fr] grid-rows-[auto_auto] gap-8 items-start px-8 py-8 max-w-[1800px] mx-auto">
+    <div className="grid grid-cols-[1fr_minmax(0,880px)_1fr] grid-rows-[auto_auto] gap-3 md:gap-5 xl:gap-8 items-start px-3 py-3 md:px-5 md:py-5 xl:px-8 xl:py-8 max-w-[1800px] mx-auto">
       <div
         className={`col-start-2 row-start-1 w-full rounded-lg shadow-md overflow-auto ${pickingPosition ? 'cursor-crosshair' : ''}`}
         style={{ aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}` }}

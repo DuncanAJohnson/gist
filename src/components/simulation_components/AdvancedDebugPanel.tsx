@@ -87,7 +87,7 @@ function AdvancedDebugPanel({
         Debug Mode {expanded ? '▾' : '▸'}
       </button>
       {expanded && (
-        <div className="flex flex-col gap-3 px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-md text-sm min-w-[240px]">
+        <div className="flex flex-col gap-2 md:gap-3 px-3 py-2 md:px-4 md:py-3 bg-white border border-gray-300 rounded-lg shadow-md text-sm min-w-[200px] md:min-w-[240px]">
           <div className="font-semibold tracking-wide uppercase text-[10px] text-gray-500">
             Advanced Debug
           </div>

@@ -60,7 +60,7 @@ function ScaleSlider({ value, onChange, unit, defaultValue }: ScaleSliderProps) 
   const unitLabel = UNIT_ABBREV[unit];
 
   return (
-    <div className="flex flex-col gap-1.5 px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-md w-[220px]">
+    <div className="flex flex-col gap-1.5 px-3 py-2 md:px-4 md:py-3 bg-white border border-gray-300 rounded-lg shadow-md w-[180px] md:w-[220px]">
       <div className="flex items-center justify-between">
         <span className="font-semibold tracking-wide uppercase text-[10px] text-gray-500">
           Scale
