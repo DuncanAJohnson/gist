@@ -149,6 +149,15 @@ function EditOverlay({
     const findObject = (id: string): ObjectConfig | undefined =>
       editedObjectsRef.current.find((o) => o.id === id);
 
+    // Return obj with x/y substituted from the live physics body, so the
+    // overlay tracks the engine pose (which a slider on position.x/y can move
+    // independently of editedConfig). Falls back to editedConfig if no body.
+    const liveObj = (obj: ObjectConfig, unit: number): ObjectConfig => {
+      const body = objRefs.current?.[obj.id];
+      if (!body) return obj;
+      return { ...obj, x: body.position.x / unit, y: body.position.y / unit };
+    };
+
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
       const p = getPointer(e);
@@ -163,14 +172,7 @@ function EditOverlay({
         if (!clickShowsResetPromptRef.current) return;
         const objects = editedObjectsRef.current;
         for (let i = objects.length - 1; i >= 0; i--) {
-          // Use live body position (the sim may be moving) rather than the
-          // static editedConfig position so hit-tests track what the user sees.
-          const obj = objects[i];
-          const body = objRefs.current?.[obj.id];
-          const liveObj: ObjectConfig = body
-            ? { ...obj, x: body.position.x / unit, y: body.position.y / unit }
-            : obj;
-          const aabb = getObjectAABBPx(liveObj, w2c, unit);
+          const aabb = getObjectAABBPx(liveObj(objects[i], unit), w2c, unit);
           if (hitBody(p, aabb)) {
             onResetPromptRequestedRef.current?.(e.clientX, e.clientY);
             e.preventDefault();
@@ -184,27 +186,29 @@ function EditOverlay({
       if (selId) {
         const selObj = findObject(selId);
         if (selObj) {
-          const aabb = getObjectAABBPx(selObj, w2c, unit);
+          const aabb = getObjectAABBPx(liveObj(selObj, unit), w2c, unit);
           const showEdges = !isCircleObject(selObj.svg);
           const handle = hitHandle(p, aabb, showEdges);
           if (handle) {
             canvas.setPointerCapture(e.pointerId);
             if (handle === 'tl' || handle === 'tr' || handle === 'bl' || handle === 'br') {
               const isCircle = isCircleObject(selObj.svg);
+              const liveSel = liveObj(selObj, unit);
               dragStateRef.current = {
                 kind: 'dragging-corner',
                 id: selObj.id,
                 corner: handle,
-                anchorSI: getCornerAnchorSI(selObj, handle, unit),
+                anchorSI: getCornerAnchorSI(liveSel, handle, unit),
                 aspectRatio: selObj.height > 0 ? selObj.width / selObj.height : 1,
                 uniform: isCircle,
               };
             } else {
+              const liveSel = liveObj(selObj, unit);
               dragStateRef.current = {
                 kind: 'dragging-edge',
                 id: selObj.id,
                 edge: handle,
-                anchorSI: getEdgeAnchorSI(selObj, handle, unit),
+                anchorSI: getEdgeAnchorSI(liveSel, handle, unit),
                 otherWidthSI: selObj.width * unit,
                 otherHeightSI: selObj.height * unit,
               };
@@ -221,7 +225,7 @@ function EditOverlay({
       const objects = editedObjectsRef.current;
       for (let i = objects.length - 1; i >= 0; i--) {
         const obj = objects[i];
-        const aabb = getObjectAABBPx(obj, w2c, unit);
+        const aabb = getObjectAABBPx(liveObj(obj, unit), w2c, unit);
         if (hitBody(p, aabb)) {
           canvas.setPointerCapture(e.pointerId);
           onSelectRef.current(obj.id);
@@ -258,12 +262,7 @@ function EditOverlay({
           let cursor = 'default';
           const objects = editedObjectsRef.current;
           for (let i = objects.length - 1; i >= 0; i--) {
-            const obj = objects[i];
-            const body = objRefs.current?.[obj.id];
-            const liveObj: ObjectConfig = body
-              ? { ...obj, x: body.position.x / unit, y: body.position.y / unit }
-              : obj;
-            if (hitBody(p, getObjectAABBPx(liveObj, w2c, unit))) {
+            if (hitBody(p, getObjectAABBPx(liveObj(objects[i], unit), w2c, unit))) {
               cursor = 'pointer';
               break;
             }
@@ -295,7 +294,7 @@ function EditOverlay({
       if (selId) {
         const selObj = findObject(selId);
         if (selObj) {
-          const aabb = getObjectAABBPx(selObj, w2c, unit);
+          const aabb = getObjectAABBPx(liveObj(selObj, unit), w2c, unit);
           const showEdges = !isCircleObject(selObj.svg);
           const handle = hitHandle(p, aabb, showEdges);
           if (handle) {
@@ -308,7 +307,7 @@ function EditOverlay({
       if (cursor === 'default') {
         const objects = editedObjectsRef.current;
         for (let i = objects.length - 1; i >= 0; i--) {
-          const aabb = getObjectAABBPx(objects[i], w2c, unit);
+          const aabb = getObjectAABBPx(liveObj(objects[i], unit), w2c, unit);
           if (hitBody(p, aabb)) {
             cursor = 'grab';
             break;
@@ -408,23 +407,13 @@ function EditOverlay({
                 const showEdges = !isCircleObject(obj.svg);
                 const drag = dragStateRef.current;
 
-                // For body drags, render the outline at the live body position.
-                let aabb: ObjectAABBPx;
-                if (drag.kind === 'dragging-body' && drag.id === selId) {
-                  const body = objRefs.current?.[selId];
-                  if (body) {
-                    const liveObj: ObjectConfig = {
-                      ...obj,
-                      x: body.position.x / unit,
-                      y: body.position.y / unit,
-                    };
-                    aabb = getObjectAABBPx(liveObj, w2c, unit);
-                  } else {
-                    aabb = getObjectAABBPx(obj, w2c, unit);
-                  }
-                } else {
-                  aabb = getObjectAABBPx(obj, w2c, unit);
-                }
+                // Always render outline + handles at the live body position so
+                // the overlay tracks any motion (drag or position slider).
+                const body = objRefs.current?.[selId];
+                const drawObj: ObjectConfig = body
+                  ? { ...obj, x: body.position.x / unit, y: body.position.y / unit }
+                  : obj;
+                const aabb = getObjectAABBPx(drawObj, w2c, unit);
 
                 drawAABB(ctx, aabb, false);
 
