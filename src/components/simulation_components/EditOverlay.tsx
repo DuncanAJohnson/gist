@@ -101,6 +101,8 @@ function EditOverlay({
     canvas.style.position = 'absolute';
     canvas.style.top = '0';
     canvas.style.left = '0';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
     canvas.style.display = 'block';
     canvas.style.zIndex = '2';
     canvas.style.pointerEvents = 'none';

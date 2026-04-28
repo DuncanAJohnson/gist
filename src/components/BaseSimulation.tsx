@@ -141,8 +141,6 @@ function BaseSimulation({
     let adapter: PhysicsAdapter | null = null;
     let animationFrameId: number | undefined;
 
-    sceneRef.current.style.width = `${CANVAS_WIDTH}px`;
-    sceneRef.current.style.height = `${CANVAS_HEIGHT}px`;
     sceneRef.current.style.backgroundColor = '#fafafa';
 
     if (onCanvasContainerReadyRef.current) {
@@ -358,12 +356,16 @@ function BaseSimulation({
 
     const container = sceneRef.current;
     const handleClick = (e: MouseEvent) => {
-      const rect = container.getBoundingClientRect();
-      // The canvas may be larger than the visible container when zoomed in;
-      // add the scroll offsets so callers receive coords in canvas-pixel
-      // space, not viewport-relative-to-container space.
-      const canvasX = e.clientX - rect.left + container.scrollLeft;
-      const canvasY = e.clientY - rect.top + container.scrollTop;
+      const canvas = container.querySelector('canvas') as HTMLCanvasElement | null;
+      if (!canvas) return;
+      // The canvas's CSS rect may differ from its pixel buffer (responsive
+      // display sizing and slider zoom both decouple the two). Scale by
+      // canvas.width / rect.width to land in canvas-buffer pixel space.
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const canvasX = (e.clientX - rect.left) * scaleX;
+      const canvasY = (e.clientY - rect.top) * scaleY;
       onCanvasClick(canvasX, canvasY);
     };
 
@@ -372,10 +374,14 @@ function BaseSimulation({
   }, [pickingPosition, onCanvasClick]);
 
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] grid-rows-[auto_auto] gap-8 items-start px-8 py-8 max-w-[1800px] mx-auto">
-      <div className={`col-start-2 row-start-1 rounded-lg shadow-md overflow-auto ${pickingPosition ? 'cursor-crosshair' : ''}`} ref={sceneRef}>
-        {/* Canvas will be rendered here. overflow-auto lets the scaled canvas
-            scroll within the fixed display size when zoomed in. */}
+    <div className="grid grid-cols-[1fr_minmax(0,880px)_1fr] grid-rows-[auto_auto] gap-8 items-start px-8 py-8 max-w-[1800px] mx-auto">
+      <div
+        className={`col-start-2 row-start-1 w-full rounded-lg shadow-md overflow-auto ${pickingPosition ? 'cursor-crosshair' : ''}`}
+        style={{ aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}` }}
+        ref={sceneRef}
+      >
+        {/* Canvas fills this responsive container at zoomFactor=1, and
+            overflows (scrolling) when the slider zooms further in. */}
       </div>
       {adapterReady && adapterRef.current && (
         <PhysicsProvider adapter={adapterRef.current}>
