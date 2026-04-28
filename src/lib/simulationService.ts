@@ -10,6 +10,7 @@ export interface SimulationRecord {
   title: string | null;
   description: string | null;
   changes_made: string | null;
+  user_prompt: string | null;
 }
 
 export interface SimulationListItem {
@@ -17,6 +18,7 @@ export interface SimulationListItem {
   title: string | null;
   description: string | null;
   created_at: string;
+  published_at: string | null;
   parent_id: number | null;
   changes_made: string | null;
   published: boolean;
@@ -32,17 +34,20 @@ export type WindowOption = 'week' | 'all';
  * @param json - The simulation JSON configuration
  * @param fromAI - Whether this simulation was created by AI
  * @param parentId - The ID of the parent simulation (null for new simulations)
+ * @param userPrompt - The natural-language prompt the user typed to generate
+ *   this simulation (null when there is no prompt, e.g. manual JSON paste/tweak)
  * @returns The ID of the created simulation
  */
 export async function createSimulation(
   json: any,
   fromAI: boolean,
-  parentId: number | null
+  parentId: number | null,
+  userPrompt: string | null
 ): Promise<number> {
   // Extract title and description from JSON
   const title = json.title || null;
   const description = json.description || null;
-  
+
   const { data, error } = await supabase
     .from('simulations')
     .insert({
@@ -51,6 +56,7 @@ export async function createSimulation(
       parent_id: parentId,
       title: title,
       description: description,
+      user_prompt: userPrompt,
     })
     .select('id')
     .single();
@@ -93,19 +99,24 @@ export async function getPublishedSimulations(opts: {
 }): Promise<SimulationListItem[]> {
   const weekAgo = new Date(Date.now() - WEEK_MS).toISOString();
 
-  const [allTimeRes, weekRes] = await Promise.all([
-    supabase
-      .from('simulations')
-      .select(
-        'id, title, description, created_at, parent_id, changes_made, published, simulation_endorsements(count)'
-      )
-      .eq('published', true),
-    supabase
-      .from('simulations')
-      .select('id, simulation_endorsements(count)')
-      .eq('published', true)
-      .gte('simulation_endorsements.created_at', weekAgo),
-  ]);
+  let allTimeQuery = supabase
+    .from('simulations')
+    .select(
+      'id, title, description, created_at, published_at, parent_id, changes_made, published, simulation_endorsements(count)'
+    )
+    .eq('published', true);
+  let weekQuery = supabase
+    .from('simulations')
+    .select('id, simulation_endorsements(count)')
+    .eq('published', true)
+    .gte('simulation_endorsements.created_at', weekAgo);
+
+  if (opts.window === 'week') {
+    allTimeQuery = allTimeQuery.gte('published_at', weekAgo);
+    weekQuery = weekQuery.gte('published_at', weekAgo);
+  }
+
+  const [allTimeRes, weekRes] = await Promise.all([allTimeQuery, weekQuery]);
 
   if (allTimeRes.error) {
     throw new Error(`Failed to fetch simulations: ${allTimeRes.error.message}`);
@@ -124,6 +135,7 @@ export async function getPublishedSimulations(opts: {
     title: row.title,
     description: row.description,
     created_at: row.created_at,
+    published_at: row.published_at ?? null,
     parent_id: row.parent_id,
     changes_made: row.changes_made,
     published: !!row.published,

@@ -8,9 +8,9 @@ interface PanelProps {
 
 function Panel({ title, children, className = '' }: PanelProps) {
   return (
-    <div className={`bg-white rounded-lg p-6 shadow-md ${className}`}>
+    <div className={`bg-white rounded-lg p-3 md:p-4 xl:p-6 shadow-md ${className}`}>
       {title && (
-        <h3 className="m-0 mb-4 text-lg text-gray-800 border-b-2 border-primary pb-2">
+        <h3 className="m-0 mb-2 md:mb-3 xl:mb-4 text-lg text-gray-800 border-b-2 border-primary pb-2">
           {title}
         </h3>
       )}

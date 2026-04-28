@@ -1,12 +1,47 @@
 import type { PhysicsBody, Vec2 } from '../../../physics/types';
 import type { WorldToCanvas } from '../../../lib/worldToCanvas';
-import type { Renderable, Visual, PositionSource } from '../../../schemas/simulation';
 
-export type { Renderable, Visual, PositionSource };
+// ============================================================================
+// Internal renderable model. Renderables are auto-synthesized from the
+// simulation config now that user-facing schema no longer carries them — these
+// types describe the in-memory shape passed to the render layer.
+// ============================================================================
+
+export type PositionSource =
+  | { type: 'body'; bodyId: string; followAngle?: boolean }
+  | { type: 'data'; dataId: string }
+  | { type: 'fixed'; x: number; y: number; angle?: number };
+
+export interface ShapeVisual {
+  type: 'shape';
+  shape: 'circle' | 'rectangle' | 'polygon';
+  color: string;
+  width?: number;
+  height?: number;
+  radius?: number;
+  sides?: number;
+  stroke?: string;
+  strokeWidth?: number;
+}
+
+export interface ImageVisual {
+  type: 'image';
+  src: string;
+  width: number;
+  height: number;
+}
+
+export interface RenderableVisual {
+  type: 'renderable';
+  name: string;
+  width: number;
+  height: number;
+}
+
+export type Visual = ShapeVisual | ImageVisual | RenderableVisual;
 
 /**
  * Internal marker visual used by auto-synthesized experimental-data renderables.
- * Not exposed through the schema; created by JsonSimulation.
  */
 export interface MarkerVisual {
   type: 'marker';
@@ -16,8 +51,8 @@ export interface MarkerVisual {
 }
 
 /**
- * Internal body-outline visual used by auto-synthesized default renderables.
- * Draws the physics body's SI ShapeDescriptor, converted via WorldToCanvas.
+ * Internal body-outline visual. Draws the physics body's SI ShapeDescriptor,
+ * converted via WorldToCanvas. Currently used for debug overlays.
  */
 export interface BodyOutlineVisual {
   type: 'body-outline';
@@ -26,7 +61,7 @@ export interface BodyOutlineVisual {
 
 /**
  * Internal force-arrow visual. Draws net-force arrows on a physics body
- * using live SI acceleration data. Not exposed through the schema.
+ * using live SI acceleration data.
  */
 export interface ForceArrowVisual {
   type: 'force-arrow';
@@ -35,9 +70,64 @@ export interface ForceArrowVisual {
 }
 
 /**
+ * Internal background-grid visual. Graph-paper grid drawn behind the
+ * simulation. Major-line spacing is snapped to a 1/2/5×10ⁿ value in the
+ * configured user unit so the grid auto-scales with pixelsPerUnit.
+ */
+export interface BackgroundGridVisual {
+  type: 'background-grid';
+  /** Pixels per user unit — drives both line spacing and label values. */
+  pixelsPerUnit: number;
+  /** Unit suffix appended to axis labels (e.g. "m", "ft"). Empty = no suffix. */
+  unitLabel: string;
+  /** Play-area dimensions in canvas pixels, anchored at the resolved position. */
+  playWidthPx: number;
+  playHeightPx: number;
+  /** Target px between major lines; niceStep snaps to 1/2/5×10ⁿ. Default 80. */
+  targetMajorPx?: number;
+  /** Minor divisions per major. Default 5. */
+  minorPerMajor?: number;
+  majorColor?: string;
+  minorColor?: string;
+  labelColor?: string;
+  /** Show numeric axis labels along the bottom and left edges. Default true. */
+  showLabels?: boolean;
+}
+
+/**
+ * Internal background-grid visual. Graph-paper grid drawn behind the
+ * simulation. Major-line spacing is snapped to a 1/2/5×10ⁿ value in the
+ * configured user unit so the grid auto-scales with pixelsPerUnit.
+ */
+export interface BackgroundGridVisual {
+  type: 'background-grid';
+  /** Pixels per user unit — drives both line spacing and label values. */
+  pixelsPerUnit: number;
+  /** Unit suffix appended to axis labels (e.g. "m", "ft"). Empty = no suffix. */
+  unitLabel: string;
+  /** Play-area dimensions in canvas pixels, anchored at the resolved position. */
+  playWidthPx: number;
+  playHeightPx: number;
+  /** Target px between major lines; niceStep snaps to 1/2/5×10ⁿ. Default 80. */
+  targetMajorPx?: number;
+  /** Minor divisions per major. Default 5. */
+  minorPerMajor?: number;
+  majorColor?: string;
+  minorColor?: string;
+  labelColor?: string;
+  /** Show numeric axis labels along the bottom and left edges. Default true. */
+  showLabels?: boolean;
+}
+
+/**
  * All visuals RenderLayer can draw (schema visuals + internal synthesized ones).
  */
-export type PixelVisual = Visual | MarkerVisual | BodyOutlineVisual | ForceArrowVisual;
+export type PixelVisual =
+  | Visual
+  | MarkerVisual
+  | BodyOutlineVisual
+  | ForceArrowVisual
+  | BackgroundGridVisual;
 
 /**
  * A renderable prepared for RenderLayer. All numeric values in `source` and
@@ -81,6 +171,10 @@ export interface DrawContext {
   w2c: WorldToCanvas;
   /** SI gravity (m/s²), used by force-arrow visuals. */
   gravity: Vec2;
+  /** Visible portion of the canvas inside its scrollable container, in
+   * canvas pixels. Used by visuals that pin to the viewport (e.g. axis
+   * labels) so they stay in view when the user scrolls a zoomed canvas. */
+  viewport: { left: number; top: number; width: number; height: number };
 }
 
 export type VisualDrawFn = (drawCtx: DrawContext, visual: PixelVisual) => void;

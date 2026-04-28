@@ -1,5 +1,4 @@
 import { SIMULATION_WIDTH, SIMULATION_HEIGHT, WALL_THICKNESS } from '../../BaseSimulation';
-import type { Renderable } from '../../../schemas/simulation';
 import type { ObjectConfig } from '../objects/types';
 import type { ExperimentalDataConfig } from '../ExperimentalDataModal';
 import type { PixelRenderable, DataPositionResolver } from './types';
@@ -71,17 +70,52 @@ export function synthesizeWallRenderables(
 }
 
 /**
- * Default "body-outline" renderable for a physics object that the user hasn't
- * explicitly given a renderable for.
+ * Renderable that draws the object's SVG sprite at its bounding box. Every
+ * physics object gets one — the `svg` field on ObjectConfig is the single
+ * source of truth for both collider and visual.
  */
 export function synthesizeBodyRenderable(obj: ObjectConfig): PixelRenderable {
-  const color = (obj.body && 'color' in obj.body && obj.body.color) || '#4ecdc4';
   return {
     id: `__default_${obj.id}`,
     source: { type: 'body', bodyId: obj.id, followAngle: true },
-    visual: { type: 'body-outline', color },
+    visual: { type: 'renderable', name: obj.svg, width: obj.width, height: obj.height },
     opacity: 1,
     zIndex: 0,
+  };
+}
+
+/**
+ * Background-grid renderable. Anchored at the world origin (bottom-left of the
+ * play area in canvas space) and sized to fill the play area exactly. The
+ * drawer handles all niceStep math; this synthesizer just fixes the geometry.
+ *
+ * `pixelsPerUserUnit` is the user-facing px-per-unit value (the same one
+ * `Scale` displays), NOT the SI pixelsPerMeter that WorldToCanvas operates in,
+ * so labels read in the sim's configured unit.
+ *
+ * `zoomFactor` scales the play-area dimensions to match the scaled canvas
+ * when the user zooms in via the slider. At zoomFactor=1 the grid covers
+ * exactly SIMULATION_WIDTH × SIMULATION_HEIGHT canvas pixels.
+ *
+ * zIndex is set below the wall renderables (-10) so walls paint over the grid.
+ */
+export function synthesizeGridRenderable(
+  pixelsPerUserUnit: number,
+  unitLabel: string,
+  zoomFactor: number = 1,
+): PixelRenderable {
+  return {
+    id: '__background_grid',
+    source: { type: 'fixed', x: 0, y: 0, angle: 0 },
+    visual: {
+      type: 'background-grid',
+      pixelsPerUnit: pixelsPerUserUnit,
+      unitLabel,
+      playWidthPx: SIMULATION_WIDTH * zoomFactor,
+      playHeightPx: SIMULATION_HEIGHT * zoomFactor,
+    },
+    opacity: 1,
+    zIndex: -20,
   };
 }
 
@@ -145,19 +179,5 @@ export function buildExperimentalDataResolver(
       // so the render layer's WorldToCanvas can handle them alongside physics.
       return { x: realX * unitScale, y: realY * unitScale, angle: 0 };
     },
-  };
-}
-
-/**
- * Convert a user-declared Renderable to the internal PixelRenderable form.
- * Values already live in SI — this just fills in defaults.
- */
-export function prepareRenderable(r: Renderable): PixelRenderable {
-  return {
-    id: r.id,
-    source: r.source,
-    visual: r.visual,
-    opacity: r.opacity ?? 1,
-    zIndex: r.zIndex ?? 0,
   };
 }

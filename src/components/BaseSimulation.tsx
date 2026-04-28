@@ -19,6 +19,12 @@ export interface SimulationControls {
   ) => void;
   seekReplay: (frameIndex: number) => void;
   clearReplay: () => void;
+  /**
+   * Re-capture the "initial" world snapshot used by reset(). Call after
+   * mutating object configs (e.g. user edits while paused) so subsequent
+   * reset()/precompute() use the edited state as the starting pose.
+   */
+  recaptureInitialSnapshot: () => void;
 }
 
 interface BaseSimulationProps {
@@ -32,6 +38,10 @@ interface BaseSimulationProps {
   pickingPosition?: boolean;
   precomputeTimestepSeconds?: number;
   playbackSpeed?: number;
+  /** Optional override for the active engine's solver iteration count. */
+  solverIterations?: number;
+  /** Optional override for Planck's position-iteration count; ignored by other engines. */
+  positionIterations?: number;
 }
 
 // Wall thickness for environment boundaries
@@ -76,6 +86,8 @@ function BaseSimulation({
   pickingPosition,
   precomputeTimestepSeconds = DEFAULT_PRECOMPUTE_TIMESTEP_SECONDS,
   playbackSpeed = 1,
+  solverIterations,
+  positionIterations,
 }: BaseSimulationProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const adapterRef = useRef<PhysicsAdapter | null>(null);
@@ -99,12 +111,28 @@ function BaseSimulation({
   const onCanvasContainerReadyRef = useRef(onCanvasContainerReady);
   const precomputeTimestepRef = useRef(precomputeTimestepSeconds);
   const playbackSpeedRef = useRef(playbackSpeed);
+  const solverItersRef = useRef(solverIterations);
+  const positionItersRef = useRef(positionIterations);
   useEffect(() => { onInitRef.current = onInit; }, [onInit]);
   useEffect(() => { onUpdateRef.current = onUpdate; }, [onUpdate]);
   useEffect(() => { onControlsReadyRef.current = onControlsReady; }, [onControlsReady]);
   useEffect(() => { onCanvasContainerReadyRef.current = onCanvasContainerReady; }, [onCanvasContainerReady]);
   useEffect(() => { precomputeTimestepRef.current = precomputeTimestepSeconds; }, [precomputeTimestepSeconds]);
   useEffect(() => { playbackSpeedRef.current = playbackSpeed; }, [playbackSpeed]);
+  useEffect(() => { solverItersRef.current = solverIterations; }, [solverIterations]);
+  useEffect(() => { positionItersRef.current = positionIterations; }, [positionIterations]);
+
+  // Push iteration-count changes to the live adapter without re-creating it.
+  // Adapters that don't expose the knob (Matter today; Rapier for position
+  // iters) silently ignore it.
+  useEffect(() => {
+    if (solverIterations === undefined) return;
+    adapterRef.current?.setSolverIterations?.(solverIterations);
+  }, [solverIterations]);
+  useEffect(() => {
+    if (positionIterations === undefined) return;
+    adapterRef.current?.setPositionIterations?.(positionIterations);
+  }, [positionIterations]);
 
   useEffect(() => {
     if (!sceneRef.current) return;
@@ -113,8 +141,6 @@ function BaseSimulation({
     let adapter: PhysicsAdapter | null = null;
     let animationFrameId: number | undefined;
 
-    sceneRef.current.style.width = `${CANVAS_WIDTH}px`;
-    sceneRef.current.style.height = `${CANVAS_HEIGHT}px`;
     sceneRef.current.style.backgroundColor = '#fafafa';
 
     if (onCanvasContainerReadyRef.current) {
@@ -134,6 +160,12 @@ function BaseSimulation({
         }
         adapter = a;
         adapterRef.current = a;
+        if (solverItersRef.current !== undefined) {
+          a.setSolverIterations?.(solverItersRef.current);
+        }
+        if (positionItersRef.current !== undefined) {
+          a.setPositionIterations?.(positionItersRef.current);
+        }
         setAdapterReady(true);
 
       if (onInitRef.current) {
@@ -297,6 +329,9 @@ function BaseSimulation({
             accumulator = 0;
             resetBodiesToInitial();
           },
+          recaptureInitialSnapshot: () => {
+            initialSnapshotRef.current = cloneSnapshot(a.snapshot());
+          },
         });
       }
       });
@@ -321,9 +356,16 @@ function BaseSimulation({
 
     const container = sceneRef.current;
     const handleClick = (e: MouseEvent) => {
-      const rect = container.getBoundingClientRect();
-      const canvasX = e.clientX - rect.left;
-      const canvasY = e.clientY - rect.top;
+      const canvas = container.querySelector('canvas') as HTMLCanvasElement | null;
+      if (!canvas) return;
+      // The canvas's CSS rect may differ from its pixel buffer (responsive
+      // display sizing and slider zoom both decouple the two). Scale by
+      // canvas.width / rect.width to land in canvas-buffer pixel space.
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const canvasX = (e.clientX - rect.left) * scaleX;
+      const canvasY = (e.clientY - rect.top) * scaleY;
       onCanvasClick(canvasX, canvasY);
     };
 
@@ -332,9 +374,14 @@ function BaseSimulation({
   }, [pickingPosition, onCanvasClick]);
 
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] grid-rows-[auto_auto] gap-8 items-start px-8 py-8 max-w-[1800px] mx-auto">
-      <div className={`col-start-2 row-start-1 rounded-lg shadow-md overflow-hidden ${pickingPosition ? 'cursor-crosshair' : ''}`} ref={sceneRef}>
-        {/* Canvas will be rendered here */}
+    <div className="grid grid-cols-[1fr_minmax(0,880px)_1fr] grid-rows-[auto_auto] gap-3 md:gap-5 xl:gap-8 items-start px-3 py-3 md:px-5 md:py-5 xl:px-8 xl:py-8 max-w-[1800px] mx-auto">
+      <div
+        className={`col-start-2 row-start-1 w-full rounded-lg shadow-md overflow-auto ${pickingPosition ? 'cursor-crosshair' : ''}`}
+        style={{ aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}` }}
+        ref={sceneRef}
+      >
+        {/* Canvas fills this responsive container at zoomFactor=1, and
+            overflows (scrolling) when the slider zooms further in. */}
       </div>
       {adapterReady && adapterRef.current && (
         <PhysicsProvider adapter={adapterRef.current}>

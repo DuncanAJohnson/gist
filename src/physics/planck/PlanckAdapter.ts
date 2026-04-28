@@ -188,10 +188,16 @@ export class PlanckAdapter implements PhysicsAdapter {
 
   private readonly world: planck.World;
   private readonly bodyById = new Map<string, Registered>();
+  /** Override for Planck's per-step velocity iterations (default 8). */
+  private velocityIterations: number | undefined;
+  /** Override for Planck's per-step position iterations (default 3). */
+  private positionIterations: number | undefined;
 
   constructor(opts: AdapterOptions = {}) {
     const g = opts.gravity ?? { x: 0, y: -9.8 };
     this.world = new planck.World({ gravity: { x: g.x, y: g.y } });
+    this.velocityIterations = opts.solverIterations;
+    this.positionIterations = opts.positionIterations;
   }
 
   async init(): Promise<void> {
@@ -200,6 +206,14 @@ export class PlanckAdapter implements PhysicsAdapter {
 
   setGravity(g: Vec2): void {
     this.world.setGravity({ x: g.x, y: g.y });
+  }
+
+  setSolverIterations(iters: number): void {
+    this.velocityIterations = iters;
+  }
+
+  setPositionIterations(iters: number): void {
+    this.positionIterations = iters;
   }
 
   createBody(def: BodyDef): PhysicsBody {
@@ -296,7 +310,7 @@ export class PlanckAdapter implements PhysicsAdapter {
   }
 
   step(dtSeconds: number): void {
-    this.world.step(dtSeconds);
+    this.world.step(dtSeconds, this.velocityIterations, this.positionIterations);
   }
 
   getAllBodies(): PhysicsBody[] {

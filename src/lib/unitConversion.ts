@@ -1,4 +1,4 @@
-import type { ObjectConfig, BodyConfig } from '../schemas/simulation';
+import type { ObjectConfig } from '../schemas/simulation';
 
 /**
  * Supported unit types for the simulation. These are display labels only —
@@ -52,30 +52,18 @@ export function isDimensionalProperty(path: string): boolean {
   );
 }
 
-function scaleBodyToSI(body: BodyConfig, scale: number): BodyConfig {
-  switch (body.type) {
-    case 'rectangle':
-      return { ...body, width: body.width * scale, height: body.height * scale };
-    case 'circle':
-      return { ...body, radius: body.radius * scale };
-    case 'polygon':
-      return { ...body, radius: body.radius * scale };
-    case 'vertex':
-      return { ...body, vertices: body.vertices.map((v) => ({ x: v.x * scale, y: v.y * scale })) };
-  }
-}
-
 export function scaleObjectToSI(obj: ObjectConfig, scale: number): ObjectConfig {
   return {
     ...obj,
     x: obj.x * scale,
     y: obj.y * scale,
+    width: obj.width * scale,
+    height: obj.height * scale,
     velocity: obj.velocity
       ? { x: obj.velocity.x * scale, y: obj.velocity.y * scale }
       : obj.velocity,
     acceleration: obj.acceleration
       ? { x: obj.acceleration.x * scale, y: obj.acceleration.y * scale }
       : obj.acceleration,
-    body: scaleBodyToSI(obj.body, scale),
   };
 }

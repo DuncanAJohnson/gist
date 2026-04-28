@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import {
   LineChart,
   Line,
@@ -7,22 +7,44 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  ReferenceLine,
   ResponsiveContainer,
 } from 'recharts';
 import { registerGraph } from '../registry';
-import type { LineGraphConfig, GraphRenderProps } from '../types';
+import type { DataPoint, LineGraphConfig, GraphRenderProps } from '../types';
 
 const OVERLAY_KEY = '__experimentalOverlay';
 
 function LineGraph({ config, data, compact = false, maxDuration, overlayData, overlayColor }: GraphRenderProps<LineGraphConfig>) {
   const { title, yAxisRange, yAxisLabel, lines } = config;
 
+  // Keep the furthest-extent history we've seen. Scrubbing back leaves the
+  // already-drawn line in place; scrubbing forward past the previous max
+  // extends it. An empty `data` (reset / new sim) clears the history.
+  const extendedDataRef = useRef<DataPoint[]>([]);
+
+  const { displayData, currentTime, isReplaying } = useMemo(() => {
+    if (data.length === 0) {
+      extendedDataRef.current = [];
+      return { displayData: [] as DataPoint[], currentTime: 0, isReplaying: false };
+    }
+    const currT = data[data.length - 1].time;
+    const stored = extendedDataRef.current;
+    const storedMaxT = stored.length > 0 ? stored[stored.length - 1].time : -Infinity;
+    if (currT >= storedMaxT) {
+      extendedDataRef.current = data;
+    }
+    const out = extendedDataRef.current;
+    const outMaxT = out.length > 0 ? out[out.length - 1].time : 0;
+    return { displayData: out, currentTime: currT, isReplaying: currT < outMaxT };
+  }, [data]);
+
   // Merge overlay points into the chart data (sparse — simulation keys will be undefined for overlay rows)
   const combinedData = useMemo(() => {
-    if (!overlayData || overlayData.length === 0) return data;
+    if (!overlayData || overlayData.length === 0) return displayData;
     const overlayPoints = overlayData.map(p => ({ time: p.time, [OVERLAY_KEY]: p.value }));
-    return [...data, ...overlayPoints].sort((a, b) => a.time - b.time);
-  }, [data, overlayData]);
+    return [...displayData, ...overlayPoints].sort((a, b) => a.time - b.time);
+  }, [displayData, overlayData]);
 
   // Calculate actual y-axis domain (extend beyond initial range if needed)
   const yDomain = useMemo(() => {
@@ -94,6 +116,15 @@ function LineGraph({ config, data, compact = false, maxDuration, overlayData, ov
               isAnimationActive={false}
             />
           ))}
+          {isReplaying && (
+            <ReferenceLine
+              x={currentTime}
+              stroke="#666"
+              strokeWidth={1.5}
+              strokeDasharray="4 4"
+              ifOverflow="extendDomain"
+            />
+          )}
           {overlayData && overlayData.length > 0 && (
             <Line
               type="monotone"

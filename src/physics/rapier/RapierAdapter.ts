@@ -245,15 +245,22 @@ export class RapierAdapter implements PhysicsAdapter {
   private destroyed = false;
   private readonly bodyById = new Map<string, Registered>();
   private readonly pendingGravity: Vec2;
+  private pendingSolverIters: number | null = null;
 
   constructor(opts: AdapterOptions = {}) {
     this.pendingGravity = opts.gravity ?? { x: 0, y: -9.8 };
+    if (opts.solverIterations !== undefined) {
+      this.pendingSolverIters = opts.solverIterations;
+    }
   }
 
   async init(): Promise<void> {
     this.RAPIER = await loadRapier();
     if (this.destroyed) return;
     this.world = getSharedWorld(this.RAPIER, this.pendingGravity);
+    if (this.pendingSolverIters !== null) {
+      this.world.integrationParameters.numSolverIterations = this.pendingSolverIters;
+    }
   }
 
   private requireWorld(): RAPIER_NS.World {
@@ -268,6 +275,13 @@ export class RapierAdapter implements PhysicsAdapter {
     this.pendingGravity.y = g.y;
     if (this.world) {
       this.world.gravity = { x: g.x, y: g.y };
+    }
+  }
+
+  setSolverIterations(iters: number): void {
+    this.pendingSolverIters = iters;
+    if (this.world) {
+      this.world.integrationParameters.numSolverIterations = iters;
     }
   }
 

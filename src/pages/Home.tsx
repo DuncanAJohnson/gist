@@ -11,9 +11,11 @@ import {
 } from '../lib/simulationService';
 import SimulationListItemComponent from '../components/SimulationListItem';
 import { getBrowserId } from '../lib/browserId';
+import { useLanguage } from '../contexts/LanguageContext';
 
 function Home() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [topSimulations, setTopSimulations] = useState<SimulationListItem[]>([]);
   const [endorsedIds, setEndorsedIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -39,13 +41,13 @@ function Home() {
     }
   };
 
-  const handleJSONExtracted = async (json: any) => {
+  const handleJSONExtracted = async (json: any, userPrompt: string | null) => {
     try {
-      const simulationId = await createSimulation(json, true, null);
+      const simulationId = await createSimulation(json, true, null, userPrompt);
       navigate(`/simulation/${simulationId}`);
     } catch (error) {
       console.error('Failed to save simulation:', error);
-      alert('Failed to save simulation. Please try again.');
+      alert(t('home.saveFailed'));
     }
   };
 
@@ -88,7 +90,7 @@ function Home() {
       {/* Hero prompt */}
       <div className="text-center mb-8 mt-4">
         <h1 className="text-4xl text-gray-800 mb-8 font-semibold">
-          What physics concept do you want to simulate today?
+          {t('home.heroPrompt')}
         </h1>
         <div className="max-w-2xl mx-auto">
           <CreateSimulation
@@ -104,20 +106,20 @@ function Home() {
       <div className="mt-16">
         <div className="flex items-baseline justify-between mb-4">
           <h2 className="text-2xl font-semibold text-gray-800">
-            Top Endorsed This Week
+            {t('home.topThisWeek')}
           </h2>
           <Link
             to="/library"
             className="text-primary hover:underline text-sm font-medium"
           >
-            Browse all published simulations →
+            {t('home.browseAll')}
           </Link>
         </div>
         {loading ? (
-          <div className="text-center text-gray-500 py-8">Loading...</div>
+          <div className="text-center text-gray-500 py-8">{t('home.loading')}</div>
         ) : topSimulations.length === 0 ? (
           <div className="text-center text-gray-500 py-8 bg-white rounded-lg border border-gray-200">
-            No endorsed simulations yet this week. Create one and endorse it to get started!
+            {t('home.emptyTopWeek')}
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-200">
@@ -127,7 +129,6 @@ function Home() {
                 simulation={sim}
                 endorsed={endorsedIds.has(sim.id)}
                 onToggleEndorse={handleToggleEndorse}
-                endorsementDisplay="with-week"
                 showProvenance={false}
                 descriptionPreviewLength={220}
               />

@@ -2,9 +2,8 @@
 Modal serverless function to update the changes_made column for simulations.
 Compares a simulation's JSON with its parent's JSON using AI to generate a summary.
 
-Uses the same pluggable provider layer as `generate_simulation.py`. The frontend
-passes `provider` + `model` pulled from `src/config/aiProviders.ts` (the default,
-not whatever the user picked in the UI).
+Single-call workload — uses `pipeline.call_llm` directly rather than the full
+sim_pipeline. The frontend passes `model` pulled from `src/config/aiProviders.ts`.
 """
 
 import modal
@@ -14,7 +13,7 @@ import os
 app = modal.App("gist-update-changes")
 
 _current_dir = os.path.dirname(os.path.abspath(__file__))
-_providers_local_dir = os.path.join(_current_dir, 'providers')
+_pipeline_local_dir = os.path.join(_current_dir, 'pipeline')
 
 image = (
     modal.Image.debian_slim()
@@ -25,7 +24,7 @@ image = (
         "supabase",
         "fastapi[standard]>=0.100.0",
     )
-    .add_local_dir(local_path=_providers_local_dir, remote_path="/root/providers")
+    .add_local_dir(local_path=_pipeline_local_dir, remote_path="/root/pipeline")
 )
 
 
@@ -33,7 +32,6 @@ image = (
     image=image,
     secrets=[
         modal.Secret.from_name("gist-openai-key"),
-        modal.Secret.from_name("gist-skolegpt-key"),
         modal.Secret.from_name("gist-supabase"),
     ],
     timeout=300,
@@ -44,13 +42,12 @@ async def update_changes_made(request: dict):
     Expected payload:
     {
         "simulation_id": 123,
-        "provider": "openai",
         "model": "gpt-5-mini"
     }
     """
     from fastapi.responses import JSONResponse
     from supabase import create_client, Client
-    from providers import dispatch
+    from pipeline import call_llm
 
     cors_headers = {
         "Access-Control-Allow-Origin": "*",
@@ -59,13 +56,10 @@ async def update_changes_made(request: dict):
     }
 
     simulation_id = request.get("simulation_id")
-    provider = request.get("provider")
     model = request.get("model")
 
     if not simulation_id:
         return JSONResponse(content={"error": "simulation_id is required"}, status_code=400)
-    if not provider:
-        return JSONResponse(content={"error": "provider is required"}, status_code=400)
     if not model:
         return JSONResponse(content={"error": "model is required"}, status_code=400)
 
@@ -117,22 +111,20 @@ For example:
 - "Made the ball green instead of blue"
 """
 
-        result = await dispatch(
-            provider=provider,
-            messages=[{"role": "user", "content": comparison_prompt}],
-            model=model,
-            max_tokens=200,
-            instructions=None,
-        )
-
-        if result.get("type") != "success":
+        try:
+            content = await call_llm(
+                messages=[{"role": "user", "content": comparison_prompt}],
+                model=model,
+                max_tokens=200,
+            )
+        except Exception as e:
             return JSONResponse(
-                content={"error": result.get("error", "Provider call failed"), "type": "provider_error"},
+                content={"error": str(e), "type": "provider_error"},
                 status_code=502,
                 headers=cors_headers,
             )
 
-        changes_summary = (result.get("content") or "").strip()
+        changes_summary = (content or "").strip()
 
         supabase.table("simulations").update({
             "changes_made": changes_summary,
