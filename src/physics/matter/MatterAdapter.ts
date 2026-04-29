@@ -165,6 +165,14 @@ class MatterPhysicsBody implements PhysicsBody {
   set restitution(value: number) {
     this.matter.restitution = value;
   }
+
+  setLinearDamping(damping: number): void {
+    // Matter's frictionAir is a per-step velocity scale (v *= 1 - frictionAir),
+    // not a continuous damping rate. Convert by inverting the engine's fixed
+    // 60 Hz step: v(t+dt) = v / (1 + damping·dt) with dt = 1/60.
+    const dt = 1 / 60;
+    this.matter.frictionAir = 1 - 1 / (1 + damping * dt);
+  }
 }
 
 // ─── adapter ──────────────────────────────────────────────────────────────

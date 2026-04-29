@@ -2,6 +2,8 @@ import { useState } from 'react';
 import type { PhysicsEngineKind } from '../../physics';
 import EngineSwitcher from './EngineSwitcher';
 
+export type AirResistanceMode = 'off' | 'quadratic';
+
 interface AdvancedDebugPanelProps {
   engine: PhysicsEngineKind;
   onEngineChange: (engine: PhysicsEngineKind) => void;
@@ -15,6 +17,8 @@ interface AdvancedDebugPanelProps {
   positionIterations: number;
   onPositionIterationsChange: (iters: number) => void;
   positionIterationsDisabled: boolean;
+  airResistanceMode: AirResistanceMode;
+  onAirResistanceModeChange: (mode: AirResistanceMode) => void;
   showGrid: boolean;
   onShowGridChange: (v: boolean) => void;
   onTweakJSON?: () => void;
@@ -71,6 +75,8 @@ function AdvancedDebugPanel({
   positionIterations,
   onPositionIterationsChange,
   positionIterationsDisabled,
+  airResistanceMode,
+  onAirResistanceModeChange,
   showGrid,
   onShowGridChange,
   onTweakJSON,
@@ -142,6 +148,24 @@ function AdvancedDebugPanel({
                 disabled={positionIterationsDisabled}
               />
             </>
+          )}
+          {engine !== 'matter' && (
+            <div className="flex items-center justify-between gap-3">
+              <span
+                className="text-xs text-gray-600"
+                title="Phase-1 air-resistance toggle. Quadratic mode writes per-frame linearDamping = (k/m)·|v| to mimic mass-dependent v² drag, with k derived from each body's shape."
+              >
+                Air resistance
+              </span>
+              <select
+                value={airResistanceMode}
+                onChange={(e) => onAirResistanceModeChange(e.target.value as AirResistanceMode)}
+                className="px-2 py-1 rounded-md border border-gray-300 bg-white text-xs text-gray-700 focus:outline-none cursor-pointer"
+              >
+                <option value="off">Off</option>
+                <option value="quadratic">Quadratic (v²)</option>
+              </select>
+            </div>
           )}
           <div className="flex items-center justify-between gap-3">
             <span

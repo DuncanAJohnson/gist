@@ -225,6 +225,18 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   // Planck-only second knob; Rapier ignores it. 3 matches Planck's default.
   const [positionIterations, setPositionIterations] = useState<number>(3);
 
+  // Phase-1 air-resistance debug toggle. 'off' leaves the engine's create-time
+  // damping in place; 'quadratic' drives `setLinearDamping((k/m)·|v|)` per
+  // frame to mimic mass-dependent quadratic drag. See
+  // Notes_on_Air_Resistance_Refactor.md for the model and the open
+  // questions around schema-side wiring (Phase 2).
+  type AirResistanceMode = 'off' | 'quadratic';
+  const [airResistanceMode, setAirResistanceMode] = useState<AirResistanceMode>('off');
+  // Ref so handleUpdate (useCallback) reads the current mode without rebinding
+  // on every toggle — same pattern as isRunningRef.
+  const airResistanceModeRef = useRef<AirResistanceMode>('off');
+  useEffect(() => { airResistanceModeRef.current = airResistanceMode; }, [airResistanceMode]);
+
   const [maxDuration, setMaxDuration] = useState<number>(10);
 
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
@@ -369,6 +381,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     const isRecording = jsonModeRef.current === 'precomputing';
 
     const deltaTime = time - prevTimeRef.current;
+    const airMode = airResistanceModeRef.current;
     if (deltaTime > 0) {
       objects.forEach((objectConfig) => {
         const body = objRefs.current[objectConfig.id];
@@ -384,6 +397,28 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         if (cfgAccel && !body.isStatic && (cfgAccel.x !== 0 || cfgAccel.y !== 0)) {
           body.velocity.x = body.velocity.x + cfgAccel.x * deltaTime;
           body.velocity.y = body.velocity.y + cfgAccel.y * deltaTime;
+        }
+
+        // Phase-1 air-resistance debug toggle. We approximate quadratic,
+        // mass-dependent drag (a = -(k/m)·|v|·v) by writing a per-frame
+        // linearDamping value of (k/m)·|v|, which the engine then applies
+        // through its substep-correct, unconditionally-stable damping
+        // integrator (v / (1 + damping·dt)). |v| is held constant within a
+        // frame's substeps — fine for educational sims at 60 Hz. When 'off',
+        // restore the body's original frictionAir so flipping the toggle
+        // off doesn't strand it in its last computed damping value.
+        if (!body.isStatic) {
+          if (airMode === 'quadratic') {
+            const k = (body.userData.dragK as number | undefined) ?? 0;
+            const m = body.mass;
+            if (k > 0 && m > 0) {
+              const speed = Math.hypot(body.velocity.x, body.velocity.y);
+              body.setLinearDamping((k / m) * speed);
+            }
+          } else {
+            const original = (body.userData.originalFrictionAir as number | undefined) ?? 0;
+            body.setLinearDamping(original);
+          }
         }
 
         const prevVelocity = prevVelocitiesRef.current[objectConfig.id];
@@ -830,6 +865,8 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
             positionIterations={positionIterations}
             onPositionIterationsChange={setPositionIterations}
             positionIterationsDisabled={isRunning || precomputeState === 'precomputing'}
+            airResistanceMode={airResistanceMode}
+            onAirResistanceModeChange={setAirResistanceMode}
             showGrid={showGrid}
             onShowGridChange={setShowGrid}
             onTweakJSON={simulationId ? handleTweakJSON : undefined}

@@ -233,6 +233,10 @@ class RapierPhysicsBody implements PhysicsBody {
       this.rigid.collider(i).setRestitution(value);
     }
   }
+
+  setLinearDamping(damping: number): void {
+    this.rigid.setLinearDamping(damping);
+  }
 }
 
 // ─── adapter ──────────────────────────────────────────────────────────────

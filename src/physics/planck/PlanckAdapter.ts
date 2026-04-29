@@ -179,6 +179,10 @@ class PlanckPhysicsBody implements PhysicsBody {
       f.setRestitution(value);
     }
   }
+
+  setLinearDamping(damping: number): void {
+    this.body.setLinearDamping(damping);
+  }
 }
 
 // ─── adapter ──────────────────────────────────────────────────────────────

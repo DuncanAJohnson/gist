@@ -69,6 +69,14 @@ export interface PhysicsBody {
   /** Coefficient of restitution, applied to all of the body's colliders/fixtures. */
   restitution: number;
   userData: Record<string, unknown>;
+
+  /**
+   * Replace the body's linear damping coefficient at runtime. Per-step velocity
+   * decay is `v / (1 + damping·dt)`. JsonSimulation drives this each frame when
+   * the air-resistance debug toggle is on, plugging in `(k/m)·|v|` to mimic
+   * quadratic, mass-dependent drag using the engine's stable damping integrator.
+   */
+  setLinearDamping(damping: number): void;
 }
 
 export interface PhysicsAdapter {
