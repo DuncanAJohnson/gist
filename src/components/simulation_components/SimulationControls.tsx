@@ -99,31 +99,8 @@ function SimulationControls({
 
   return (
     <div className="flex flex-col gap-2">
+      {/* Transport row */}
       <div className="flex gap-2 items-center">
-        {/* Duration input */}
-        <div
-          className="flex items-center gap-2 bg-gray-100 border border-gray-300 rounded-lg px-3 h-[40px]"
-          title="Stop after this many seconds (minimum 1). Editing this invalidates the pre-computed cache."
-        >
-          <span className="text-sm text-gray-600 whitespace-nowrap">Simulation Duration:</span>
-          <input
-            type="number"
-            min="1"
-            step="1"
-            value={maxDuration}
-            onChange={(e) => {
-              const raw = e.target.value;
-              if (raw === '') return;
-              const n = Number(raw);
-              if (Number.isFinite(n)) {
-                onMaxDurationChange(Math.max(1, n));
-              }
-            }}
-            className="w-14 bg-transparent text-sm text-center focus:outline-none"
-          />
-          <span className="text-sm text-gray-600">seconds</span>
-        </div>
-
         {!isRunning ? (
           <button
             className="bg-green-500 cursor-pointer hover:-translate-y-0.5 hover:shadow-lg hover:bg-green-600 active:translate-y-0 active:shadow-sm text-white border-0 rounded px-4 py-2 text-xl transition-all duration-200 shadow-md min-w-[50px] h-[40px] flex items-center justify-center"
@@ -148,33 +125,10 @@ function SimulationControls({
         >
           ⟲
         </button>
-
-        {/* Playback speed selector */}
-        <div
-          className="flex items-center bg-gray-100 border border-gray-300 rounded-lg h-[40px] overflow-hidden"
-          title="Playback speed (affects replay only)"
-        >
-          {SPEED_PRESETS.map((preset, i) => {
-            const selected = playbackSpeed === preset.value;
-            return (
-              <button
-                key={preset.value}
-                onClick={() => onPlaybackSpeedChange(preset.value)}
-                className={`px-2.5 h-full text-sm font-medium transition-colors ${
-                  selected
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-transparent text-gray-700 hover:bg-gray-200'
-                } ${i > 0 ? 'border-l border-gray-300' : ''}`}
-              >
-                {preset.label}
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {showScrub && (
-        <div className="flex items-center gap-3 px-1">
+        <div className="flex flex-col gap-0.5 px-1 mt-3">
           <input
             type="range"
             min={0}
@@ -192,13 +146,61 @@ function SimulationControls({
               setLocalFrame(n);
               onSeek(n);
             }}
-            className="flex-1 accent-blue-500 cursor-pointer"
+            className="w-full accent-blue-500 cursor-pointer"
           />
-          <span className="text-xs text-gray-600 font-mono tabular-nums whitespace-nowrap min-w-[90px] text-right">
+          <span className="text-xs text-gray-600 font-mono tabular-nums text-center">
             {formatSeconds(displayFrame)}s / {formatSeconds(totalFrames - 1)}s
           </span>
         </div>
       )}
+
+      {/* Time controls row: duration + playback speed */}
+      <div className="flex gap-2 items-center flex-wrap">
+        <div
+          className="flex items-center gap-2 bg-gray-100 border border-gray-300 rounded-lg px-3 h-[36px]"
+          title="Stop after this many seconds (minimum 1). Editing this invalidates the pre-computed cache."
+        >
+          <span className="text-sm text-gray-600 whitespace-nowrap">Duration:</span>
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={maxDuration}
+            onChange={(e) => {
+              const raw = e.target.value;
+              if (raw === '') return;
+              const n = Number(raw);
+              if (Number.isFinite(n)) {
+                onMaxDurationChange(Math.max(1, n));
+              }
+            }}
+            className="w-12 bg-transparent text-sm text-center focus:outline-none"
+          />
+          <span className="text-sm text-gray-600">s</span>
+        </div>
+
+        <div
+          className="flex items-center bg-gray-100 border border-gray-300 rounded-lg h-[36px] overflow-hidden"
+          title="Playback speed (affects replay only)"
+        >
+          {SPEED_PRESETS.map((preset, i) => {
+            const selected = playbackSpeed === preset.value;
+            return (
+              <button
+                key={preset.value}
+                onClick={() => onPlaybackSpeedChange(preset.value)}
+                className={`px-2 h-full text-sm font-medium transition-colors ${
+                  selected
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-transparent text-gray-700 hover:bg-gray-200'
+                } ${i > 0 ? 'border-l border-gray-300' : ''}`}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

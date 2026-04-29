@@ -198,6 +198,96 @@ For a falling object with no walls and `g = 9.8`, `airDensity = 1.225`, `Cd = 0.
 
 ---
 
+## Findings during Phase 1 testing (2026-04-29)
+
+### Bug fixed: Rapier `mass` setter no longer oscillates total mass between calls
+
+**Status**: identified, confirmed, fixed, verified. Planck was never affected.
+
+**The bug** (now fixed) was at the previous Rapier wrapper setter:
+
+```ts
+// before
+set mass(value: number) {
+  this.rigid.setAdditionalMass(Math.max(0, value - this.rigid.mass()), true);
+}
+```
+
+Rapier's `setAdditionalMass` **replaces** (not adds to) the body's additional mass component. The old setter computed the delta against the *live* total — which already included the prior delta. So calling `body.mass = 2` twice on a body with collider mass 1 produced:
+
+- 1st call: `setAdditionalMass(2 − 1) = 1` → total = 1 + 1 = **2** ✓
+- 2nd call: `setAdditionalMass(2 − 2) = 0` → total = 1 + 0 = **1** ✗
+
+Every Play/Reset re-fires all sliders (including Mass), so the setter was called repeatedly and total mass oscillated between the intended value and the base-collider value across runs.
+
+**The fix** ([RapierAdapter.ts:159-167](src/physics/rapier/RapierAdapter.ts#L159-L167) and [RapierAdapter.ts:219-227](src/physics/rapier/RapierAdapter.ts#L219-L227)): capture the body's base collider mass once at wrapper construction and compute the delta against *that*, not the live total:
+
+```ts
+private readonly baseMass: number;
+
+constructor(...) {
+  ...
+  this.baseMass = this.rigid.mass();   // captured before any setAdditionalMass calls
+}
+
+set mass(value: number) {
+  this.rigid.setAdditionalMass(Math.max(0, value - this.baseMass), true);
+}
+```
+
+The setter is now idempotent: `body.mass = 2` always lands at total mass = 2, regardless of how many times it's called. Empirically verified after the fix — four sequential Plays at slider Mass=2 all logged `m=2.000`.
+
+**Planck was never affected** ([PlanckAdapter.ts:157-164](src/physics/planck/PlanckAdapter.ts#L157-L164)). Planck's setter calls `setMassData({ mass: value, ... })` directly — value is set, not deltaed — so the same idempotency property comes for free from the engine API. Verified empirically pre-fix: three sequential Plays under Planck all logged `m=2.000`.
+
+**Scope note**: this fix is technically adjacent to the air-resistance refactor (it would affect any sim that toggles Mass via slider, not just air-resistance ones). It's bundled into this branch because it was materially blocking honest drag-vs-mass tests under Rapier (the default engine). When PR'ing, worth calling out as a focused fix for reviewer attention.
+
+### Resolved: "Air Resistance slider affects Quadratic-mode physics"
+
+**Original observation (2026-04-29)**: with the toggle set to Quadratic and two physically-identical baseballs side-by-side, varying the Air Resistance slider on one ball changed which ball fell faster:
+
+- Ball = 0.3, Ball_2 = 0.5 → Ball_2 falls faster
+- Ball = 0.2, Ball_2 = 0.5 → Ball falls faster
+
+**Per code analysis, this should not have been possible**:
+
+- The Air Resistance slider's `property: "frictionAir"` writes via `setNestedValue(body, 'frictionAir', value)`, which does a plain JS assignment to a wrapper property.
+- The wrapper class has no `frictionAir` getter/setter, so the assignment just creates a JS own-property that nothing reads.
+- Grep confirms no code path reads `body.frictionAir` post-creation.
+- In Quadratic mode, `handleUpdate` overwrites engine `linearDamping` every frame with `(k/m)·|v|`, blowing away whatever the slider might have set.
+- Both balls have identical manifest colliders (baseball and basketball both `{type: circle, radius: 20}` in the manifest), so identical `dragK`.
+
+**Resolution**: the apparent slider effect was a **confound with the Rapier mass-setter bug**. The user happened to flip the Air Resistance slider on the same cadence (0.2 / 0.3 / 0.2 / 0.3) that the mass was independently oscillating (2 / 1 / 2 / 1) due to that bug, so slider value tracked fall rate perfectly — but the *cause* of the fall-rate variation was the mass oscillation, not the slider. Under Planck (which doesn't have the bug), the slider had no observable effect even before the fix. After fixing the Rapier mass setter, repeating the same test under Rapier also showed no slider effect, exactly as the code analysis predicted.
+
+The Air Resistance slider really is a no-op in Quadratic mode. Not surprising when the confound was removed; very confusing while it was present. Worth keeping in mind for future debug sessions: when a small change to one input correlates strongly with a physics outcome, check whether *another* input is varying in lockstep before assuming causation.
+
+### Empirical debug procedure (used; outcome was #2)
+
+Recorded here for posterity. The procedure was added to `handleUpdate` (since removed) and run under both engines to diagnose the slider/mass confound above:
+
+```ts
+if (k > 0 && m > 0) {
+  const speed = Math.hypot(body.velocity.x, body.velocity.y);
+  const damping = (k / m) * speed;
+  // TEMP DEBUG — remove after diagnosing slider effect
+  if (time < 0.4) console.log(
+    `[airdrag] ${objectConfig.id} t=${time.toFixed(3)} ` +
+    `m=${m.toFixed(3)} k=${k.toFixed(4)} v=${speed.toFixed(3)} ` +
+    `damping=${damping.toFixed(4)}`
+  );
+  body.setLinearDamping(damping);
+}
+```
+
+Three diagnostic branches were possible; the data picked **branch 2**:
+
+1. **Identical numbers across runs** → external interference; would have meant a stale engine state, a React render-side effect, or a third-party consumer of `body.frictionAir` we missed. Did not apply.
+2. **Different `m` across runs** → mass-setter oscillation. ✓ This is what the data showed under Rapier; led directly to the wrapper fix above.
+3. **Different `k` across runs** → body recreation producing different shapes. Did not apply.
+
+The same template can be repurposed any time we suspect a similar confound between a UI input and a physics outcome — log the actual physics state at the point of computation and compare across runs.
+
+---
+
 ## Decisions deferred (revisit if needed)
 
 ### Linear (v) drag option — dropped from the toggle

@@ -30,57 +30,16 @@ export const Vector2DSchema = z.object({
 export type Vector2D = z.infer<typeof Vector2DSchema>;
 
 // ============================================
-// Body Config Schemas (discriminated union)
-// ============================================
-
-export const RectangleBodyConfigSchema = z.object({
-  type: z.literal('rectangle'),
-  width: z.number().describe('Width in configured units (with default pixelsPerUnit=10 and unit="m", 4-8m recommended for visibility)'),
-  height: z.number().describe('Height in configured units (with default pixelsPerUnit=10 and unit="m", 4-8m recommended for visibility)'),
-  color: z.string().optional().describe('Hex color (e.g., "#ff6bff"). Good choices: "#ff6bff" (pink), "#4ecdc4" (teal), "#ff6b6b" (coral), "#95e1d3" (mint)'),
-}).describe('Rectangular body shape. Use for boxes, platforms, walls.');
-
-export const CircleBodyConfigSchema = z.object({
-  type: z.literal('circle'),
-  radius: z.number().describe('Radius in configured units (with default pixelsPerUnit=10 and unit="m", 2-4m recommended for visibility)'),
-  color: z.string().optional().describe('Hex color (e.g., "#ff6bff"). Good choices: "#ff6bff" (pink), "#4ecdc4" (teal), "#ff6b6b" (coral), "#95e1d3" (mint)'),
-}).describe('Circular body shape. Use for balls, wheels, planets.');
-
-export const PolygonBodyConfigSchema = z.object({
-  type: z.literal('polygon'),
-  sides: z.number().describe('Number of sides (3 = triangle, 5 = pentagon, 6 = hexagon, etc.)'),
-  radius: z.number().describe('Radius from center to vertices in configured units (with default pixelsPerUnit=10 and unit="m", 2-4m recommended for visibility)'),
-  color: z.string().optional().describe('Hex color (e.g., "#ff6bff")'),
-}).describe('Regular polygon body shape. Use for triangles, pentagons, hexagons.');
-
-export const VertexBodyConfigSchema = z.object({
-  type: z.literal('vertex'),
-  vertices: z.array(Vector2DSchema).describe('Array of {x, y} points defining the polygon vertices in order'),
-  color: z.string().optional().describe('Hex color (e.g., "#ff6bff")'),
-}).describe('Custom polygon defined by vertices. Use for irregular shapes, ramps, custom obstacles.');
-
-export const BodyConfigSchema = z.discriminatedUnion('type', [
-  RectangleBodyConfigSchema,
-  CircleBodyConfigSchema,
-  PolygonBodyConfigSchema,
-  VertexBodyConfigSchema,
-]).describe('Shape configuration for a physics body. Choose from: rectangle, circle, polygon, or vertex (custom shape).');
-
-export type RectangleBodyConfig = z.infer<typeof RectangleBodyConfigSchema>;
-export type CircleBodyConfig = z.infer<typeof CircleBodyConfigSchema>;
-export type PolygonBodyConfig = z.infer<typeof PolygonBodyConfigSchema>;
-export type VertexBodyConfig = z.infer<typeof VertexBodyConfigSchema>;
-export type BodyConfig = z.infer<typeof BodyConfigSchema>;
-
-// ============================================
 // Object Config Schema
 // ============================================
 
 export const ObjectConfigSchema = z.object({
   id: z.string().describe('Unique identifier for this object (e.g., "ball", "boxA", "platform"). Used by controls, outputs, and graphs to reference this object.'),
-  x: z.number().describe('Initial X position in configured units. With default settings (pixelsPerUnit=10, unit="m"), canvas is 80m wide. X=0 is left edge.'),
-  y: z.number().describe('Initial Y position in configured units. With default settings, (pixelsPerUnit=10, unit="m"), canvas is 60m tall. Y=0 is bottom edge, Y increases upward.'),
-  body: BodyConfigSchema,
+  x: z.number().describe('Initial X position of the object\'s center, in configured units. With default settings (pixelsPerUnit=10, unit="m"), canvas is 80m wide. X=0 is left edge.'),
+  y: z.number().describe('Initial Y position of the object\'s center, in configured units. With default settings, canvas is 60m tall. Y=0 is bottom edge, Y increases upward.'),
+  width: z.number().describe('Bounding-box width in configured units. The actual collider shape (rectangle, circle, or convex hull) is looked up from the SVG manifest by `svg` and scaled into this box.'),
+  height: z.number().describe('Bounding-box height in configured units. The actual collider shape is looked up from the SVG manifest by `svg` and scaled into this box.'),
+  svg: z.string().describe('Name of a renderable from public/renderables/manifest.json (e.g., "soccer_ball", "brick_block", "boat"). Drives both the visual sprite and the physical collider shape, scaled to width × height.'),
   velocity: Vector2DSchema.optional().describe('Initial linear velocity {x, y} in units/second. Positive Y = upward motion. Typical range: -30 to 30 m/s.'),
   acceleration: Vector2DSchema.optional().describe('Initial linear acceleration {x, y} in units/s². Usually not set directly; gravity provides Y acceleration.'),
   restitution: z.number().optional().describe('Bounciness (0-1). 0 = no bounce, 1 = perfect bounce, 0.8 = realistic. Default: 0.8'),
@@ -93,7 +52,7 @@ export const ObjectConfigSchema = z.object({
   angularVelocity: z.number().optional().describe('Initial angular velocity in radians/second. Default: 0'),
   angle: z.number().optional().describe('Initial angle in radians. Default: 0'),
   showForceArrows: z.boolean().optional().describe('If true, draw arrows on this object showing the net force from the physics engine. Default: false'),
-}).describe('A physics object in the simulation. Configure shape, position, velocity, and physics properties. Uses real-world units with Y-up coordinate system.');
+}).describe('A physics object in the simulation. Carries position, bounding-box size, an SVG manifest name (which drives both visual and collider), and optional physics properties.');
 
 export type ObjectConfig = z.infer<typeof ObjectConfigSchema>;
 
@@ -154,7 +113,7 @@ export type OutputGroupConfig = z.infer<typeof OutputGroupConfigSchema>;
 
 export const LineConfigSchema = z.object({
   label: z.string().describe('Line label for the legend (e.g., "Velocity Y", "Box A Position")'),
-  color: z.string().describe('Line color as hex (e.g., "#ff6bff"). Match object colors for visual consistency.'),
+  color: z.string().describe('Line color as hex (e.g., "#ff6bff").'),
   targetObj: z.string().describe('ID of the object to track (must match an object\'s id)'),
   property: z.string().describe('Property path to plot. Options: "velocity.x", "velocity.y", "acceleration.x", "acceleration.y", "position.x", "position.y"'),
 }).describe('Configuration for a single line on a graph. Values are automatically converted to real-world units.');
@@ -179,75 +138,6 @@ export type LineGraphConfig = z.infer<typeof LineGraphConfigSchema>;
 export type GraphConfig = z.infer<typeof GraphConfigSchema>;
 
 // ============================================
-// Renderable Schemas (visual layer, decoupled from physics)
-// ============================================
-
-export const PositionSourceSchema = z.discriminatedUnion('type', [
-  z.object({
-    type: z.literal('body'),
-    bodyId: z.string().describe('ID of a physics object to follow'),
-    followAngle: z.boolean().optional().default(true).describe('If true, rotate visual with body. Default: true'),
-  }),
-  z.object({
-    type: z.literal('data'),
-    dataId: z.string().describe('ID of a data source (e.g., "experimental" for imported data)'),
-  }),
-  z.object({
-    type: z.literal('fixed'),
-    x: z.number().describe('X position in configured units (real-world, Y-up)'),
-    y: z.number().describe('Y position in configured units (real-world, Y-up)'),
-    angle: z.number().optional().default(0).describe('Angle in radians'),
-  }),
-]).describe('Where to draw a renderable. "body" tracks a physics object, "data" interpolates imported data, "fixed" is a static position.');
-
-export const ShapeVisualSchema = z.object({
-  type: z.literal('shape'),
-  shape: z.enum(['circle', 'rectangle', 'polygon']),
-  color: z.string().describe('Fill color as hex (e.g., "#ff6bff")'),
-  width: z.number().optional().describe('Width in configured units (rectangle only)'),
-  height: z.number().optional().describe('Height in configured units (rectangle only)'),
-  radius: z.number().optional().describe('Radius in configured units (circle and polygon)'),
-  sides: z.number().optional().describe('Number of sides (polygon only)'),
-  stroke: z.string().optional().describe('Stroke color as hex'),
-  strokeWidth: z.number().optional().describe('Stroke width in pixels'),
-}).describe('A shape drawn on the canvas.');
-
-export const ImageVisualSchema = z.object({
-  type: z.literal('image'),
-  src: z.string().describe('URL or data URI of the image/SVG to render'),
-  width: z.number().describe('Width in configured units'),
-  height: z.number().describe('Height in configured units'),
-}).describe('An image or SVG sprite drawn on the canvas.');
-
-export const RenderableVisualSchema = z.object({
-  type: z.literal('renderable'),
-  name: z.string().describe('Name of a bundled renderable from the manifest (e.g., "pumpkin")'),
-  width: z.number().describe('Width in configured units'),
-  height: z.number().describe('Height in configured units'),
-}).describe('A bundled image/SVG referenced by name. Use instead of "image" when a built-in asset is available.');
-
-export const VisualSchema = z.discriminatedUnion('type', [
-  ShapeVisualSchema,
-  ImageVisualSchema,
-  RenderableVisualSchema,
-]).describe('What to draw at the renderable\'s position.');
-
-export const RenderableSchema = z.object({
-  id: z.string().describe('Unique identifier for this renderable'),
-  source: PositionSourceSchema,
-  visual: VisualSchema,
-  opacity: z.number().optional().default(1).describe('Opacity (0-1). Default: 1'),
-  zIndex: z.number().optional().default(0).describe('Draw order. Higher values draw on top. Default: 0'),
-}).describe('A visual element decoupled from physics. Declare what to draw (visual) and where (source).');
-
-export type PositionSource = z.infer<typeof PositionSourceSchema>;
-export type ShapeVisual = z.infer<typeof ShapeVisualSchema>;
-export type ImageVisual = z.infer<typeof ImageVisualSchema>;
-export type RenderableVisual = z.infer<typeof RenderableVisualSchema>;
-export type Visual = z.infer<typeof VisualSchema>;
-export type Renderable = z.infer<typeof RenderableSchema>;
-
-// ============================================
 // Environment Config Schema
 // ============================================
 
@@ -255,7 +145,7 @@ export const EnvironmentConfigSchema = z.object({
   walls: z.array(z.enum(['left', 'right', 'top', 'bottom'])).describe('Array of walls to include. Options: "left", "right", "top", "bottom". Empty array [] = no walls (objects can exit canvas). Use walls to contain objects or create bounce surfaces.'),
   gravity: z.number().optional().default(9.8).describe('Gravity acceleration in units/s² (downward). Default: 9.8 for Earth gravity in m/s². Set to 0 for zero-gravity. For cm/s² use 980.'),
   unit: UnitTypeSchema.optional().default('m').describe('Unit of measurement for all positions, velocities, and sizes. Default: "m" (meters). Options: "m", "cm", "km", "ft", "in".'),
-  pixelsPerUnit: z.number().optional().default(10).describe('Scale factor: how many pixels equal one unit. Default: 10 (10px = 1m, giving 80m x 60m canvas). For larger simulations, use smaller values (e.g., 8 for 100m x 75m canvas).'),
+  pixelsPerUnit: z.number().optional().default(10).describe('Scale factor: how many pixels equal one unit. The simulation canvas is 800×600 pixels, so the SI canvas size is (800/pixelsPerUnit) × (600/pixelsPerUnit). Pick this value so the largest object is roughly 10–25% of the smaller canvas dimension.'),
   physicsEngine: z.enum(['matter', 'rapier', 'planck']).optional().default('rapier').describe('Which physics engine powers the simulation. "matter" uses Matter.js. "rapier" uses Rapier (WASM, SI-native, deterministic, default). "planck" uses Planck.js (pure JS port of Box2D, SI-native). Existing configs without this field use rapier.'),
 }).describe('Environment settings. Controls units, scale, boundaries, and gravity. Uses real-world physics coordinates: origin at bottom-left, Y increases upward.');
 
@@ -265,34 +155,32 @@ export type EnvironmentConfig = z.infer<typeof EnvironmentConfigSchema>;
 // Simulation Config Schema (top-level)
 // ============================================
 
-const schemaDescription = `Physics simulation configuration using real-world units with Matter.js engine.
+const schemaDescription = `Physics simulation configuration using real-world units.
 
 COORDINATE SYSTEM (Real-World Physics):
-- Origin (0, 0) is at BOTTOM-LEFT corner
+- Origin (0, 0) is at BOTTOM-LEFT corner of the simulation canvas
 - X increases to the right
 - Y increases UPWARD (like standard physics)
 - Positive Y velocity = upward motion
 
-UNITS & SCALE:
-- Default: unit="m" (meters), pixelsPerUnit=100 → 8m x 6m canvas
-- For larger simulations: reduce pixelsPerUnit (e.g., 8 → 100m x 75m canvas)
-- For smaller simulations: increase pixelsPerUnit or use "cm"
-- Gravity default: 9.8 m/s² (Earth gravity)
+CANVAS:
+- The simulation canvas is 800 × 600 pixels.
+- SI canvas size is (800 / pixelsPerUnit) × (600 / pixelsPerUnit) in the configured unit.
+- With pixelsPerUnit=10 and unit="m" → 80m × 60m canvas.
+- Pick pixelsPerUnit so the LARGEST object is roughly 10–25% of the smaller (600 px) dimension.
+
+OBJECTS:
+- Each object is described by its center (x, y), bounding-box width and height, and an svg name from the public manifest.
+- The svg name drives BOTH the visual sprite AND the collider shape (rectangle / circle / convex hull). The collider is scaled to fit within width × height.
+- Width and height should reflect the typical real-world bounding box of the named object (e.g., a soccer_ball is ~0.22 m, a brick_block is ~0.5 m, a person is ~1.8 m tall).
+- Always pass the same configured unit; do not mix.
 
 GUIDELINES:
 - Keep simulations simple: 1-3 objects, focus on 1-2 physics concepts
 - Always include at least one control for interactivity
 - Use outputs to show current state, graphs to show history
-- Match graph line colors to object colors for visual consistency
 - Use clear, educational labels
 - All values (positions, velocities, sizes) are in the configured unit
-
-GOOD COLOR CHOICES:
-- "#ff6bff" (pink/magenta)
-- "#4ecdc4" (teal/cyan)
-- "#ff6b6b" (coral/red)
-- "#95e1d3" (mint green)
-- "#ffa07a" (light salmon)
 
 EXAMPLE 1 - Vertical Ball Toss:
 ${JSON.stringify(exampleTossBall, null, 2)}
@@ -304,11 +192,10 @@ export const SimulationConfigSchema = z.object({
   title: z.string().describe('Short, clear title for the simulation. Should indicate the physics concept. Examples: "Toss Ball", "Two Boxes Collision", "Pendulum Motion"'),
   description: z.string().describe('Brief educational description for students explaining what they can learn or observe. Keep it engaging.'),
   environment: EnvironmentConfigSchema,
-  objects: z.array(ObjectConfigSchema).optional().default([]).describe('Array of physics objects in the simulation. 1-3 objects recommended.'),
+  objects: z.array(ObjectConfigSchema).optional().default([]).describe('Array of physics objects in the simulation. 1-3 objects recommended. Each object\'s collider shape and visual sprite both come from its `svg` manifest entry, scaled to width × height.'),
   controls: z.array(ControlConfigSchema).optional().default([]).describe('Interactive controls (sliders, toggles) for students to adjust parameters. Include at least one for interactivity.'),
   outputs: z.array(OutputGroupConfigSchema).optional().default([]).describe('Real-time value displays. Group by object. Show velocity, acceleration, position as relevant.'),
   graphs: z.array(GraphConfigSchema).optional().default([]).describe('Time-series graphs to visualize property changes. Great for comparing related quantities.'),
-  renderables: z.array(RenderableSchema).optional().default([]).describe('Visual elements decoupled from physics bodies. Use to attach images/sprites to objects, or add purely visual overlays. Objects without an explicit renderable get a default shape renderable auto-generated from their body config.'),
 }).describe(schemaDescription);
 
 export type SimulationConfig = z.infer<typeof SimulationConfigSchema>;

@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import SimulationControls, { type PrecomputeState, type PrecomputeProgress } from './SimulationControls';
 import CreateSimulation from '../CreateSimulation';
 import FeedbackModal from './FeedbackModal';
 import {
@@ -11,50 +10,29 @@ import {
   getEndorsedSimulationIds,
 } from '../../lib/simulationService';
 import { getBrowserId } from '../../lib/browserId';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface SimulationHeaderProps {
   title?: string;
   description?: string;
-  isRunning: boolean;
-  onPlay: () => void;
-  onPause: () => void;
-  onReset: () => void;
   onEdit?: (json: any, userPrompt: string | null) => void;
   simulationId?: number;
   currentJSON?: any;
-  maxDuration: number;
-  onMaxDurationChange: (v: number) => void;
-  precomputeState: PrecomputeState;
-  precomputeProgress: PrecomputeProgress | null;
-  playbackSpeed: number;
-  onPlaybackSpeedChange: (speed: number) => void;
-  replayFrameIndex: number;
-  totalFrames: number;
-  onSeek: (frameIndex: number) => void;
 }
 
 function SimulationHeader({
   title,
   description,
-  isRunning,
-  onPlay,
-  onPause,
-  onReset,
   onEdit,
   simulationId,
   currentJSON,
-  maxDuration,
-  onMaxDurationChange,
-  precomputeState,
-  precomputeProgress,
-  playbackSpeed,
-  onPlaybackSpeedChange,
-  replayFrameIndex,
-  totalFrames,
-  onSeek,
 }: SimulationHeaderProps) {
+  const { t } = useLanguage();
   const [showEditPopup, setShowEditPopup] = useState(false);
   const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
+  // True while the remix popup is mid-stream — prevents click-outside from
+  // dismissing the popup and discarding an in-flight generation.
+  const [editPopupLocked, setEditPopupLocked] = useState(false);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const feedbackButtonRef = useRef<HTMLButtonElement>(null);
@@ -102,6 +80,7 @@ function SimulationHeader({
     const handleClickOutside = (event: MouseEvent) => {
       if (
         showEditPopup &&
+        !editPopupLocked &&
         popupRef.current &&
         !popupRef.current.contains(event.target as Node) &&
         editButtonRef.current &&
@@ -124,7 +103,7 @@ function SimulationHeader({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showEditPopup, showFeedbackPopup]);
+  }, [showEditPopup, showFeedbackPopup, editPopupLocked]);
 
   const handleJSONExtracted = (json: any, userPrompt: string | null) => {
     if (onEdit) {
@@ -168,10 +147,17 @@ function SimulationHeader({
 
   return (
     <div className="flex flex-row bg-gray-50 rounded-lg shadow-sm justify-between items-center relative">
-      <div className="flex flex-col items-start px-8 py-4 gap-4">
+      <div className="flex flex-col items-start px-3 py-2 md:px-5 md:py-3 xl:px-8 xl:py-4 gap-2 md:gap-3 xl:gap-4">
         <div className="flex items-center gap-4">
           <div>
-            {title && <h1 className="m-0 text-gray-800 text-3xl font-semibold">{title}</h1>}
+            {title && (
+              <h1 className="m-0 text-gray-800 text-3xl font-semibold">
+                {title}
+                {simulationId !== undefined && (
+                  <span className="text-gray-400 font-normal"> - #{simulationId}</span>
+                )}
+              </h1>
+            )}
             {description && (
               <p className="mt-2 mb-0 text-gray-600 text-base leading-relaxed">
                 {description}
@@ -181,57 +167,44 @@ function SimulationHeader({
         </div>
       </div>
 
-      {/* Right side - Controls, Feedback, and Edit button */}
-      <div className="flex flex-row items-center justify-center gap-4 px-8 py-4 relative">
-        <SimulationControls
-          isRunning={isRunning}
-          onPlay={onPlay}
-          onPause={onPause}
-          onReset={onReset}
-          maxDuration={maxDuration}
-          onMaxDurationChange={onMaxDurationChange}
-          precomputeState={precomputeState}
-          precomputeProgress={precomputeProgress}
-          playbackSpeed={playbackSpeed}
-          onPlaybackSpeedChange={onPlaybackSpeedChange}
-          replayFrameIndex={replayFrameIndex}
-          totalFrames={totalFrames}
-          onSeek={onSeek}
-        />
+      {/* Right side - Endorse, Feedback, and Edit button */}
+      <div className="flex flex-row items-center justify-center gap-2 md:gap-3 xl:gap-4 px-3 py-2 md:px-5 md:py-3 xl:px-8 xl:py-4 relative">
         {simulationId && metaLoaded && (
           <>
-            <button
-              onClick={handleToggleEndorse}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
-                endorsed
-                  ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-              aria-label={endorsed ? 'Remove endorsement' : 'Endorse'}
-            >
-              <span aria-hidden>{endorsed ? '♥' : '♡'}</span>
-              <span>{endorsementCount}</span>
-            </button>
+            {published && (
+              <button
+                onClick={handleToggleEndorse}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                  endorsed
+                    ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+                aria-label={endorsed ? t('list.removeEndorsement') : t('list.endorse')}
+              >
+                <span aria-hidden>{endorsed ? '♥' : '♡'}</span>
+                <span>{endorsementCount}</span>
+              </button>
+            )}
             {!published ? (
               <button
                 onClick={handleTogglePublish}
                 className="px-4 py-2 rounded-lg transition-colors font-medium text-sm bg-green-600 text-white hover:bg-green-700"
               >
-                Publish
+                {t('header.publish')}
               </button>
             ) : isPublisher ? (
               <button
                 onClick={handleTogglePublish}
                 className="px-4 py-2 rounded-lg transition-colors font-medium text-sm bg-gray-200 text-gray-700 hover:bg-gray-300"
               >
-                Published ✓
+                {t('header.published')}
               </button>
             ) : (
               <span
                 className="px-4 py-2 rounded-lg font-medium text-sm bg-gray-100 text-gray-600 border border-gray-200"
-                title="Only the publisher can unpublish this simulation"
+                title={t('header.publishedTooltip')}
               >
-                Published ✓
+                {t('header.published')}
               </span>
             )}
           </>
@@ -243,7 +216,7 @@ function SimulationHeader({
               onClick={() => setShowFeedbackPopup(!showFeedbackPopup)}
               className="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium text-sm"
             >
-              Give Feedback
+              {t('header.giveFeedback')}
             </button>
             {showFeedbackPopup && (
               <div
@@ -266,7 +239,7 @@ function SimulationHeader({
               onClick={() => setShowEditPopup(!showEditPopup)}
               className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium text-sm"
             >
-              Remix
+              {t('header.remix')}
             </button>
             {showEditPopup && (
               <div
@@ -279,6 +252,7 @@ function SimulationHeader({
                   existingJSON={currentJSON}
                   onJSONExtracted={handleJSONExtracted}
                   onClose={() => setShowEditPopup(false)}
+                  onStreamingChange={setEditPopupLocked}
                   compact={true}
                 />
               </div>

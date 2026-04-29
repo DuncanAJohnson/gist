@@ -156,6 +156,15 @@ class RapierPhysicsBody implements PhysicsBody {
   readonly position: Vec2;
   readonly velocity: Vec2;
 
+  // Captured once at construction, before any setAdditionalMass calls. Used
+  // by `set mass` to compute the delta correctly. Without this, repeated
+  // `body.mass = X` calls oscillate total mass between X and the base value
+  // because Rapier's setAdditionalMass replaces (not accumulates) the
+  // additional component, while the previous formula computed the delta
+  // against the live total — which already includes the prior delta.
+  // See Notes_on_Air_Resistance_Refactor.md ("Bug found: Rapier `mass` setter").
+  private readonly baseMass: number;
+
   constructor(
     id: string,
     shape: ShapeDescriptor,
@@ -163,6 +172,7 @@ class RapierPhysicsBody implements PhysicsBody {
   ) {
     this.id = id;
     this.shape = shape;
+    this.baseMass = this.rigid.mass();
 
     this.position = new Vec2Accessor(
       () => {
@@ -208,8 +218,12 @@ class RapierPhysicsBody implements PhysicsBody {
   }
   set mass(value: number) {
     // Rapier has no direct runtime "setMass" on the body — mass comes from
-    // collider density/mass. Approximate by scaling additional mass.
-    this.rigid.setAdditionalMass(Math.max(0, value - this.rigid.mass()), true);
+    // collider density/mass plus an "additional mass" component. We compute
+    // the delta against the captured baseMass (not against the live total),
+    // so calling `mass = X` is idempotent: it always lands at total mass = X
+    // regardless of how many times it's been called. Math.max clamps because
+    // setAdditionalMass cannot reduce mass below the collider-derived base.
+    this.rigid.setAdditionalMass(Math.max(0, value - this.baseMass), true);
   }
 
   get isStatic(): boolean {

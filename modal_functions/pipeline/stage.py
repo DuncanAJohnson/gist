@@ -33,6 +33,10 @@ class Stage:
     input_budget: int = 8000
     model: str | None = None  # overrides PIPELINE provider's default model when set
     provider: str | None = None  # overrides PIPELINE_LLM_PROVIDER env var when set ("openai" | "skolegpt")
+    # OpenAI-only knob; ignored by SkoleGPT. None means "use call_llm default"
+    # (PIPELINE_REASONING_EFFORT env var, falling back to "low"). Set to e.g.
+    # "minimal" on a router stage so reasoning doesn't eat the output budget.
+    reasoning_effort: str | None = None
 
     def build_messages(self, scratch: Scratch) -> list[dict]:
         raise NotImplementedError(f"{self.__class__.__name__}.build_messages")

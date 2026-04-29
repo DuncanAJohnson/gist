@@ -7,6 +7,7 @@ import {
   getModelForProvider,
   type AiProviderKind,
 } from '../config/aiProviders';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface CreateSimulationProps {
   isOpen: boolean;
@@ -14,12 +15,16 @@ interface CreateSimulationProps {
   onJSONExtracted?: (json: any, userPrompt: string | null) => void;
   existingJSON?: any;
   compact?: boolean;
+  // Notifies the parent when streaming starts/stops so the parent can lock
+  // close-on-click-outside (or any other dismissal path) until the run ends.
+  onStreamingChange?: (streaming: boolean) => void;
 }
 
-// Total number of pipeline stages emitted by the backend (skeleton + objects + 4
-// parallel detail stages). Used to convert per-stage `done` events into a percentage.
+// Default progress denominator for the /generate pipeline (skeleton + objects
+// + 3 parallel detail stages = 6). The /remix pipeline emits a `plan` event
+// with its own dynamic stage count, which overrides this default.
 // Keep in sync with `modal_functions/sim_pipeline/__init__.py:_build_stages`.
-const TOTAL_STAGES = 6;
+const GENERATE_TOTAL_STAGES = 6;
 
 function CreateSimulation({
   isOpen,
@@ -27,8 +32,10 @@ function CreateSimulation({
   onJSONExtracted,
   existingJSON,
   compact = false,
+  onStreamingChange,
 }: CreateSimulationProps) {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [extractedJSON, setExtractedJSON] = useState<any>(null);
@@ -39,6 +46,7 @@ function CreateSimulation({
   const [jsonError, setJsonError] = useState<string | null>(null);
   const [provider, setProvider] = useState<AiProviderKind>(DEFAULT_PROVIDER);
   const simulationAiUrl = (import.meta as any).env.VITE_SIMULATION_AI_URL;
+  const simulationRemixUrl = (import.meta as any).env.VITE_SIMULATION_REMIX_URL;
 
   // Reset state when modal closes
   useEffect(() => {
@@ -52,6 +60,12 @@ function CreateSimulation({
       setJsonError(null);
     }
   }, [isOpen]);
+
+  // Surface streaming state to the parent so it can disable dismissal paths
+  // (click-outside, close button) while a generation/remix is in flight.
+  useEffect(() => {
+    if (onStreamingChange) onStreamingChange(isStreaming);
+  }, [isStreaming, onStreamingChange]);
 
   // Extract JSON from text. Models sometimes wrap the config in prose or
   // markdown code fences, so we strip fences first, then scan for the first
@@ -103,7 +117,7 @@ function CreateSimulation({
       
       // Validate it has required fields for a simulation
       if (!parsed.title || !parsed.objects) {
-        setJsonError('JSON must have "title" and "objects" fields');
+        setJsonError(t('create.jsonMissingFields'));
         return;
       }
 
@@ -118,145 +132,232 @@ function CreateSimulation({
       onClose();
       navigate(`/simulation/${simulationId}`);
     } catch (error) {
-      setJsonError(`Invalid JSON: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setJsonError(t('create.invalidJson', { message: error instanceof Error ? error.message : t('create.unknownError') }));
     }
   };
 
-  // Handle generating simulation with AI. The backend streams Server-Sent
-  // Events: per-stage `progress` events (started/done with a human label),
-  // a single `content` event carrying the assembled SimulationConfig JSON,
-  // then `done`. On failure, a single `error` event closes the stream.
+  // Stream-and-parse one SSE pipeline run. Handles the shared `progress`/
+  // `content`/`done`/`error` events plus the remix-only `plan` and `fallback`
+  // events. The caller picks the URL, payload, and starting denominator so the
+  // same helper drives both /generate and /remix.
+  const runSseStream = async (
+    url: string,
+    body: any,
+    initialTotalStages: number
+  ): Promise<{ assembledContent: string; fallbackReason: string | null; streamError: string | null }> => {
+    let totalStages = initialTotalStages;
+    let completedCount = 0;
+    let assembledContent = '';
+    let streamError: string | null = null;
+    let fallbackReason: string | null = null;
+    const inFlight = new Map<string, string>();
+    // Local progress mirror so we can ratchet — `setProgress(prev => …)` would
+    // also work, but keeping a local copy avoids any state-batching surprises.
+    let progressShown = 0;
+    const advanceProgress = (next: number) => {
+      const ratcheted = Math.max(progressShown, Math.min(95, next));
+      if (ratcheted !== progressShown) {
+        progressShown = ratcheted;
+        setProgress(ratcheted);
+      }
+    };
+
+    setProgress(0);
+    setStageLabel(t('create.connecting'));
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    if (!response.body) {
+      throw new Error('Response has no body — streaming not supported by this transport.');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    // Read the SSE stream. Events are delimited by `\n\n`; each event is a
+    // sequence of lines, only the `data: ...` lines carry the JSON payload.
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let sepIdx;
+      while ((sepIdx = buffer.indexOf('\n\n')) >= 0) {
+        const block = buffer.slice(0, sepIdx);
+        buffer = buffer.slice(sepIdx + 2);
+        for (const line of block.split('\n')) {
+          if (!line.startsWith('data: ')) continue;
+          const dataStr = line.slice(6);
+          let event: any;
+          try {
+            event = JSON.parse(dataStr);
+          } catch {
+            console.warn('Failed to parse SSE event:', dataStr);
+            continue;
+          }
+
+          if (event.type === 'progress') {
+            const { stage, status, label } = event;
+            const display: string = label || stage;
+            if (status === 'started') {
+              inFlight.set(stage, display);
+              setStageLabel(display);
+            } else if (status === 'done') {
+              inFlight.delete(stage);
+              completedCount += 1;
+              // Cap at 95% until we receive the final content + done so the
+              // bar doesn't sit at 100% while we're still parsing.
+              advanceProgress((completedCount / Math.max(totalStages, 1)) * 100);
+              const stillRunning = Array.from(inFlight.values());
+              setStageLabel(stillRunning.length > 0
+                ? stillRunning[stillRunning.length - 1]
+                : t('create.finalizing'));
+            }
+          } else if (event.type === 'plan') {
+            // Remix router has chosen the fills; size the progress bar to match
+            // the actual stage count and re-evaluate immediately so the bar
+            // doesn't sit at the conservative initial denominator.
+            const t = typeof event.total_stages === 'number' ? event.total_stages : null;
+            if (t && t > 0) {
+              totalStages = t;
+              advanceProgress((completedCount / Math.max(totalStages, 1)) * 100);
+            }
+          } else if (event.type === 'fallback') {
+            fallbackReason = (event.reason as string) || 'Falling back to full generation';
+          } else if (event.type === 'content') {
+            assembledContent += event.content || '';
+          } else if (event.type === 'done') {
+            progressShown = 100;
+            setProgress(100);
+            setStageLabel(t('create.done'));
+          } else if (event.type === 'error') {
+            streamError = event.error || 'Unknown error';
+          }
+        }
+      }
+    }
+
+    return { assembledContent, fallbackReason, streamError };
+  };
+
+  // Handle generating simulation with AI. For new sims, posts to the /generate
+  // endpoint. For remixes (existingJSON set), posts to the /remix endpoint;
+  // the router stage there picks a minimal subset of fills to re-run, and on
+  // skeleton-level edits emits a `fallback` event prompting us to re-call
+  // /generate with the legacy "edit this simulation" message format.
   const handleGenerate = async () => {
     if (!input.trim() || isStreaming) return;
 
     const userInput = input.trim();
-    const messages = existingJSON
-      ? [
-          {
-            role: 'user' as const,
-            content: `I want to edit this simulation. Current JSON: ${JSON.stringify(existingJSON, null, 2)}`,
-          },
-          {
-            role: 'user' as const,
-            content: userInput,
-          },
-        ]
-      : [
-          {
-            role: 'user' as const,
-            content: userInput,
-          },
-        ];
+    const isRemix = !!existingJSON;
+
+    if (isRemix && !simulationRemixUrl) {
+      alert(t('create.remixNotConfigured'));
+      return;
+    }
 
     setInput('');
     setIsStreaming(true);
-    setProgress(0);
-    setStageLabel('Connecting…');
-
-    // Stages currently in flight (started but not yet done). When parallel
-    // detail stages run, multiple entries are present; we display the most
-    // recently started one's label.
-    const inFlight = new Map<string, string>();
-    let completedCount = 0;
-    let assembledContent = '';
-    let streamError: string | null = null;
 
     try {
-      const response = await fetch(simulationAiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-        },
-        body: JSON.stringify({
-          messages: messages,
-          provider: provider,
-          model: getModelForProvider(provider),
-        }),
-      });
+      let assembledContent = '';
+      let streamError: string | null = null;
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      if (!response.body) {
-        throw new Error('Response has no body — streaming not supported by this transport.');
-      }
+      if (isRemix) {
+        // First attempt: the selective /remix endpoint. Start with a denominator
+        // that assumes the worst case (router + all 4 fills); the `plan` event
+        // narrows it once we know which fills are actually running. This keeps
+        // the bar from snapping to 95% on the router-done event when only a
+        // subset of fills will follow.
+        const remixResult = await runSseStream(
+          simulationRemixUrl,
+          {
+            messages: [{ role: 'user', content: userInput }],
+            parent_json: existingJSON,
+            provider: provider,
+            model: getModelForProvider(provider),
+          },
+          5
+        );
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      // Read the SSE stream. Events are delimited by `\n\n`; each event is a
-      // sequence of lines, only the `data: ...` lines carry the JSON payload.
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        let sepIdx;
-        while ((sepIdx = buffer.indexOf('\n\n')) >= 0) {
-          const block = buffer.slice(0, sepIdx);
-          buffer = buffer.slice(sepIdx + 2);
-          for (const line of block.split('\n')) {
-            if (!line.startsWith('data: ')) continue;
-            const dataStr = line.slice(6);
-            let event: any;
-            try {
-              event = JSON.parse(dataStr);
-            } catch {
-              console.warn('Failed to parse SSE event:', dataStr);
-              continue;
-            }
-
-            if (event.type === 'progress') {
-              const { stage, status, label } = event;
-              const display: string = label || stage;
-              if (status === 'started') {
-                inFlight.set(stage, display);
-                setStageLabel(display);
-              } else if (status === 'done') {
-                inFlight.delete(stage);
-                completedCount += 1;
-                // Cap at 95% until we receive the final content + done so the
-                // bar doesn't sit at 100% while we're still parsing.
-                setProgress(Math.min(95, (completedCount / TOTAL_STAGES) * 100));
-                const stillRunning = Array.from(inFlight.values());
-                setStageLabel(stillRunning.length > 0
-                  ? stillRunning[stillRunning.length - 1]
-                  : 'Finalizing…');
-              }
-            } else if (event.type === 'content') {
-              assembledContent += event.content || '';
-            } else if (event.type === 'done') {
-              setProgress(100);
-              setStageLabel('Done');
-            } else if (event.type === 'error') {
-              streamError = event.error || 'Unknown error';
-            }
-          }
+        if (remixResult.streamError) {
+          streamError = remixResult.streamError;
+        } else if (remixResult.fallbackReason) {
+          // Router determined the edit needs full regeneration. Re-call /generate
+          // with the legacy two-message payload so the full pipeline runs.
+          console.info('Remix fell back to full generate:', remixResult.fallbackReason);
+          setStageLabel(t('create.regeneratingFromScratch'));
+          const generateResult = await runSseStream(
+            simulationAiUrl,
+            {
+              messages: [
+                {
+                  role: 'user',
+                  content: `I want to edit this simulation. Current JSON: ${JSON.stringify(existingJSON, null, 2)}`,
+                },
+                { role: 'user', content: userInput },
+              ],
+              provider: provider,
+              model: getModelForProvider(provider),
+            },
+            GENERATE_TOTAL_STAGES
+          );
+          assembledContent = generateResult.assembledContent;
+          streamError = generateResult.streamError;
+        } else {
+          assembledContent = remixResult.assembledContent;
         }
+      } else {
+        const generateResult = await runSseStream(
+          simulationAiUrl,
+          {
+            messages: [{ role: 'user', content: userInput }],
+            provider: provider,
+            model: getModelForProvider(provider),
+          },
+          GENERATE_TOTAL_STAGES
+        );
+        assembledContent = generateResult.assembledContent;
+        streamError = generateResult.streamError;
       }
 
       if (streamError) {
         console.error('Pipeline error:', streamError);
-        alert(`Error: ${streamError}`);
+        alert(t('create.errorPrefix', { message: streamError }));
         return;
       }
 
       const json = extractJSON(assembledContent);
       if (json) {
+        // Detect the soft no-op case in remix mode: the router decided no
+        // fills were needed, so the backend echoed the parent unchanged.
+        if (isRemix && existingJSON && JSON.stringify(json) === JSON.stringify(existingJSON)) {
+          alert(t('create.noChangesNeeded'));
+          return;
+        }
         setExtractedJSON(json);
         if (onJSONExtracted) {
           onJSONExtracted(json, userInput);
         }
       } else {
         console.warn('AI stream finished but no valid simulation JSON was found. Raw content:', assembledContent);
-        alert('The AI returned a response but no valid simulation JSON was found. Check the console for the raw output.');
+        alert(t('create.noJsonFound'));
       }
     } catch (error) {
       console.error('Error calling chat API:', error);
-      alert(`Sorry, there was an error communicating with the AI: ${error}`);
+      alert(t('create.aiCommunicationError', { error: String(error) }));
     } finally {
       setProgress(100);
       // Small delay to show 100% before hiding
@@ -290,13 +391,13 @@ function CreateSimulation({
       <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 min-w-[400px] max-w-[500px]">
         {extractedJSON && (
           <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-800">
-            ✓ JSON simulation detected!
+            {t('create.jsonDetected')}
           </div>
         )}
         {isStreaming && (
           <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-blue-800">Generating simulation…</span>
+              <span className="text-sm font-medium text-blue-800">{t('create.generating')}</span>
               <span className="text-xs text-blue-600">{Math.round(progress)}%</span>
             </div>
             <div className="w-full bg-blue-200 rounded-full h-2 overflow-hidden">
@@ -321,7 +422,7 @@ function CreateSimulation({
                   setJsonInput(e.target.value);
                   setJsonError(null);
                 }}
-                placeholder="Paste JSON simulation configuration here..."
+                placeholder={t('create.jsonPlaceholder')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm font-mono"
                 rows={8}
               />
@@ -333,7 +434,7 @@ function CreateSimulation({
                 disabled={!jsonInput.trim()}
                 className="mt-2 px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
               >
-                Create Simulation
+                {t('create.createSimulation')}
               </button>
             </div>
           )}
@@ -345,7 +446,7 @@ function CreateSimulation({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder={existingJSON ? "Describe your edits..." : "Describe your simulation..."}
+                placeholder={existingJSON ? t('create.placeholderEdits') : t('create.placeholderSimulation')}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
                 rows={3}
                 disabled={isStreaming}
@@ -355,7 +456,7 @@ function CreateSimulation({
                 disabled={!input.trim() || isStreaming}
                 className="px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
               >
-                Generate
+                {t('create.generate')}
               </button>
             </div>
             <AiProviderSwitcher value={provider} onChange={setProvider} disabled={isStreaming} />
@@ -372,15 +473,15 @@ function CreateSimulation({
       <div className="relative bg-white rounded-xl shadow-xl w-full max-w-4xl" style={{ height: 'calc(90vh - 100px)' }}>
         <div className="bg-primary text-white px-6 py-4 flex justify-between items-center rounded-t-xl">
           <div>
-            <h2 className="text-2xl font-semibold">Create New Simulation</h2>
-            <p className="text-sm opacity-90">Describe the physics simulation you would like to create</p>
+            <h2 className="text-2xl font-semibold">{t('create.modalTitle')}</h2>
+            <p className="text-sm opacity-90">{t('create.modalSubtitle')}</p>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowJSONInput(!showJSONInput)}
               className="text-sm text-white hover:text-gray-200 underline"
             >
-              {showJSONInput ? 'Use AI instead' : 'Create from JSON'}
+              {showJSONInput ? t('create.toggleUseAi') : t('create.toggleUseJson')}
             </button>
             <button
               onClick={onClose}
@@ -395,16 +496,16 @@ function CreateSimulation({
           <div className="flex-1 overflow-y-auto p-6">
             {!existingJSON && (
               <div className="text-center text-gray-500 mt-12">
-                <h2 className="text-xl font-semibold mb-2">Create a Simulation</h2>
+                <h2 className="text-xl font-semibold mb-2">{t('create.emptyHeading')}</h2>
                 <p className="text-gray-600">
-                  Describe the physics simulation you'd like to create.
+                  {t('create.emptyBody')}
                 </p>
                 <div className="mt-6 text-left max-w-md mx-auto bg-gray-50 p-4 rounded-lg">
-                  <p className="font-semibold mb-2">Example prompts:</p>
+                  <p className="font-semibold mb-2">{t('create.examplePromptsLabel')}</p>
                   <ul className="text-sm space-y-1 text-gray-700">
-                    <li>• "Launch a rocket into space"</li>
-                    <li>• "Have a pumpkin roll down a hill"</li>
-                    <li>• "Show a collision between two objects"</li>
+                    <li>• {t('create.example1')}</li>
+                    <li>• {t('create.example2')}</li>
+                    <li>• {t('create.example3')}</li>
                   </ul>
                 </div>
               </div>
@@ -413,7 +514,7 @@ function CreateSimulation({
               <div className="text-center mt-8 max-w-md mx-auto">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg px-6 py-4">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-base font-medium text-blue-800">Generating simulation…</span>
+                    <span className="text-base font-medium text-blue-800">{t('create.generating')}</span>
                     <span className="text-sm text-blue-600">{Math.round(progress)}%</span>
                   </div>
                   <div className="w-full bg-blue-200 rounded-full h-3 overflow-hidden shadow-inner">
@@ -435,7 +536,7 @@ function CreateSimulation({
           {/* Action Buttons (when JSON is detected) */}
           {extractedJSON && (
             <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
-              <div className="text-sm text-green-700 mb-2">✓ JSON simulation detected!</div>
+              <div className="text-sm text-green-700 mb-2">{t('create.jsonDetected')}</div>
             </div>
           )}
 
@@ -449,7 +550,7 @@ function CreateSimulation({
                     setJsonInput(e.target.value);
                     setJsonError(null);
                   }}
-                  placeholder="Paste JSON simulation configuration here..."
+                  placeholder={t('create.jsonPlaceholder')}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono text-sm"
                   rows={10}
                 />
@@ -461,7 +562,7 @@ function CreateSimulation({
                   disabled={!jsonInput.trim()}
                   className="mt-3 px-6 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                 >
-                  Create Simulation
+                  {t('create.createSimulation')}
                 </button>
               </div>
             ) : (
@@ -471,7 +572,7 @@ function CreateSimulation({
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder={existingJSON ? "Describe your edits..." : "Describe your simulation..."}
+                    placeholder={existingJSON ? t('create.placeholderEdits') : t('create.placeholderSimulation')}
                     className="flex-1 px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                     rows={3}
                     disabled={isStreaming}
@@ -481,7 +582,7 @@ function CreateSimulation({
                     disabled={!input.trim() || isStreaming}
                     className="px-6 py-3 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                   >
-                    Generate
+                    {t('create.generate')}
                   </button>
                 </div>
                 <AiProviderSwitcher value={provider} onChange={setProvider} disabled={isStreaming} />

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import JsonSimulation from '../components/JsonSimulation';
 import { getSimulation } from '../lib/simulationService';
+import { useLanguage } from '../contexts/LanguageContext';
 
 interface SimulationConfig {
   title?: string;
@@ -20,6 +21,7 @@ function DynamicSimulation() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [config, setConfig] = useState<SimulationConfig | null>(location.state?.config || null);
   const [loading, setLoading] = useState(!!id);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +50,7 @@ function DynamicSimulation() {
     return (
       <div className="max-w-7xl mx-auto px-8 py-8">
         <div className="bg-white rounded-xl p-8 shadow-md text-center">
-          <p className="text-gray-600">Loading simulation...</p>
+          <p className="text-gray-600">{t('dynamic.loading')}</p>
         </div>
       </div>
     );
@@ -58,15 +60,15 @@ function DynamicSimulation() {
     return (
       <div className="max-w-7xl mx-auto px-8 py-8">
         <div className="bg-white rounded-xl p-8 shadow-md">
-          <h2 className="text-2xl text-gray-800 mb-4">No Simulation Loaded</h2>
+          <h2 className="text-2xl text-gray-800 mb-4">{t('dynamic.noSimulationHeading')}</h2>
           <p className="text-gray-600 mb-4">
-            {error || 'No simulation configuration was provided. Please create a new simulation or upload a JSON file.'}
+            {error || t('dynamic.noSimulationBody')}
           </p>
           <button
             onClick={() => navigate('/')}
             className="bg-primary text-white px-6 py-2 rounded-lg hover:opacity-90 transition-opacity"
           >
-            Go Home
+            {t('dynamic.goHome')}
           </button>
         </div>
       </div>

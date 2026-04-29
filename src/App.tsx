@@ -6,6 +6,7 @@ import TwoBoxesSimulation from './simulations/TwoBoxesSimulation'
 import TossBallSimulation from './simulations/TossBallSimulation'
 import DynamicSimulation from './pages/DynamicSimulation'
 import { CreateSimulationProvider } from './contexts/CreateSimulationContext'
+import { LanguageProvider } from './contexts/LanguageContext'
 
 function AppContent() {
   return (
@@ -26,11 +27,13 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <CreateSimulationProvider>
-        <div className="min-h-screen bg-gray-100">
-          <AppContent />
-        </div>
-      </CreateSimulationProvider>
+      <LanguageProvider>
+        <CreateSimulationProvider>
+          <div className="min-h-screen bg-gray-100">
+            <AppContent />
+          </div>
+        </CreateSimulationProvider>
+      </LanguageProvider>
     </Router>
   )
 }

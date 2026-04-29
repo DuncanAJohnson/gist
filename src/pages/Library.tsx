@@ -11,6 +11,7 @@ import {
 } from '../lib/simulationService';
 import SimulationListItemComponent from '../components/SimulationListItem';
 import { getBrowserId } from '../lib/browserId';
+import { useLanguage } from '../contexts/LanguageContext';
 
 function isSortOption(v: string | null): v is SortOption {
   return v === 'recent' || v === 'endorsed';
@@ -21,6 +22,7 @@ function isWindowOption(v: string | null): v is WindowOption {
 }
 
 function Library() {
+  const { t } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
   const sort: SortOption = isSortOption(searchParams.get('sort'))
     ? (searchParams.get('sort') as SortOption)
@@ -100,46 +102,46 @@ function Library() {
 
   return (
     <div className="max-w-5xl mx-auto px-8 py-8">
-      <h1 className="text-3xl font-semibold text-gray-800 mb-6">Simulation Library</h1>
+      <h1 className="text-3xl font-semibold text-gray-800 mb-6">{t('library.heading')}</h1>
 
       <div className="flex flex-wrap gap-6 mb-6">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600 font-medium">Sort:</span>
+          <span className="text-sm text-gray-600 font-medium">{t('library.sortLabel')}</span>
           <button
             onClick={() => updateParams({ sort: 'endorsed' })}
             className={`${pillBase} ${sort === 'endorsed' ? pillActive : pillInactive}`}
           >
-            Most Endorsed
+            {t('library.sortMostEndorsed')}
           </button>
           <button
             onClick={() => updateParams({ sort: 'recent' })}
             className={`${pillBase} ${sort === 'recent' ? pillActive : pillInactive}`}
           >
-            Recent
+            {t('library.sortRecent')}
           </button>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600 font-medium">Window:</span>
+          <span className="text-sm text-gray-600 font-medium">{t('library.windowLabel')}</span>
           <button
             onClick={() => updateParams({ window: 'week' })}
             className={`${pillBase} ${timeWindow === 'week' ? pillActive : pillInactive}`}
           >
-            This Week
+            {t('library.windowThisWeek')}
           </button>
           <button
             onClick={() => updateParams({ window: 'all' })}
             className={`${pillBase} ${timeWindow === 'all' ? pillActive : pillInactive}`}
           >
-            All Time
+            {t('library.windowAllTime')}
           </button>
         </div>
       </div>
 
       {loading ? (
-        <div className="text-center text-gray-500 py-8">Loading simulations...</div>
+        <div className="text-center text-gray-500 py-8">{t('library.loading')}</div>
       ) : simulations.length === 0 ? (
         <div className="text-center text-gray-500 py-8 bg-white rounded-lg border border-gray-200">
-          No published simulations yet.
+          {t('library.empty')}
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-200">
@@ -149,7 +151,6 @@ function Library() {
               simulation={sim}
               endorsed={endorsedIds.has(sim.id)}
               onToggleEndorse={handleToggleEndorse}
-              endorsementDisplay={timeWindow === 'week' ? 'with-week' : 'total'}
             />
           ))}
         </div>

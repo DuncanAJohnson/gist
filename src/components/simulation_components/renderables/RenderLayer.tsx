@@ -57,6 +57,8 @@ function RenderLayer({
     canvas.style.position = 'absolute';
     canvas.style.top = '0';
     canvas.style.left = '0';
+    canvas.style.width = `${zoomFactorRef.current * 100}%`;
+    canvas.style.height = `${zoomFactorRef.current * 100}%`;
     canvas.style.pointerEvents = 'none';
     canvas.style.display = 'block';
     canvasContainer.style.position = 'relative';
@@ -76,6 +78,8 @@ function RenderLayer({
     if (!canvas) return;
     canvas.width = CANVAS_WIDTH * zoomFactor;
     canvas.height = CANVAS_HEIGHT * zoomFactor;
+    canvas.style.width = `${zoomFactor * 100}%`;
+    canvas.style.height = `${zoomFactor * 100}%`;
   }, [zoomFactor]);
 
   // rAF draw loop: always redraw at browser frame rate, reading live physics state.

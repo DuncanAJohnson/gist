@@ -1,7 +1,6 @@
-import type { PositionSource } from '../../../schemas/simulation';
 import type { PhysicsBody } from '../../../physics/types';
 import type { WorldToCanvas } from '../../../lib/worldToCanvas';
-import type { DataPositionResolver, ResolvedPosition } from './types';
+import type { DataPositionResolver, PositionSource, ResolvedPosition } from './types';
 
 /**
  * Linear interpolation over a sorted time-series. Returns null when the series
