@@ -28,6 +28,12 @@ function Navigation() {
           >
             {t('nav.createButton')}
           </button>
+          <Link
+            to="/docs"
+            className="text-white no-underline font-medium transition-colors duration-200 px-4 py-2 rounded hover:bg-white/10"
+          >
+            Docs
+          </Link>
           <div className="flex items-center border border-white/30 rounded overflow-hidden">
             <button
               onClick={() => switchLang('da')}

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Navigation from './components/Navigation'
 import Home from './pages/Home'
@@ -7,6 +8,22 @@ import TossBallSimulation from './simulations/TossBallSimulation'
 import DynamicSimulation from './pages/DynamicSimulation'
 import { CreateSimulationProvider } from './contexts/CreateSimulationContext'
 import { LanguageProvider } from './contexts/LanguageContext'
+
+// Docs pages are lazy-loaded — mermaid is a chunky dep we don't want in the main bundle.
+const DocsIndex = lazy(() => import('./pages/docs/DocsIndex'))
+const AppOverview = lazy(() => import('./pages/docs/AppOverview'))
+const PhysicsStack = lazy(() => import('./pages/docs/PhysicsStack'))
+const RuntimeLoop = lazy(() => import('./pages/docs/RuntimeLoop'))
+const LLMPipeline = lazy(() => import('./pages/docs/LLMPipeline'))
+const RefactorRoadmap = lazy(() => import('./pages/docs/RefactorRoadmap'))
+
+function DocsFallback() {
+  return (
+    <div className="max-w-7xl mx-auto px-6 py-16 text-center text-gray-500">
+      Loading docs…
+    </div>
+  )
+}
 
 function AppContent() {
   return (
@@ -19,6 +36,30 @@ function AppContent() {
         <Route path="/simulation/toss-ball" element={<TossBallSimulation />} />
         <Route path="/simulation/dynamic" element={<DynamicSimulation />} />
         <Route path="/simulation/:id" element={<DynamicSimulation />} />
+        <Route
+          path="/docs"
+          element={<Suspense fallback={<DocsFallback />}><DocsIndex /></Suspense>}
+        />
+        <Route
+          path="/docs/app-overview"
+          element={<Suspense fallback={<DocsFallback />}><AppOverview /></Suspense>}
+        />
+        <Route
+          path="/docs/physics-stack"
+          element={<Suspense fallback={<DocsFallback />}><PhysicsStack /></Suspense>}
+        />
+        <Route
+          path="/docs/runtime-loop"
+          element={<Suspense fallback={<DocsFallback />}><RuntimeLoop /></Suspense>}
+        />
+        <Route
+          path="/docs/llm-pipeline"
+          element={<Suspense fallback={<DocsFallback />}><LLMPipeline /></Suspense>}
+        />
+        <Route
+          path="/docs/refactor-roadmap"
+          element={<Suspense fallback={<DocsFallback />}><RefactorRoadmap /></Suspense>}
+        />
       </Routes>
     </>
   )
