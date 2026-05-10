@@ -120,13 +120,17 @@ export function synthesizeGridRenderable(
 }
 
 /**
- * Force-arrow renderable for a physics object with showForceArrows enabled.
+ * Net-force vector-arrow renderable for a physics object with showForceArrows
+ * enabled. Phase 1 of the vector-arrow refactor: a one-kind synthesizer that
+ * preserves legacy behavior — same color, same scale, same source — plus the
+ * standardized F_net subscripted label. Phase 2+ will replace this with a
+ * showVectors-driven synthesizer that accepts multiple kinds per body.
  */
-export function synthesizeForceArrowRenderable(obj: ObjectConfig): PixelRenderable {
+export function synthesizeVectorArrowRenderable(obj: ObjectConfig): PixelRenderable {
   return {
-    id: `__force_arrow_${obj.id}`,
+    id: `__vector_arrow_${obj.id}__force-net`,
     source: { type: 'body', bodyId: obj.id, followAngle: false },
-    visual: { type: 'force-arrow', pixelsPerNewton: 2 },
+    visual: { type: 'vector-arrow', kind: 'force-net' },
     opacity: 0.9,
     zIndex: 20,
   };

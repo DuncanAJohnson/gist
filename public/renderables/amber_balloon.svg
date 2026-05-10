@@ -1,1 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><ellipse cx="32" cy="24" rx="16" ry="20" fill="#F59E0B"/><ellipse cx="28" cy="18" rx="5" ry="6" fill="#FDE68A" opacity="0.4"/><polygon points="28,44 36,44 34,48 30,48" fill="#92400E"/><path d="M32 48 Q28 52 34 54 Q30 56 36 58 Q32 60 32 62" fill="none" stroke="#92400E" stroke-width="1.5"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 35.3103 64" version="1.1" id="svg9340">
+  <defs id="defs9344"/>
+  
+  
+<g transform="translate(-15.5484 -0.5028) scale(1.0031) matrix(0.99693349,0,0,0.99693349,1.1999173,0.50143295) matrix(1.1034,0,0,1.1034,-3.3103,-4.4138)"><ellipse cx="32" cy="24" rx="16" ry="20" fill="#f59e0b" id="ellipse9328"/><ellipse cx="28" cy="18" rx="5" ry="6" fill="#fde68a" opacity="0.4" id="ellipse9330"/><polygon points="30,48 28,44 36,44 34,48" fill="#92400e" id="polygon9332"/><path d="m 32,48 q -4,4 2,6 -4,2 2,4 -4,2 -4,4" fill="none" stroke="#92400e" stroke-width="1.5" id="path9334"/></g></svg>

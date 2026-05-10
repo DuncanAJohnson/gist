@@ -1,1 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M16 40 Q16 16 32 10 Q48 16 48 40Z" fill="#FDE68A"/><rect x="14" y="40" width="36" height="4" rx="2" fill="#F59E0B"/><circle cx="32" cy="50" r="4" fill="#92400E"/><rect x="30" y="44" width="4" height="6" fill="#92400E"/><circle cx="32" cy="8" r="3" fill="#F59E0B"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 47.0204 64" version="1.1" id="svg11301">
+  <defs id="defs11305"/>
+  
+  
+<g transform="translate(-8.4892 0.0004) scale(1)"><g transform="translate(-23.906 -15.7638) scale(1.7258)"><g transform="translate(7.5004 5.0003) scale(0.7657)"><g transform="translate(7.5004 5.0003) scale(0.7657)"><g transform="matrix(0.98829793,0,0,0.98829793,1.0376738,0.52021573)" id="g11299">
+    <g transform="matrix(1.3061,0,0,1.3061,-9.7959,-6.5306)" id="g11297">
+      <path d="M 16,40 Q 16,16 32,10 48,16 48,40 Z" fill="#fde68a" id="path11287"/>
+      <rect x="14" y="40" width="36" height="4" rx="2" fill="#f59e0b" id="rect11289"/>
+      <circle cx="32" cy="50" r="4" fill="#92400e" id="circle11291"/>
+      <rect x="30" y="44" width="4" height="6" fill="#92400e" id="rect11293"/>
+      <circle cx="32" cy="8" r="3" fill="#f59e0b" id="circle11295"/>
+    </g>
+  </g></g></g></g></g></svg>

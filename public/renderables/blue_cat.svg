@@ -1,1 +1,24 @@
-<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><g fill='none'><ellipse cx='32' cy='40' rx='14' ry='12' fill='#3B82F6'/><ellipse cx='32' cy='24' rx='10' ry='9' fill='#3B82F6'/><polygon points='22,18 18,8 26,16' fill='#1E3A8A'/><polygon points='42,18 46,8 38,16' fill='#1E3A8A'/><ellipse cx='32' cy='24' rx='6' ry='5' fill='#BFDBFE'/><ellipse cx='32' cy='40' rx='9' ry='7' fill='#BFDBFE'/><path d='M26,44 Q32,50 38,44' stroke='#1E3A8A' stroke-width='2' fill='none' stroke-linecap='round'/><ellipse cx='29' cy='23' rx='2' ry='3' fill='#1E3A8A'/><ellipse cx='35' cy='23' rx='2' ry='3' fill='#1E3A8A'/><path d='M42,38 Q50,36 52,40' stroke='#1E3A8A' stroke-width='2.5' fill='none' stroke-linecap='round'/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 49.4545 64" version="1.1" id="svg15963">
+  <defs id="defs15967"/>
+  
+  
+<g transform="translate(-7.2729 -0.0001) scale(1)"><g transform="matrix(0.99970921,0,0,0.99970921,1.2109103,0.20634728)" id="g15961">
+    <g transform="matrix(0.6875,0,0,0.6875,13.0014,8.0009)" id="g15959">
+      <g transform="matrix(1.4545,0,0,1.4545,-18.9091,-11.6364)" id="g15957">
+        <g transform="matrix(1.4545,0,0,1.4545,-18.9091,-11.6364)" id="g15955">
+          <g fill="none" id="g15953">
+            <ellipse cx="32" cy="40" rx="14" ry="12" fill="#3b82f6" id="ellipse15933"/>
+            <ellipse cx="32" cy="24" rx="10" ry="9" fill="#3b82f6" id="ellipse15935"/>
+            <polygon points="18,8 26,16 22,18" fill="#1e3a8a" id="polygon15937"/>
+            <polygon points="46,8 38,16 42,18" fill="#1e3a8a" id="polygon15939"/>
+            <ellipse cx="32" cy="24" rx="6" ry="5" fill="#bfdbfe" id="ellipse15941"/>
+            <ellipse cx="32" cy="40" rx="9" ry="7" fill="#bfdbfe" id="ellipse15943"/>
+            <path d="m 26,44 q 6,6 12,0" stroke="#1e3a8a" stroke-width="2" fill="none" stroke-linecap="round" id="path15945"/>
+            <ellipse cx="29" cy="23" rx="2" ry="3" fill="#1e3a8a" id="ellipse15947"/>
+            <ellipse cx="35" cy="23" rx="2" ry="3" fill="#1e3a8a" id="ellipse15949"/>
+            <path d="m 42,38 q 8,-2 10,2" stroke="#1e3a8a" stroke-width="2.5" fill="none" stroke-linecap="round" id="path15951"/>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g></g></svg>

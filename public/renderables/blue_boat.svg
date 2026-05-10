@@ -1,1 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path d="M6 38 L12 50 H52 L58 38Z" fill="#3B82F6"/><path d="M6 38 H58" stroke="#1E3A8A" stroke-width="2"/><rect x="30" y="16" width="3" height="22" fill="#1E3A8A"/><path d="M33 18 L50 32 L33 34Z" fill="#6B7280"/><path d="M4 50 Q8 55 12 50" fill="none" stroke="#BFDBFE" stroke-width="2"/><path d="M14 52 Q18 57 22 52" fill="none" stroke="#BFDBFE" stroke-width="2"/><path d="M26 50 Q30 55 34 50" fill="none" stroke="#BFDBFE" stroke-width="2"/><path d="M36 52 Q40 57 44 52" fill="none" stroke="#BFDBFE" stroke-width="2"/><path d="M46 50 Q50 55 54 50" fill="none" stroke="#BFDBFE" stroke-width="2"/><path d="M8 46 Q10 48 12 46" fill="none" stroke="#BFDBFE" stroke-width="1"/><path d="M20 47 Q22 49 24 47" fill="none" stroke="#BFDBFE" stroke-width="1"/><path d="M40 47 Q42 49 44 47" fill="none" stroke="#BFDBFE" stroke-width="1"/><path d="M52 46 Q54 48 56 46" fill="none" stroke="#BFDBFE" stroke-width="1"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 45.6296" version="1.1" id="svg14178">
+  <defs id="defs14182"/>
+  
+  
+<g transform="translate(-0.3568 -8.9404) scale(1.0235)"><g transform="matrix(0.98835704,0,0,0.98835704,0.16694413,0.47038602)" id="g14176">
+    <g transform="matrix(1.1852,0,0,1.1852,-4.7407,-9.7778)" id="g14174">
+      <path d="m 6,38 6,12 h 40 l 6,-12 z" fill="#3b82f6" id="path14148"/>
+      <path d="M 6,38 H 58" stroke="#1e3a8a" stroke-width="2" id="path14150"/>
+      <rect x="30" y="16" width="3" height="22" fill="#1e3a8a" id="rect14152"/>
+      <path d="M 33,18 50,32 33,34 Z" fill="#6b7280" id="path14154"/>
+      <path d="m 4,50 q 4,5 8,0" fill="none" stroke="#bfdbfe" stroke-width="2" id="path14156"/>
+      <path d="m 14,52 q 4,5 8,0" fill="none" stroke="#bfdbfe" stroke-width="2" id="path14158"/>
+      <path d="m 26,50 q 4,5 8,0" fill="none" stroke="#bfdbfe" stroke-width="2" id="path14160"/>
+      <path d="m 36,52 q 4,5 8,0" fill="none" stroke="#bfdbfe" stroke-width="2" id="path14162"/>
+      <path d="m 46,50 q 4,5 8,0" fill="none" stroke="#bfdbfe" stroke-width="2" id="path14164"/>
+      <path d="m 8,46 q 2,2 4,0" fill="none" stroke="#bfdbfe" stroke-width="1" id="path14166"/>
+      <path d="m 20,47 q 2,2 4,0" fill="none" stroke="#bfdbfe" stroke-width="1" id="path14168"/>
+      <path d="m 40,47 q 2,2 4,0" fill="none" stroke="#bfdbfe" stroke-width="1" id="path14170"/>
+      <path d="m 52,46 q 2,2 4,0" fill="none" stroke="#bfdbfe" stroke-width="1" id="path14172"/>
+    </g>
+  </g></g></svg>

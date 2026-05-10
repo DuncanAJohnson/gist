@@ -1,10 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <circle cx="34" cy="10" r="6" fill="#FBBF24"/>
-  <path d="M28 20 L38 18 L42 32 L30 34Z" fill="#EF4444"/>
-  <line x1="30" y1="34" x2="20" y2="52" stroke="#1E293B" stroke-width="3" stroke-linecap="round"/>
-  <line x1="36" y1="32" x2="48" y2="48" stroke="#1E293B" stroke-width="3" stroke-linecap="round"/>
-  <line x1="20" y1="52" x2="14" y2="50" stroke="#1E293B" stroke-width="3" stroke-linecap="round"/>
-  <line x1="48" y1="48" x2="52" y2="54" stroke="#1E293B" stroke-width="3" stroke-linecap="round"/>
-  <line x1="38" y1="22" x2="48" y2="18" stroke="#1E293B" stroke-width="3" stroke-linecap="round"/>
-  <line x1="30" y1="24" x2="20" y2="20" stroke="#1E293B" stroke-width="3" stroke-linecap="round"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50.1959 64" version="1.1" id="svg1401">
+  <defs id="defs1405"/>
+  
+  
+<g transform="translate(-8.6172 -0.4769) scale(1.0289)"><g transform="translate(-10.24 -5.12) scale(1.28)" id="g1399">
+    <g id="g3094" transform="rotate(-12.642364,38.180049,24.573904)">
+      <path id="line1389" style="fill:none;stroke:#1e293b;stroke-width:3;stroke-linecap:round" d="m 37.471525,31.08412 3.679814,11.803486 5.377136,6.028274"/>
+      <path id="line1393" style="stroke:#1e293b;stroke-width:2.89313;stroke-linecap:round" d="m 46.391319,49.080611 -3.61553,3.250915 -2.751106,1.173607"/>
+    </g>
+    <line x1="34.189629" y1="19.473738" x2="42.070652" y2="21.316797" stroke="#1e293b" stroke-width="2.99487" stroke-linecap="round" id="line1395"/>
+    <line x1="36.735535" y1="31.38022" x2="42.285744" y2="22.150099" stroke="#1e293b" stroke-width="3" stroke-linecap="round" id="line1395-6"/>
+    <circle cx="30.559498" cy="10.362158" r="6" fill="#fbbf24" id="circle1383"/>
+    <path d="M 28,18.732447 38,16.551367 42,31.818921 30,34 Z" fill="#ef4444" id="path1385" style="stroke-width:1.04429"/>
+    <path id="line1387" style="fill:none;stroke:#1e293b;stroke-width:3;stroke-linecap:round" d="m 31.086474,33.094605 -5.116407,4.972282 -4.883593,13.027718"/>
+    <line x1="20.543238" y1="51.81892" x2="14.543237" y2="49.81892" stroke="#1e293b" stroke-width="3" stroke-linecap="round" id="line1391"/>
+    <line x1="30" y1="24" x2="20" y2="20" stroke="#1E293B" stroke-width="3" stroke-linecap="round" id="line1397"/>
+    <line x1="33.726646" y1="21.657347" x2="30.637274" y2="23.600672" stroke="#1e293b" stroke-width="2.93194" stroke-linecap="round" id="line1397-8"/>
+  </g></g></svg>

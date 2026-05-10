@@ -40,7 +40,7 @@ import type { ObjectEditCommit } from '../lib/editGeometry';
 import {
   synthesizeWallRenderables,
   synthesizeBodyRenderable,
-  synthesizeForceArrowRenderable,
+  synthesizeVectorArrowRenderable,
   synthesizeExperimentalRenderable,
   synthesizeGridRenderable,
   buildExperimentalDataResolver,
@@ -165,7 +165,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     const sprites = objects.map(synthesizeBodyRenderable);
     const forceArrows = objects
       .filter((obj) => obj.showForceArrows)
-      .map(synthesizeForceArrowRenderable);
+      .map(synthesizeVectorArrowRenderable);
     const walls = synthesizeWallRenderables(environment.walls ?? [], configPixelsPerMeter);
     const experimental = experimentalData
       ? [synthesizeExperimentalRenderable(experimentalData)]

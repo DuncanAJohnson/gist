@@ -1,5 +1,6 @@
 import type { PhysicsBody, Vec2 } from '../../../physics/types';
 import type { WorldToCanvas } from '../../../lib/worldToCanvas';
+import type { VectorKind, VectorLabelDef } from './vectorTheme';
 
 // ============================================================================
 // Internal renderable model. Renderables are auto-synthesized from the
@@ -60,38 +61,27 @@ export interface BodyOutlineVisual {
 }
 
 /**
- * Internal force-arrow visual. Draws net-force arrows on a physics body
- * using live SI acceleration data.
+ * Internal vector-arrow visual. Generalized renderable for any vector quantity
+ * a body exposes — velocity, acceleration, or any of the force kinds. The
+ * `kind` field selects color, default scale, and default label from the theme;
+ * all of those are overridable per-arrow.
+ *
+ * Phase 1 wires only `kind: 'force-net'` (matches the legacy ForceArrow's
+ * source: m · (a_derived + g)). Other kinds are accepted by the type but draw
+ * nothing yet — Phase 2 lights up velocity + acceleration; Phase 3 wires the
+ * decomposed force kinds.
  */
-export interface ForceArrowVisual {
-  type: 'force-arrow';
-  /** Pixels per Newton — controls arrow length scaling */
-  pixelsPerNewton: number;
-}
-
-/**
- * Internal background-grid visual. Graph-paper grid drawn behind the
- * simulation. Major-line spacing is snapped to a 1/2/5×10ⁿ value in the
- * configured user unit so the grid auto-scales with pixelsPerUnit.
- */
-export interface BackgroundGridVisual {
-  type: 'background-grid';
-  /** Pixels per user unit — drives both line spacing and label values. */
-  pixelsPerUnit: number;
-  /** Unit suffix appended to axis labels (e.g. "m", "ft"). Empty = no suffix. */
-  unitLabel: string;
-  /** Play-area dimensions in canvas pixels, anchored at the resolved position. */
-  playWidthPx: number;
-  playHeightPx: number;
-  /** Target px between major lines; niceStep snaps to 1/2/5×10ⁿ. Default 80. */
-  targetMajorPx?: number;
-  /** Minor divisions per major. Default 5. */
-  minorPerMajor?: number;
-  majorColor?: string;
-  minorColor?: string;
-  labelColor?: string;
-  /** Show numeric axis labels along the bottom and left edges. Default true. */
-  showLabels?: boolean;
+export interface VectorArrowVisual {
+  type: 'vector-arrow';
+  kind: VectorKind;
+  /** Override the kind's default scale. */
+  pixelsPerUnit?: number;
+  /** Override the kind's standard color. */
+  color?: string;
+  /** Override the kind's standard label. `null` suppresses the label entirely. */
+  label?: string | VectorLabelDef | null;
+  labelPlacement?: 'tail' | 'midpoint' | 'head';
+  labelFontSize?: number;
 }
 
 /**
@@ -126,7 +116,7 @@ export type PixelVisual =
   | Visual
   | MarkerVisual
   | BodyOutlineVisual
-  | ForceArrowVisual
+  | VectorArrowVisual
   | BackgroundGridVisual;
 
 /**

@@ -27,6 +27,11 @@ const diagrams = [
     title: '5. Refactor roadmap',
     blurb: 'A docs map: each .md file as a node with edges showing dependencies, related-to links, and which slice of the codebase it touches.',
   },
+  {
+    to: '/docs/vector-arrows',
+    title: '6. Vector arrows',
+    blurb: 'Standardize the vector-arrow renderable across velocity, acceleration, and the force family. Theme module + 7 arrow kinds + 8 SVG test scenes pulled from /public/renderables.',
+  },
 ];
 
 const docFiles = [

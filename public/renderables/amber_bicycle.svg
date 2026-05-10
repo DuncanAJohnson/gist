@@ -1,1 +1,25 @@
-<svg viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="40" r="11" fill="none" stroke="#92400E" stroke-width="2.5"/><circle cx="48" cy="40" r="11" fill="none" stroke="#92400E" stroke-width="2.5"/><line x1="16" y1="40" x2="30" y2="24" stroke="#F59E0B" stroke-width="2.5"/><line x1="30" y1="24" x2="38" y2="24" stroke="#F59E0B" stroke-width="2.5"/><line x1="38" y1="24" x2="48" y2="40" stroke="#F59E0B" stroke-width="2.5"/><line x1="30" y1="24" x2="48" y2="40" stroke="#F59E0B" stroke-width="2.5"/><line x1="16" y1="40" x2="38" y2="24" stroke="#F59E0B" stroke-width="2.5"/><line x1="38" y1="24" x2="46" y2="18" stroke="#92400E" stroke-width="2"/><line x1="29.859112" y1="23.871048" x2="27.25428" y2="17.601709" stroke="#92400E" stroke-width="1.38366"/><circle cx="46" cy="17" r="2" fill="#92400E"/><rect style="fill:#FDE68A;stroke:#92400E;stroke-width:0.5;fill-opacity:1" width="10.368189" height="1.6966127" x="20.359352" y="15.929308" ry="0.84830636"/></svg>
+<svg viewBox="0 0 64 42.6667" version="1.1" id="svg976" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs980"></defs>
+  
+  <g transform="matrix(0.80643348,0,0,0.80643348,6.1178169,-3.9913186)" id="g974">
+    <g transform="matrix(1.1852,0,0,1.1852,-5.9261,-7.1112)" id="g972">
+      <g transform="matrix(0.8437,0,0,0.8437,4.9998,5.9997)" id="g970">
+        <g transform="matrix(1.1852,0,0,1.1852,-5.9259,-7.1111)" id="g968">
+          <g transform="matrix(1.1852,0,0,1.1852,-5.9259,-7.1111)" id="g966">
+            <circle cx="16" cy="40" r="11" fill="none" stroke="#92400e" stroke-width="2.5" id="circle944"></circle>
+            <circle cx="48" cy="40" r="11" fill="none" stroke="#92400e" stroke-width="2.5" id="circle946"></circle>
+            <line x1="16" y1="40" x2="30" y2="24" stroke="#f59e0b" stroke-width="2.5" id="line948"></line>
+            <line x1="30" y1="24" x2="38" y2="24" stroke="#f59e0b" stroke-width="2.5" id="line950"></line>
+            <line x1="38" y1="24" x2="48" y2="40" stroke="#f59e0b" stroke-width="2.5" id="line952"></line>
+            <line x1="30" y1="24" x2="48" y2="40" stroke="#f59e0b" stroke-width="2.5" id="line954"></line>
+            <line x1="16" y1="40" x2="38" y2="24" stroke="#f59e0b" stroke-width="2.5" id="line956"></line>
+            <line x1="38" y1="24" x2="46" y2="18" stroke="#92400e" stroke-width="2" id="line958"></line>
+            <line x1="29.859112" y1="23.871048" x2="27.25428" y2="17.601709" stroke="#92400e" stroke-width="1.38366" id="line960"></line>
+            <circle cx="46" cy="17" r="2" fill="#92400e" id="circle962"></circle>
+            <rect style="fill:#fde68a;fill-opacity:1;stroke:#92400e;stroke-width:0.5" width="10.368189" height="1.6966127" x="20.359352" y="15.929308" ry="0.84830636" id="rect964"></rect>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

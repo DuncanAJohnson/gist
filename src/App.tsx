@@ -16,6 +16,7 @@ const PhysicsStack = lazy(() => import('./pages/docs/PhysicsStack'))
 const RuntimeLoop = lazy(() => import('./pages/docs/RuntimeLoop'))
 const LLMPipeline = lazy(() => import('./pages/docs/LLMPipeline'))
 const RefactorRoadmap = lazy(() => import('./pages/docs/RefactorRoadmap'))
+const VectorArrows = lazy(() => import('./pages/docs/VectorArrows'))
 
 function DocsFallback() {
   return (
@@ -59,6 +60,10 @@ function AppContent() {
         <Route
           path="/docs/refactor-roadmap"
           element={<Suspense fallback={<DocsFallback />}><RefactorRoadmap /></Suspense>}
+        />
+        <Route
+          path="/docs/vector-arrows"
+          element={<Suspense fallback={<DocsFallback />}><VectorArrows /></Suspense>}
         />
       </Routes>
     </>

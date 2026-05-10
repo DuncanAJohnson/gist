@@ -1,6 +1,6 @@
 {
   "manifest_version": 1,
-  "exported_at": "2026-04-20T13:43:36.374Z",
+  "exported_at": "2026-05-09T01:48:25.717Z",
   "exported_by": "bill@crcs.works",
   "export_mode": "all_approved",
   "items": [
@@ -8,7 +8,7 @@
       "name": "acoustic_guitar",
       "display_name": "acoustic guitar",
       "status": "approved",
-      "version": 3,
+      "version": 5,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -16,28 +16,28 @@
           "type": "convex",
           "vertices": [
             [
-              8.48,
-              41.12
+              3.08,
+              4.74
             ],
             [
-              15.91,
-              37.19
+              11.95,
+              0.05
             ],
             [
-              58.77,
-              41.24
+              63.09,
+              4.89
             ],
             [
-              59.4,
-              48.21
+              63.85,
+              13.2
             ],
             [
-              15.66,
-              60.06
+              11.65,
+              27.34
             ],
             [
-              5.06,
-              51.72
+              -1,
+              17.39
             ]
           ]
         }
@@ -47,7 +47,7 @@
       "name": "airplane",
       "display_name": "airplane",
       "status": "approved",
-      "version": 3,
+      "version": 8,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -55,32 +55,36 @@
           "type": "convex",
           "vertices": [
             [
-              6,
-              20
+              1.91,
+              -0.32
             ],
             [
-              28,
-              18
+              31.19,
+              2.52
             ],
             [
-              55.53,
-              29.23
+              59.89,
+              5.71
             ],
             [
-              58,
-              32
+              65.32,
+              11.3
             ],
             [
-              55.53,
-              34.77
+              53.54,
+              16.59
             ],
             [
-              28,
-              46
+              25.41,
+              17.47
             ],
             [
-              6,
-              44
+              14.04,
+              16.97
+            ],
+            [
+              1.86,
+              13.68
             ]
           ]
         }
@@ -90,7 +94,7 @@
       "name": "amber_balloon",
       "display_name": "amber balloon",
       "status": "approved",
-      "version": 2,
+      "version": 7,
       "color_tag": "amber",
       "parent": "balloon",
       "physical_properties": {
@@ -98,36 +102,36 @@
           "type": "convex",
           "vertices": [
             [
-              16.87,
-              14.74
+              1.43,
+              6.11
             ],
             [
-              25.88,
-              5.52
+              15.23,
+              -0.71
             ],
             [
-              38.12,
-              5.52
+              26,
+              1.3
             ],
             [
-              46.78,
-              16.35
+              34.9,
+              15.42
             ],
             [
-              46.78,
-              31.65
+              34.02,
+              30.19
             ],
             [
-              40.39,
-              48.36
+              25.99,
+              47.37
             ],
             [
-              32.9,
-              64
+              17.8,
+              62.62
             ],
             [
-              17.22,
-              31.65
+              -2.13,
+              26.9
             ]
           ]
         }
@@ -137,7 +141,7 @@
       "name": "amber_bell",
       "display_name": "amber bell",
       "status": "approved",
-      "version": 2,
+      "version": 9,
       "color_tag": "amber",
       "parent": "bell",
       "physical_properties": {
@@ -145,36 +149,36 @@
           "type": "convex",
           "vertices": [
             [
-              14,
-              40
+              2.83,
+              32.84
             ],
             [
-              20,
-              20.5
+              10.13,
+              11.52
             ],
             [
-              29.88,
-              5.88
+              23.74,
+              -1.64
             ],
             [
-              33.15,
-              5.23
+              34.12,
+              8.12
             ],
             [
-              44,
-              20.5
+              43.81,
+              23.09
             ],
             [
-              50,
-              44
+              48.92,
+              50.01
             ],
             [
-              32,
-              54
+              24.21,
+              65.8
             ],
             [
-              14,
-              44
+              -1.28,
+              50.82
             ]
           ]
         }
@@ -184,7 +188,7 @@
       "name": "amber_bicycle",
       "display_name": "amber bicycle",
       "status": "approved",
-      "version": 2,
+      "version": 8,
       "color_tag": "amber",
       "parent": "bicycle",
       "physical_properties": {
@@ -192,36 +196,36 @@
           "type": "convex",
           "vertices": [
             [
-              19.05,
-              15.1
+              19.78,
+              1.46
             ],
             [
-              46,
-              15
+              49.44,
+              1.59
             ],
             [
-              54.91,
-              26.68
+              62.56,
+              21.78
             ],
             [
-              62.64,
-              40.01
+              65.32,
+              35.85
             ],
             [
-              53.13,
-              53.58
+              53.51,
+              44.28
             ],
             [
-              6.89,
-              53.47
+              7.77,
+              44.32
             ],
             [
-              2.54,
-              36.67
+              -0.17,
+              29
             ],
             [
-              8.83,
-              26.01
+              3.82,
+              15.99
             ]
           ]
         }
@@ -231,7 +235,7 @@
       "name": "amber_boat",
       "display_name": "amber boat",
       "status": "approved",
-      "version": 2,
+      "version": 8,
       "color_tag": "amber",
       "parent": "boat",
       "physical_properties": {
@@ -239,28 +243,28 @@
           "type": "convex",
           "vertices": [
             [
-              6,
-              38
+              2.07,
+              26.02
             ],
             [
-              30,
-              16
+              29.74,
+              4.03
             ],
             [
-              33,
-              16
+              37.03,
+              5.46
             ],
             [
-              58.96,
-              37.53
+              63.95,
+              26.11
             ],
             [
-              52,
-              50
+              56.33,
+              41.99
             ],
             [
-              12,
-              50
+              8.56,
+              41.93
             ]
           ]
         }
@@ -270,18 +274,34 @@
       "name": "amber_cat",
       "display_name": "amber cat",
       "status": "approved",
-      "version": 2,
+      "version": 6,
       "color_tag": "amber",
       "parent": "cat",
       "physical_properties": {
         "collider": {
-          "type": "box",
-          "width": 28,
-          "center": [
-            32,
-            30
-          ],
-          "height": 44
+          "type": "convex",
+          "vertices": [
+            [
+              -0.97,
+              0.56
+            ],
+            [
+              42.4,
+              0.96
+            ],
+            [
+              39.46,
+              62.53
+            ],
+            [
+              2.27,
+              63.65
+            ],
+            [
+              0.31,
+              35.28
+            ]
+          ]
         }
       }
     },
@@ -289,7 +309,7 @@
       "name": "amber_feather",
       "display_name": "amber feather",
       "status": "approved",
-      "version": 2,
+      "version": 8,
       "color_tag": "amber",
       "parent": "feather",
       "physical_properties": {
@@ -297,36 +317,36 @@
           "type": "convex",
           "vertices": [
             [
-              20.11,
-              18.11
+              6.47,
+              50
             ],
             [
-              20.11,
-              13.3
+              -1.4,
+              16.03
             ],
             [
-              21.78,
-              8.91
+              3.81,
+              6.22
             ],
             [
-              30.14,
-              1.39
+              12.01,
+              0.26
             ],
             [
-              38.5,
-              8.91
+              22.33,
+              9.92
             ],
             [
-              40.17,
-              13.3
+              24.85,
+              19.9
             ],
             [
-              40.17,
-              18.11
+              17.4,
+              46.26
             ],
             [
-              29.1,
-              55.18
+              11.04,
+              65.18
             ]
           ]
         }
@@ -336,7 +356,7 @@
       "name": "amber_parachute",
       "display_name": "amber parachute",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": "amber",
       "parent": "parachute",
       "physical_properties": {
@@ -344,36 +364,36 @@
           "type": "convex",
           "vertices": [
             [
-              8,
-              24
+              0,
+              22.86
             ],
             [
-              9.5,
-              15.25
+              1.72,
+              12.86
             ],
             [
-              21.5,
-              5.25
+              15.43,
+              1.43
             ],
             [
-              42.5,
-              5.25
+              39.43,
+              1.43
             ],
             [
-              54.5,
-              15.25
+              53.15,
+              12.86
             ],
             [
-              56,
-              24
+              54.86,
+              22.86
             ],
             [
-              36,
-              60
+              32,
+              64
             ],
             [
-              28,
-              60
+              22.86,
+              64
             ]
           ]
         }
@@ -383,7 +403,7 @@
       "name": "apple",
       "display_name": "apple",
       "status": "approved",
-      "version": 2,
+      "version": 5,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -391,32 +411,36 @@
           "type": "convex",
           "vertices": [
             [
-              14,
-              36
+              -1.32,
+              39.17
             ],
             [
-              19.27,
-              21.86
+              7.7,
+              20.7
             ],
             [
-              45.95,
-              4.34
+              19.47,
+              15.72
             ],
             [
-              50,
-              36
+              33,
+              18.69
             ],
             [
-              44.73,
-              50.14
+              44.66,
+              38.12
             ],
             [
-              32,
-              56
+              38.36,
+              57.6
             ],
             [
-              15.37,
-              43.65
+              23.99,
+              64.56
+            ],
+            [
+              6.68,
+              59.59
             ]
           ]
         }
@@ -426,7 +450,7 @@
       "name": "arrow",
       "display_name": "arrow",
       "status": "approved",
-      "version": 5,
+      "version": 6,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -434,24 +458,24 @@
           "type": "convex",
           "vertices": [
             [
-              4,
-              24
+              0,
+              0
             ],
             [
-              48.72,
-              26.27
+              47.7,
+              2.42
             ],
             [
               64,
-              32
+              8.53
             ],
             [
-              48.63,
-              37.77
+              47.61,
+              14.69
             ],
             [
-              4,
-              40
+              0,
+              17.07
             ]
           ]
         }
@@ -461,7 +485,7 @@
       "name": "autumn_leaf",
       "display_name": "autumn leaf",
       "status": "approved",
-      "version": 2,
+      "version": 6,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -469,36 +493,36 @@
           "type": "convex",
           "vertices": [
             [
-              13.11,
-              30.19
+              -1.86,
+              27.25
             ],
             [
-              17,
-              20
+              3.26,
+              11.19
             ],
             [
-              32,
-              10
+              22.79,
+              -0.59
             ],
             [
-              47,
-              20
+              41.27,
+              8.72
             ],
             [
-              50.89,
-              30.19
+              49.11,
+              26.79
             ],
             [
-              47.42,
-              41.36
+              39.2,
+              44.3
             ],
             [
-              28,
-              62
+              20,
+              60.36
             ],
             [
-              14,
-              36
+              3.97,
+              37.84
             ]
           ]
         }
@@ -508,7 +532,7 @@
       "name": "balloon",
       "display_name": "balloon",
       "status": "approved",
-      "version": 3,
+      "version": 6,
       "color_tag": "green",
       "parent": null,
       "physical_properties": {
@@ -516,36 +540,36 @@
           "type": "convex",
           "vertices": [
             [
-              16.87,
-              14.74
+              1.43,
+              6.11
             ],
             [
-              25.88,
-              5.52
+              15.23,
+              -0.71
             ],
             [
-              38.12,
-              5.52
+              26,
+              1.3
             ],
             [
-              46.78,
-              16.35
+              34.9,
+              15.42
             ],
             [
-              46.78,
-              31.65
+              34.02,
+              30.19
             ],
             [
-              40.39,
-              48.36
+              25.99,
+              47.37
             ],
             [
-              32.9,
-              64
+              17.8,
+              62.62
             ],
             [
-              17.22,
-              31.65
+              -2.13,
+              26.9
             ]
           ]
         }
@@ -555,7 +579,7 @@
       "name": "barrel",
       "display_name": "barrel",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -563,32 +587,36 @@
           "type": "convex",
           "vertices": [
             [
-              14,
+              1.39,
               32
             ],
             [
-              17.22,
-              12.09
+              5.87,
+              4.3
             ],
             [
-              32,
-              9
+              26.43,
+              0
             ],
             [
-              48,
-              14
+              48.84,
+              3.99
             ],
             [
-              46.78,
-              51.91
+              51.92,
+              29.05
             ],
             [
-              20.69,
-              53.54
+              47.23,
+              61.32
             ],
             [
-              14.5,
-              41
+              24.55,
+              64.81
+            ],
+            [
+              3.53,
+              59.86
             ]
           ]
         }
@@ -598,7 +626,7 @@
       "name": "baseball",
       "display_name": "baseball",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -608,7 +636,7 @@
             32,
             32
           ],
-          "radius": 20
+          "radius": 32
         }
       }
     },
@@ -616,25 +644,18 @@
       "name": "basketball",
       "display_name": "basketball",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
-        "collider": {
-          "type": "circle",
-          "center": [
-            32,
-            32
-          ],
-          "radius": 20
-        }
+        "collider": null
       }
     },
     {
       "name": "bell",
       "display_name": "bell",
       "status": "approved",
-      "version": 2,
+      "version": 8,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -642,36 +663,36 @@
           "type": "convex",
           "vertices": [
             [
-              14,
-              40
+              2.83,
+              32.84
             ],
             [
-              20,
-              20.5
+              10.13,
+              11.52
             ],
             [
-              29.88,
-              5.88
+              23.74,
+              -1.64
             ],
             [
-              33.15,
-              5.23
+              34.12,
+              8.12
             ],
             [
-              44,
-              20.5
+              43.81,
+              23.09
             ],
             [
-              50,
-              44
+              48.92,
+              50.01
             ],
             [
-              32,
-              54
+              24.21,
+              65.8
             ],
             [
-              14,
-              44
+              -1.28,
+              50.82
             ]
           ]
         }
@@ -681,7 +702,7 @@
       "name": "bicycle",
       "display_name": "bicycle",
       "status": "approved",
-      "version": 6,
+      "version": 10,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -689,36 +710,36 @@
           "type": "convex",
           "vertices": [
             [
-              19.05,
-              15.1
+              19.78,
+              1.46
             ],
             [
-              46,
-              15
+              49.44,
+              1.59
             ],
             [
-              54.91,
-              26.68
+              62.56,
+              21.78
             ],
             [
-              62.64,
-              40.01
+              65.32,
+              35.85
             ],
             [
-              53.13,
-              53.58
+              53.51,
+              44.28
             ],
             [
-              6.89,
-              53.47
+              7.77,
+              44.32
             ],
             [
-              2.54,
-              36.67
+              -0.17,
+              29
             ],
             [
-              8.83,
-              26.01
+              3.82,
+              15.99
             ]
           ]
         }
@@ -728,7 +749,7 @@
       "name": "billiard_ball_1",
       "display_name": "billiard ball 1",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -738,7 +759,7 @@
             32,
             32
           ],
-          "radius": 28
+          "radius": 32
         }
       }
     },
@@ -746,7 +767,7 @@
       "name": "billiard_ball_10",
       "display_name": "billiard ball 10",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -756,7 +777,7 @@
             32,
             32
           ],
-          "radius": 28
+          "radius": 32
         }
       }
     },
@@ -764,7 +785,7 @@
       "name": "billiard_ball_11",
       "display_name": "billiard ball 11",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -774,7 +795,7 @@
             32,
             32
           ],
-          "radius": 28
+          "radius": 32
         }
       }
     },
@@ -782,7 +803,7 @@
       "name": "billiard_ball_12",
       "display_name": "billiard ball 12",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -792,7 +813,7 @@
             32,
             32
           ],
-          "radius": 28
+          "radius": 32
         }
       }
     },
@@ -800,7 +821,7 @@
       "name": "billiard_ball_13",
       "display_name": "billiard ball 13",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -810,7 +831,7 @@
             32,
             32
           ],
-          "radius": 28
+          "radius": 32
         }
       }
     },
@@ -818,7 +839,7 @@
       "name": "billiard_ball_14",
       "display_name": "billiard ball 14",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -828,7 +849,7 @@
             32,
             32
           ],
-          "radius": 28
+          "radius": 32
         }
       }
     },
@@ -836,7 +857,7 @@
       "name": "billiard_ball_15",
       "display_name": "billiard ball 15",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -846,7 +867,7 @@
             32,
             32
           ],
-          "radius": 28
+          "radius": 32
         }
       }
     },
@@ -854,7 +875,7 @@
       "name": "billiard_ball_2",
       "display_name": "billiard ball 2",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -864,7 +885,7 @@
             32,
             32
           ],
-          "radius": 28
+          "radius": 32
         }
       }
     },
@@ -872,7 +893,7 @@
       "name": "billiard_ball_3",
       "display_name": "billiard ball 3",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -882,7 +903,7 @@
             32,
             32
           ],
-          "radius": 28
+          "radius": 32
         }
       }
     },
@@ -890,7 +911,7 @@
       "name": "billiard_ball_4",
       "display_name": "billiard ball 4",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -900,7 +921,7 @@
             32,
             32
           ],
-          "radius": 28
+          "radius": 32
         }
       }
     },
@@ -908,7 +929,7 @@
       "name": "billiard_ball_5",
       "display_name": "billiard ball 5",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -918,7 +939,7 @@
             32,
             32
           ],
-          "radius": 28
+          "radius": 32
         }
       }
     },
@@ -926,7 +947,7 @@
       "name": "billiard_ball_6",
       "display_name": "billiard ball 6",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -936,7 +957,7 @@
             32,
             32
           ],
-          "radius": 28
+          "radius": 32
         }
       }
     },
@@ -944,7 +965,7 @@
       "name": "billiard_ball_7",
       "display_name": "billiard ball 7",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -954,7 +975,7 @@
             32,
             32
           ],
-          "radius": 28
+          "radius": 32
         }
       }
     },
@@ -962,7 +983,7 @@
       "name": "billiard_ball_8",
       "display_name": "billiard ball 8",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -972,7 +993,7 @@
             32,
             32
           ],
-          "radius": 28
+          "radius": 32
         }
       }
     },
@@ -980,7 +1001,7 @@
       "name": "billiard_ball_9",
       "display_name": "billiard ball 9",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -990,7 +1011,26 @@
             32,
             32
           ],
-          "radius": 28
+          "radius": 32
+        }
+      }
+    },
+    {
+      "name": "birch_plywood",
+      "display_name": "birch plywood",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            24.62
+          ],
+          "height": 49.23
         }
       }
     },
@@ -998,7 +1038,7 @@
       "name": "bird",
       "display_name": "bird",
       "status": "approved",
-      "version": 5,
+      "version": 7,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -1006,32 +1046,32 @@
           "type": "convex",
           "vertices": [
             [
-              7.03,
-              27.56
+              0,
+              17.23
             ],
             [
-              9.43,
-              23.33
+              3.27,
+              11.47
             ],
             [
-              40.73,
-              14.95
+              45.92,
+              0.05
             ],
             [
-              54,
-              21
+              64,
+              8.3
             ],
             [
-              38,
-              54
+              42.2,
+              53.26
             ],
             [
-              23,
-              54
+              21.76,
+              53.26
             ],
             [
-              7.41,
-              29.67
+              0.52,
+              20.11
             ]
           ]
         }
@@ -1041,7 +1081,7 @@
       "name": "blue_balloon",
       "display_name": "blue balloon",
       "status": "approved",
-      "version": 2,
+      "version": 5,
       "color_tag": "blue",
       "parent": "balloon",
       "physical_properties": {
@@ -1049,36 +1089,36 @@
           "type": "convex",
           "vertices": [
             [
-              16.87,
-              14.74
+              1.43,
+              6.11
             ],
             [
-              25.88,
-              5.52
+              15.23,
+              -0.71
             ],
             [
-              38.12,
-              5.52
+              26,
+              1.3
             ],
             [
-              46.78,
-              16.35
+              34.9,
+              15.42
             ],
             [
-              46.78,
-              31.65
+              34.02,
+              30.19
             ],
             [
-              40.39,
-              48.36
+              25.99,
+              47.37
             ],
             [
-              32.9,
-              64
+              17.8,
+              62.62
             ],
             [
-              17.22,
-              31.65
+              -2.13,
+              26.9
             ]
           ]
         }
@@ -1088,7 +1128,7 @@
       "name": "blue_bell",
       "display_name": "blue bell",
       "status": "approved",
-      "version": 2,
+      "version": 7,
       "color_tag": "blue",
       "parent": "bell",
       "physical_properties": {
@@ -1096,36 +1136,36 @@
           "type": "convex",
           "vertices": [
             [
-              14,
-              40
+              2.83,
+              32.84
             ],
             [
-              20,
-              20.5
+              10.13,
+              11.52
             ],
             [
-              29.88,
-              5.88
+              23.74,
+              -1.64
             ],
             [
-              33.15,
-              5.23
+              34.12,
+              8.12
             ],
             [
-              44,
-              20.5
+              43.81,
+              23.09
             ],
             [
-              50,
-              44
+              48.92,
+              50.01
             ],
             [
-              32,
-              54
+              24.21,
+              65.8
             ],
             [
-              14,
-              44
+              -1.28,
+              50.82
             ]
           ]
         }
@@ -1135,7 +1175,7 @@
       "name": "blue_bicycle",
       "display_name": "blue bicycle",
       "status": "approved",
-      "version": 2,
+      "version": 6,
       "color_tag": "blue",
       "parent": "bicycle",
       "physical_properties": {
@@ -1143,36 +1183,36 @@
           "type": "convex",
           "vertices": [
             [
-              19.05,
-              15.1
+              19.78,
+              1.46
             ],
             [
-              46,
-              15
+              49.44,
+              1.59
             ],
             [
-              54.91,
-              26.68
+              62.56,
+              21.78
             ],
             [
-              62.64,
-              40.01
+              65.32,
+              35.85
             ],
             [
-              53.13,
-              53.58
+              53.51,
+              44.28
             ],
             [
-              6.89,
-              53.47
+              7.77,
+              44.32
             ],
             [
-              2.54,
-              36.67
+              -0.17,
+              29
             ],
             [
-              8.83,
-              26.01
+              3.82,
+              15.99
             ]
           ]
         }
@@ -1182,7 +1222,7 @@
       "name": "blue_boat",
       "display_name": "blue boat",
       "status": "approved",
-      "version": 2,
+      "version": 7,
       "color_tag": "blue",
       "parent": "boat",
       "physical_properties": {
@@ -1190,28 +1230,28 @@
           "type": "convex",
           "vertices": [
             [
-              6,
-              38
+              2.07,
+              26.02
             ],
             [
-              30,
-              16
+              29.74,
+              4.03
             ],
             [
-              33,
-              16
+              37.03,
+              5.46
             ],
             [
-              58.96,
-              37.53
+              63.95,
+              26.11
             ],
             [
-              52,
-              50
+              56.33,
+              41.99
             ],
             [
-              12,
-              50
+              8.56,
+              41.93
             ]
           ]
         }
@@ -1221,18 +1261,34 @@
       "name": "blue_cat",
       "display_name": "blue cat",
       "status": "approved",
-      "version": 2,
+      "version": 9,
       "color_tag": "blue",
       "parent": "cat",
       "physical_properties": {
         "collider": {
-          "type": "box",
-          "width": 28,
-          "center": [
-            32,
-            30
-          ],
-          "height": 44
+          "type": "convex",
+          "vertices": [
+            [
+              -0.97,
+              0.56
+            ],
+            [
+              42.4,
+              0.96
+            ],
+            [
+              39.46,
+              62.53
+            ],
+            [
+              2.27,
+              63.65
+            ],
+            [
+              0.31,
+              35.28
+            ]
+          ]
         }
       }
     },
@@ -1240,7 +1296,7 @@
       "name": "blue_feather",
       "display_name": "blue feather",
       "status": "approved",
-      "version": 2,
+      "version": 8,
       "color_tag": "blue",
       "parent": "feather",
       "physical_properties": {
@@ -1248,36 +1304,36 @@
           "type": "convex",
           "vertices": [
             [
-              20.11,
-              18.11
+              6.47,
+              50
             ],
             [
-              20.11,
-              13.3
+              -1.4,
+              16.03
             ],
             [
-              21.78,
-              8.91
+              3.81,
+              6.22
             ],
             [
-              30.14,
-              1.39
+              12.01,
+              0.26
             ],
             [
-              38.5,
-              8.91
+              22.33,
+              9.92
             ],
             [
-              40.17,
-              13.3
+              24.85,
+              19.9
             ],
             [
-              40.17,
-              18.11
+              17.4,
+              46.26
             ],
             [
-              29.1,
-              55.18
+              11.04,
+              65.18
             ]
           ]
         }
@@ -1287,7 +1343,7 @@
       "name": "blue_parachute",
       "display_name": "blue parachute",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": "blue",
       "parent": "parachute",
       "physical_properties": {
@@ -1295,36 +1351,36 @@
           "type": "convex",
           "vertices": [
             [
-              8,
-              24
+              0,
+              22.86
             ],
             [
-              9.5,
-              15.25
+              1.72,
+              12.86
             ],
             [
-              21.5,
-              5.25
+              15.43,
+              1.43
             ],
             [
-              42.5,
-              5.25
+              39.43,
+              1.43
             ],
             [
-              54.5,
-              15.25
+              53.15,
+              12.86
             ],
             [
-              56,
-              24
+              54.86,
+              22.86
             ],
             [
-              36,
-              60
+              32,
+              64
             ],
             [
-              28,
-              60
+              22.86,
+              64
             ]
           ]
         }
@@ -1334,7 +1390,7 @@
       "name": "boat",
       "display_name": "boat",
       "status": "approved",
-      "version": 4,
+      "version": 6,
       "color_tag": "red",
       "parent": null,
       "physical_properties": {
@@ -1342,28 +1398,28 @@
           "type": "convex",
           "vertices": [
             [
-              6,
-              38
+              2.07,
+              26.02
             ],
             [
-              30,
-              16
+              29.74,
+              4.03
             ],
             [
-              33,
-              16
+              37.03,
+              5.46
             ],
             [
-              58.96,
-              37.53
+              63.95,
+              26.11
             ],
             [
-              52,
-              50
+              56.33,
+              41.99
             ],
             [
-              12,
-              50
+              8.56,
+              41.93
             ]
           ]
         }
@@ -1373,7 +1429,7 @@
       "name": "bowling_ball",
       "display_name": "bowling ball",
       "status": "approved",
-      "version": 9,
+      "version": 10,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -1383,7 +1439,7 @@
             32,
             32
           ],
-          "radius": 20
+          "radius": 32
         }
       }
     },
@@ -1391,18 +1447,18 @@
       "name": "box",
       "display_name": "box",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
         "collider": {
           "type": "box",
-          "width": 44,
+          "width": 64,
           "center": [
             32,
-            32
+            29.09
           ],
-          "height": 40
+          "height": 58.18
         }
       }
     },
@@ -1410,7 +1466,7 @@
       "name": "bread_loaf",
       "display_name": "bread loaf",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -1418,36 +1474,36 @@
           "type": "convex",
           "vertices": [
             [
-              6,
-              35
+              0,
+              23.38
             ],
             [
-              16.44,
-              19.51
-            ],
-            [
-              32,
-              16
-            ],
-            [
-              47.56,
-              19.51
-            ],
-            [
-              58,
-              35
-            ],
-            [
-              50.38,
-              49.31
+              12.85,
+              4.32
             ],
             [
               32,
-              54
+              0
             ],
             [
-              12.81,
-              49.78
+              51.15,
+              4.32
+            ],
+            [
+              64,
+              23.38
+            ],
+            [
+              54.62,
+              40.99
+            ],
+            [
+              32,
+              46.77
+            ],
+            [
+              8.38,
+              41.57
             ]
           ]
         }
@@ -1457,18 +1513,18 @@
       "name": "brick_block",
       "display_name": "brick block",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
         "collider": {
           "type": "box",
-          "width": 48,
+          "width": 64,
           "center": [
             32,
-            32
+            24
           ],
-          "height": 36
+          "height": 48
         }
       }
     },
@@ -1476,18 +1532,18 @@
       "name": "bus",
       "display_name": "bus",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
         "collider": {
           "type": "box",
-          "width": 52,
+          "width": 64,
           "center": [
             32,
-            33.5
+            24
           ],
-          "height": 39
+          "height": 48
         }
       }
     },
@@ -1495,7 +1551,7 @@
       "name": "cake_slice",
       "display_name": "cake slice",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -1503,36 +1559,36 @@
           "type": "convex",
           "vertices": [
             [
-              10,
-              36
+              0,
+              41.74
             ],
             [
-              24.15,
-              7.23
+              19.69,
+              1.71
             ],
             [
-              26,
-              6
+              22.26,
+              0
             ],
             [
-              38,
-              6
+              38.96,
+              0
             ],
             [
-              39.41,
-              6.59
+              40.92,
+              0.82
             ],
             [
-              54,
-              36
+              61.22,
+              41.74
             ],
             [
-              54,
-              52
+              61.22,
+              64
             ],
             [
-              10,
-              52
+              0,
+              64
             ]
           ]
         }
@@ -1542,7 +1598,7 @@
       "name": "cannonball",
       "display_name": "cannonball",
       "status": "approved",
-      "version": 5,
+      "version": 6,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -1550,9 +1606,9 @@
           "type": "circle",
           "center": [
             32,
-            32
+            31.91
           ],
-          "radius": 18
+          "radius": 31.91
         }
       }
     },
@@ -1560,7 +1616,7 @@
       "name": "car",
       "display_name": "car",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -1568,38 +1624,57 @@
           "type": "convex",
           "vertices": [
             [
-              6,
-              28
+              0,
+              14.77
             ],
             [
-              22,
-              16
+              19.69,
+              0
             ],
             [
-              42,
-              16
+              44.31,
+              0
             ],
             [
-              58,
-              28
+              64,
+              14.77
             ],
             [
-              58,
-              42
+              64,
+              32
             ],
             [
-              47.91,
-              48.62
+              51.58,
+              40.15
             ],
             [
-              18,
-              49
+              14.77,
+              40.62
             ],
             [
-              6,
-              42
+              0,
+              32
             ]
           ]
+        }
+      }
+    },
+    {
+      "name": "carbon_fiber_panel",
+      "display_name": "carbon fiber panel",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            24
+          ],
+          "height": 48
         }
       }
     },
@@ -1607,81 +1682,7 @@
       "name": "cat",
       "display_name": "cat",
       "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "box",
-          "width": 28,
-          "center": [
-            32,
-            30
-          ],
-          "height": 44
-        }
-      }
-    },
-    {
-      "name": "coin",
-      "display_name": "coin",
-      "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "circle",
-          "center": [
-            32,
-            32
-          ],
-          "radius": 20
-        }
-      }
-    },
-    {
-      "name": "crate",
-      "display_name": "crate",
-      "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "box",
-          "width": 44,
-          "center": [
-            32,
-            34
-          ],
-          "height": 40
-        }
-      }
-    },
-    {
-      "name": "cue_ball",
-      "display_name": "cue ball",
-      "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "circle",
-          "center": [
-            32,
-            32
-          ],
-          "radius": 28
-        }
-      }
-    },
-    {
-      "name": "cylinder",
-      "display_name": "cylinder",
-      "status": "approved",
-      "version": 2,
+      "version": 6,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -1689,36 +1690,237 @@
           "type": "convex",
           "vertices": [
             [
-              51.04,
-              34.82
+              -0.97,
+              0.56
             ],
             [
-              49.89,
-              51.89
+              42.4,
+              0.96
             ],
             [
-              32,
-              59.3
+              39.46,
+              62.53
             ],
             [
-              14.11,
-              51.89
+              2.27,
+              63.65
             ],
             [
-              12.99,
-              35.39
+              0.31,
+              35.28
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "ceramic_tile",
+      "display_name": "ceramic tile",
+      "status": "approved",
+      "version": 3,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            32
+          ],
+          "height": 64
+        }
+      }
+    },
+    {
+      "name": "cobblestone_block",
+      "display_name": "cobblestone block",
+      "status": "approved",
+      "version": 3,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            32
+          ],
+          "height": 59.08
+        }
+      }
+    },
+    {
+      "name": "coin",
+      "display_name": "coin",
+      "status": "approved",
+      "version": 3,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 32
+        }
+      }
+    },
+    {
+      "name": "communication_satellite",
+      "display_name": "communication satellite",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              0.82,
+              1.32
             ],
             [
-              14.11,
-              16.11
+              63.86,
+              0.83
             ],
             [
-              32,
-              8.7
+              64,
+              30.77
             ],
             [
-              49.89,
-              16.11
+              31.67,
+              34.98
+            ],
+            [
+              0,
+              30.77
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "concrete_block",
+      "display_name": "concrete block",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            22.15
+          ],
+          "height": 44.31
+        }
+      }
+    },
+    {
+      "name": "crate",
+      "display_name": "crate",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            29.09
+          ],
+          "height": 58.18
+        }
+      }
+    },
+    {
+      "name": "cube_sat",
+      "display_name": "cube sat",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            11.43
+          ],
+          "height": 22.86
+        }
+      }
+    },
+    {
+      "name": "cue_ball",
+      "display_name": "cue ball",
+      "status": "approved",
+      "version": 3,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 32
+        }
+      }
+    },
+    {
+      "name": "cylinder",
+      "display_name": "cylinder",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              49.38,
+              33.09
+            ],
+            [
+              47.85,
+              55.85
+            ],
+            [
+              24,
+              65.73
+            ],
+            [
+              0.15,
+              55.85
+            ],
+            [
+              -1.35,
+              33.85
+            ],
+            [
+              0.15,
+              8.15
+            ],
+            [
+              24,
+              -1.73
+            ],
+            [
+              47.85,
+              8.15
             ]
           ]
         }
@@ -1728,7 +1930,7 @@
       "name": "cymbal",
       "display_name": "cymbal",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -1736,36 +1938,36 @@
           "type": "convex",
           "vertices": [
             [
-              6,
-              30
+              0,
+              19.69
             ],
             [
-              29,
-              14
+              28.31,
+              0
             ],
             [
-              35,
-              14
+              35.69,
+              0
             ],
             [
-              58,
-              30
+              64,
+              19.69
             ],
             [
-              50.38,
-              37.66
+              54.62,
+              29.12
             ],
             [
               32,
-              40
-            ],
-            [
-              13.62,
-              37.66
-            ],
-            [
-              6,
               32
+            ],
+            [
+              9.38,
+              29.12
+            ],
+            [
+              0,
+              22.15
             ]
           ]
         }
@@ -1775,7 +1977,7 @@
       "name": "dandelion_seed",
       "display_name": "dandelion seed",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -1783,38 +1985,57 @@
           "type": "convex",
           "vertices": [
             [
-              14.5,
-              25
+              0,
+              15.81
             ],
             [
-              21.04,
-              16.69
+              9.85,
+              3.3
             ],
             [
-              32,
-              14.5
+              26.35,
+              0
             ],
             [
-              42.96,
-              16.69
+              42.86,
+              3.3
             ],
             [
-              49.31,
-              24.04
+              52.42,
+              14.37
             ],
             [
-              33.15,
-              56.7
+              28.08,
+              63.55
             ],
             [
-              29.88,
-              55.83
+              23.16,
+              62.24
             ],
             [
-              14.69,
-              25.96
+              0.28,
+              17.26
             ]
           ]
+        }
+      }
+    },
+    {
+      "name": "diamond_plate",
+      "display_name": "diamond plate",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            27.08
+          ],
+          "height": 54.16
         }
       }
     },
@@ -1822,7 +2043,7 @@
       "name": "donut",
       "display_name": "donut",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -1830,36 +2051,36 @@
           "type": "convex",
           "vertices": [
             [
-              19.4,
-              16.75
+              16.49,
+              0.92
             ],
             [
-              35.18,
-              14.24
+              35.91,
+              -2.17
             ],
             [
-              52.33,
-              19.29
+              57.02,
+              4.05
             ],
             [
-              58,
-              30
+              64,
+              17.23
             ],
             [
-              50.38,
-              41.9
+              54.62,
+              31.88
             ],
             [
-              19.32,
-              44.76
+              16.39,
+              35.4
             ],
             [
-              6,
-              32
+              0,
+              19.69
             ],
             [
-              11.83,
-              20.45
+              7.18,
+              5.48
             ]
           ]
         }
@@ -1869,7 +2090,7 @@
       "name": "drum",
       "display_name": "drum",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -1877,36 +2098,36 @@
           "type": "convex",
           "vertices": [
             [
-              53.73,
-              35.29
+              63.59,
+              33.97
             ],
             [
-              52.59,
-              50.09
+              61.85,
+              56.52
             ],
             [
-              32,
-              57.4
+              30.48,
+              67.66
             ],
             [
-              11.21,
-              51.15
+              -1.2,
+              58.13
             ],
             [
-              10.51,
-              32.06
+              -2.27,
+              29.04
             ],
             [
-              11.74,
-              19.51
+              -0.39,
+              9.92
             ],
             [
-              32,
-              10.6
+              30.48,
+              -3.66
             ],
             [
-              53.28,
-              17.78
+              62.91,
+              7.28
             ]
           ]
         }
@@ -1916,7 +2137,7 @@
       "name": "duck",
       "display_name": "duck",
       "status": "approved",
-      "version": 3,
+      "version": 5,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -1924,36 +2145,36 @@
           "type": "convex",
           "vertices": [
             [
-              6,
-              28
+              0,
+              13.54
             ],
             [
-              18.17,
-              17.69
+              14.98,
+              0.85
             ],
             [
-              25.83,
-              17.69
+              24.41,
+              0.85
             ],
             [
-              56.5,
-              38.75
+              62.16,
+              26.77
             ],
             [
-              54.43,
-              45.38
+              59.61,
+              34.93
             ],
             [
-              42.7,
-              58.6
+              45.17,
+              51.2
             ],
             [
-              19.51,
-              60.84
+              16.63,
+              53.96
             ],
             [
-              10.37,
-              39.38
+              5.38,
+              27.54
             ]
           ]
         }
@@ -1963,7 +2184,7 @@
       "name": "dynamics_cart",
       "display_name": "dynamics cart",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -1971,36 +2192,36 @@
           "type": "convex",
           "vertices": [
             [
-              4,
-              30
+              0,
+              6.85
             ],
             [
-              8,
-              24
+              4.57,
+              0
             ],
             [
-              56,
-              24
+              59.43,
+              0
             ],
             [
-              60,
-              30
+              64,
+              6.85
             ],
             [
-              60,
-              34
+              64,
+              11.43
             ],
             [
-              48,
-              48
+              50.29,
+              27.43
             ],
             [
-              14.47,
-              47.7
+              11.97,
+              27.08
             ],
             [
-              4,
-              34
+              0,
+              11.43
             ]
           ]
         }
@@ -2010,25 +2231,7 @@
       "name": "eggy",
       "display_name": "eggy",
       "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "circle",
-          "center": [
-            32,
-            30.4
-          ],
-          "radius": 31.23
-        }
-      }
-    },
-    {
-      "name": "feather",
-      "display_name": "feather",
-      "status": "approved",
-      "version": 3,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -2036,36 +2239,83 @@
           "type": "convex",
           "vertices": [
             [
-              20.11,
-              18.11
+              60.05,
+              34.5
             ],
             [
-              20.11,
-              13.3
+              53.43,
+              58.64
             ],
             [
-              21.78,
-              8.91
+              31.84,
+              65.62
             ],
             [
-              30.14,
-              1.39
+              7.01,
+              59.51
             ],
             [
-              38.5,
-              8.91
+              1.86,
+              31.69
             ],
             [
-              40.17,
-              13.3
+              5.03,
+              5.25
             ],
             [
-              40.17,
-              18.11
+              33.43,
+              -0.84
             ],
             [
-              29.1,
-              55.18
+              53.43,
+              6.3
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "feather",
+      "display_name": "feather",
+      "status": "approved",
+      "version": 11,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              6.47,
+              50
+            ],
+            [
+              -1.4,
+              16.03
+            ],
+            [
+              3.81,
+              6.22
+            ],
+            [
+              12.01,
+              0.26
+            ],
+            [
+              22.33,
+              9.92
+            ],
+            [
+              24.85,
+              19.9
+            ],
+            [
+              17.4,
+              46.26
+            ],
+            [
+              11.04,
+              65.18
             ]
           ]
         }
@@ -2075,7 +2325,7 @@
       "name": "fish",
       "display_name": "fish",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -2083,36 +2333,36 @@
           "type": "convex",
           "vertices": [
             [
-              14,
-              32
+              0,
+              18.92
             ],
             [
-              18.69,
-              24.93
+              6.53,
+              9.08
             ],
             [
-              30,
-              22
+              22.26,
+              5.01
             ],
             [
-              55.5,
-              26
+              57.74,
+              10.57
             ],
             [
-              60,
-              32
+              64,
+              18.92
             ],
             [
-              55.5,
-              38
+              57.74,
+              27.27
             ],
             [
-              30,
-              42
+              22.26,
+              32.83
             ],
             [
-              15.22,
-              35.83
+              1.7,
+              24.25
             ]
           ]
         }
@@ -2122,18 +2372,18 @@
       "name": "foam_block",
       "display_name": "foam block",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
         "collider": {
           "type": "box",
-          "width": 48,
+          "width": 64,
           "center": [
             32,
-            34
+            24
           ],
-          "height": 36
+          "height": 48
         }
       }
     },
@@ -2141,7 +2391,7 @@
       "name": "football",
       "display_name": "football",
       "status": "approved",
-      "version": 4,
+      "version": 6,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -2149,36 +2399,36 @@
           "type": "convex",
           "vertices": [
             [
-              20,
-              32
+              -1.34,
+              23.7
             ],
             [
-              27.41,
-              13.52
+              10.52,
+              1.91
             ],
             [
-              32,
-              12
+              23.55,
+              0.87
             ],
             [
-              40.49,
-              17.86
+              35.3,
+              9.81
             ],
             [
-              44,
-              32
+              40.3,
+              36.94
             ],
             [
-              36.59,
-              50.48
+              29.32,
+              63.28
             ],
             [
-              27.41,
-              50.48
+              11.53,
+              63.71
             ],
             [
-              20.91,
-              39.65
+              0.64,
+              45.66
             ]
           ]
         }
@@ -2188,7 +2438,7 @@
       "name": "frisbee",
       "display_name": "frisbee",
       "status": "approved",
-      "version": 4,
+      "version": 6,
       "color_tag": "green",
       "parent": null,
       "physical_properties": {
@@ -2196,32 +2446,32 @@
           "type": "convex",
           "vertices": [
             [
-              4,
-              28
+              0,
+              6.86
             ],
             [
               32,
-              22
+              0
             ],
             [
-              60,
-              28
+              64,
+              6.86
             ],
             [
-              57.87,
-              34.3
+              61.57,
+              14.06
             ],
             [
-              42.72,
-              37.54
+              44.25,
+              17.76
             ],
             [
-              12.2,
-              36.24
+              9.37,
+              16.27
             ],
             [
-              4,
-              32
+              0,
+              11.43
             ]
           ]
         }
@@ -2231,7 +2481,7 @@
       "name": "frog",
       "display_name": "frog",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -2239,36 +2489,36 @@
           "type": "convex",
           "vertices": [
             [
-              14.19,
-              38.42
+              8.74,
+              31.9
             ],
             [
-              17.76,
-              15.76
+              13.4,
+              2.3
             ],
             [
-              22,
-              14
+              18.94,
+              0
             ],
             [
-              46.24,
-              15.76
+              50.6,
+              2.3
             ],
             [
-              49.01,
-              34.28
+              54.22,
+              26.49
             ],
             [
-              50.22,
-              47.35
+              55.8,
+              43.56
             ],
             [
-              33.17,
-              51.77
+              33.53,
+              49.33
             ],
             [
-              15.9,
-              47.67
+              10.97,
+              43.98
             ]
           ]
         }
@@ -2278,18 +2528,18 @@
       "name": "glass_block",
       "display_name": "glass block",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
         "collider": {
           "type": "box",
-          "width": 44,
+          "width": 64,
           "center": [
             32,
-            32
+            26.18
           ],
-          "height": 36
+          "height": 52.36
         }
       }
     },
@@ -2297,18 +2547,18 @@
       "name": "glass_of_water",
       "display_name": "glass of water",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
         "collider": {
           "type": "box",
-          "width": 28,
+          "width": 42.67,
           "center": [
-            32,
-            31
+            21.33,
+            32
           ],
-          "height": 42
+          "height": 64
         }
       }
     },
@@ -2316,7 +2566,7 @@
       "name": "gold_ingot",
       "display_name": "gold ingot",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -2324,28 +2574,28 @@
           "type": "convex",
           "vertices": [
             [
-              14,
-              20
-            ],
-            [
-              50,
-              20
+              8,
+              0
             ],
             [
               56,
-              28
+              0
             ],
             [
-              56,
-              46
+              64,
+              10.66
             ],
             [
-              8,
-              46
+              64,
+              34.66
             ],
             [
-              8,
-              28
+              0,
+              34.66
+            ],
+            [
+              0,
+              10.66
             ]
           ]
         }
@@ -2355,7 +2605,7 @@
       "name": "golf_ball",
       "display_name": "golf ball",
       "status": "approved",
-      "version": 4,
+      "version": 5,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -2365,7 +2615,61 @@
             32,
             32
           ],
-          "radius": 20
+          "radius": 32
+        }
+      }
+    },
+    {
+      "name": "gps_satellite",
+      "display_name": "gps satellite",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              -0.17,
+              1.18
+            ],
+            [
+              63.83,
+              1.18
+            ],
+            [
+              63.83,
+              32
+            ],
+            [
+              32.23,
+              33.72
+            ],
+            [
+              -0.17,
+              32
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "granite_slab",
+      "display_name": "granite slab",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            13.71
+          ],
+          "height": 27.43
         }
       }
     },
@@ -2373,7 +2677,7 @@
       "name": "gray_bell",
       "display_name": "gray bell",
       "status": "approved",
-      "version": 2,
+      "version": 7,
       "color_tag": "gray",
       "parent": "bell",
       "physical_properties": {
@@ -2381,36 +2685,36 @@
           "type": "convex",
           "vertices": [
             [
-              14,
-              40
+              2.83,
+              32.84
             ],
             [
-              20,
-              20.5
+              10.13,
+              11.52
             ],
             [
-              29.88,
-              5.88
+              23.74,
+              -1.64
             ],
             [
-              33.15,
-              5.23
+              34.12,
+              8.12
             ],
             [
-              44,
-              20.5
+              43.81,
+              23.09
             ],
             [
-              50,
-              44
+              48.92,
+              50.01
             ],
             [
-              32,
-              54
+              24.21,
+              65.8
             ],
             [
-              14,
-              44
+              -1.28,
+              50.82
             ]
           ]
         }
@@ -2420,7 +2724,7 @@
       "name": "gray_bicycle",
       "display_name": "gray bicycle",
       "status": "approved",
-      "version": 2,
+      "version": 6,
       "color_tag": "gray",
       "parent": "bicycle",
       "physical_properties": {
@@ -2428,36 +2732,36 @@
           "type": "convex",
           "vertices": [
             [
-              19.05,
-              15.1
+              19.78,
+              1.46
             ],
             [
-              46,
-              15
+              49.44,
+              1.59
             ],
             [
-              54.91,
-              26.68
+              62.56,
+              21.78
             ],
             [
-              62.64,
-              40.01
+              65.32,
+              35.85
             ],
             [
-              53.13,
-              53.58
+              53.51,
+              44.28
             ],
             [
-              6.89,
-              53.47
+              7.77,
+              44.32
             ],
             [
-              2.54,
-              36.67
+              -0.17,
+              29
             ],
             [
-              8.83,
-              26.01
+              3.82,
+              15.99
             ]
           ]
         }
@@ -2467,7 +2771,7 @@
       "name": "gray_boat",
       "display_name": "gray boat",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": "gray",
       "parent": "boat",
       "physical_properties": {
@@ -2475,28 +2779,28 @@
           "type": "convex",
           "vertices": [
             [
-              6,
-              38
+              2.07,
+              26.02
             ],
             [
-              30,
-              16
+              29.74,
+              4.03
             ],
             [
-              33,
-              16
+              37.03,
+              5.46
             ],
             [
-              58.96,
-              37.53
+              63.95,
+              26.11
             ],
             [
-              52,
-              50
+              56.33,
+              41.99
             ],
             [
-              12,
-              50
+              8.56,
+              41.93
             ]
           ]
         }
@@ -2506,18 +2810,34 @@
       "name": "gray_cat",
       "display_name": "gray cat",
       "status": "approved",
-      "version": 2,
+      "version": 6,
       "color_tag": "gray",
       "parent": "cat",
       "physical_properties": {
         "collider": {
-          "type": "box",
-          "width": 28,
-          "center": [
-            32,
-            30
-          ],
-          "height": 44
+          "type": "convex",
+          "vertices": [
+            [
+              -0.97,
+              0.56
+            ],
+            [
+              42.4,
+              0.96
+            ],
+            [
+              39.46,
+              62.53
+            ],
+            [
+              2.27,
+              63.65
+            ],
+            [
+              0.31,
+              35.28
+            ]
+          ]
         }
       }
     },
@@ -2525,7 +2845,7 @@
       "name": "gray_parachute",
       "display_name": "gray parachute",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": "gray",
       "parent": "parachute",
       "physical_properties": {
@@ -2533,36 +2853,36 @@
           "type": "convex",
           "vertices": [
             [
-              8,
-              24
+              0,
+              22.86
             ],
             [
-              9.5,
-              15.25
+              1.72,
+              12.86
             ],
             [
-              21.5,
-              5.25
+              15.43,
+              1.43
             ],
             [
-              42.5,
-              5.25
+              39.43,
+              1.43
             ],
             [
-              54.5,
-              15.25
+              53.15,
+              12.86
             ],
             [
-              56,
-              24
+              54.86,
+              22.86
             ],
             [
-              36,
-              60
+              32,
+              64
             ],
             [
-              28,
-              60
+              22.86,
+              64
             ]
           ]
         }
@@ -2572,7 +2892,7 @@
       "name": "green_balloon",
       "display_name": "green balloon",
       "status": "approved",
-      "version": 2,
+      "version": 5,
       "color_tag": "green",
       "parent": "balloon",
       "physical_properties": {
@@ -2580,36 +2900,36 @@
           "type": "convex",
           "vertices": [
             [
-              16.87,
-              14.74
+              1.43,
+              6.11
             ],
             [
-              25.88,
-              5.52
+              15.23,
+              -0.71
             ],
             [
-              38.12,
-              5.52
+              26,
+              1.3
             ],
             [
-              46.78,
-              16.35
+              34.9,
+              15.42
             ],
             [
-              46.78,
-              31.65
+              34.02,
+              30.19
             ],
             [
-              40.39,
-              48.36
+              25.99,
+              47.37
             ],
             [
-              32.9,
-              64
+              17.8,
+              62.62
             ],
             [
-              17.22,
-              31.65
+              -2.13,
+              26.9
             ]
           ]
         }
@@ -2619,7 +2939,7 @@
       "name": "green_bell",
       "display_name": "green bell",
       "status": "approved",
-      "version": 2,
+      "version": 7,
       "color_tag": "green",
       "parent": "bell",
       "physical_properties": {
@@ -2627,36 +2947,36 @@
           "type": "convex",
           "vertices": [
             [
-              14,
-              40
+              2.83,
+              32.84
             ],
             [
-              20,
-              20.5
+              10.13,
+              11.52
             ],
             [
-              29.88,
-              5.88
+              23.74,
+              -1.64
             ],
             [
-              33.15,
-              5.23
+              34.12,
+              8.12
             ],
             [
-              44,
-              20.5
+              43.81,
+              23.09
             ],
             [
-              50,
-              44
+              48.92,
+              50.01
             ],
             [
-              32,
-              54
+              24.21,
+              65.8
             ],
             [
-              14,
-              44
+              -1.28,
+              50.82
             ]
           ]
         }
@@ -2666,7 +2986,7 @@
       "name": "green_bicycle",
       "display_name": "green bicycle",
       "status": "approved",
-      "version": 2,
+      "version": 6,
       "color_tag": "green",
       "parent": "bicycle",
       "physical_properties": {
@@ -2674,36 +2994,36 @@
           "type": "convex",
           "vertices": [
             [
-              19.05,
-              15.1
+              19.78,
+              1.46
             ],
             [
-              46,
-              15
+              49.44,
+              1.59
             ],
             [
-              54.91,
-              26.68
+              62.56,
+              21.78
             ],
             [
-              62.64,
-              40.01
+              65.32,
+              35.85
             ],
             [
-              53.13,
-              53.58
+              53.51,
+              44.28
             ],
             [
-              6.89,
-              53.47
+              7.77,
+              44.32
             ],
             [
-              2.54,
-              36.67
+              -0.17,
+              29
             ],
             [
-              8.83,
-              26.01
+              3.82,
+              15.99
             ]
           ]
         }
@@ -2713,7 +3033,7 @@
       "name": "green_boat",
       "display_name": "green boat",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": "green",
       "parent": "boat",
       "physical_properties": {
@@ -2721,28 +3041,28 @@
           "type": "convex",
           "vertices": [
             [
-              6,
-              38
+              2.07,
+              26.02
             ],
             [
-              30,
-              16
+              29.74,
+              4.03
             ],
             [
-              33,
-              16
+              37.03,
+              5.46
             ],
             [
-              58.96,
-              37.53
+              63.95,
+              26.11
             ],
             [
-              52,
-              50
+              56.33,
+              41.99
             ],
             [
-              12,
-              50
+              8.56,
+              41.93
             ]
           ]
         }
@@ -2752,18 +3072,34 @@
       "name": "green_cat",
       "display_name": "green cat",
       "status": "approved",
-      "version": 2,
+      "version": 6,
       "color_tag": "green",
       "parent": "cat",
       "physical_properties": {
         "collider": {
-          "type": "box",
-          "width": 28,
-          "center": [
-            32,
-            30
-          ],
-          "height": 44
+          "type": "convex",
+          "vertices": [
+            [
+              -0.97,
+              0.56
+            ],
+            [
+              42.4,
+              0.96
+            ],
+            [
+              39.46,
+              62.53
+            ],
+            [
+              2.27,
+              63.65
+            ],
+            [
+              0.31,
+              35.28
+            ]
+          ]
         }
       }
     },
@@ -2771,7 +3107,7 @@
       "name": "green_feather",
       "display_name": "green feather",
       "status": "approved",
-      "version": 2,
+      "version": 8,
       "color_tag": "green",
       "parent": "feather",
       "physical_properties": {
@@ -2779,36 +3115,36 @@
           "type": "convex",
           "vertices": [
             [
-              20.11,
-              18.11
+              6.47,
+              50
             ],
             [
-              20.11,
-              13.3
+              -1.4,
+              16.03
             ],
             [
-              21.78,
-              8.91
+              3.81,
+              6.22
             ],
             [
-              30.14,
-              1.39
+              12.01,
+              0.26
             ],
             [
-              38.5,
-              8.91
+              22.33,
+              9.92
             ],
             [
-              40.17,
-              13.3
+              24.85,
+              19.9
             ],
             [
-              40.17,
-              18.11
+              17.4,
+              46.26
             ],
             [
-              29.1,
-              55.18
+              11.04,
+              65.18
             ]
           ]
         }
@@ -2818,7 +3154,7 @@
       "name": "green_parachute",
       "display_name": "green parachute",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": "green",
       "parent": "parachute",
       "physical_properties": {
@@ -2826,36 +3162,36 @@
           "type": "convex",
           "vertices": [
             [
-              8,
-              24
+              0,
+              22.86
             ],
             [
-              9.5,
-              15.25
+              1.72,
+              12.86
             ],
             [
-              21.5,
-              5.25
+              15.43,
+              1.43
             ],
             [
-              42.5,
-              5.25
+              39.43,
+              1.43
             ],
             [
-              54.5,
-              15.25
+              53.15,
+              12.86
             ],
             [
-              56,
-              24
+              54.86,
+              22.86
             ],
             [
-              36,
-              60
+              32,
+              64
             ],
             [
-              28,
-              60
+              22.86,
+              64
             ]
           ]
         }
@@ -2865,17 +3201,17 @@
       "name": "hamburger",
       "display_name": "hamburger",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
         "collider": {
           "type": "circle",
           "center": [
-            32,
-            28.38
+            31.29,
+            33.25
           ],
-          "radius": 25.2
+          "radius": 35.84
         }
       }
     },
@@ -2883,7 +3219,7 @@
       "name": "hammer",
       "display_name": "hammer",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -2891,36 +3227,36 @@
           "type": "convex",
           "vertices": [
             [
-              18,
-              10
+              0,
+              4
             ],
             [
-              20,
-              8
+              4,
+              0
             ],
             [
-              44,
-              8
+              52,
+              0
             ],
             [
-              46,
-              10
+              56,
+              4
             ],
             [
-              46,
-              18
+              56,
+              20
             ],
             [
               36,
-              40
+              64
             ],
             [
-              28,
-              40
+              20,
+              64
             ],
             [
-              18,
-              18
+              0,
+              20
             ]
           ]
         }
@@ -2930,18 +3266,18 @@
       "name": "hanging_mass",
       "display_name": "hanging mass",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
         "collider": {
           "type": "box",
-          "width": 24,
+          "width": 29.54,
           "center": [
-            32,
-            42
+            14.77,
+            46.77
           ],
-          "height": 28
+          "height": 34.46
         }
       }
     },
@@ -2949,18 +3285,18 @@
       "name": "hay_bale",
       "display_name": "hay bale",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
         "collider": {
           "type": "box",
-          "width": 48,
+          "width": 64,
           "center": [
             32,
-            33
+            20
           ],
-          "height": 30
+          "height": 40
         }
       }
     },
@@ -2968,7 +3304,7 @@
       "name": "helicopter",
       "display_name": "helicopter",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -2976,38 +3312,57 @@
           "type": "convex",
           "vertices": [
             [
-              8,
-              14
+              0,
+              0
             ],
             [
-              56,
-              14
+              59.08,
+              0
             ],
             [
-              60,
-              22
+              64,
+              9.84
             ],
             [
-              60,
-              38
+              64,
+              29.54
             ],
             [
-              44.6,
-              48.72
+              45.05,
+              42.73
             ],
             [
-              19.56,
-              48.52
+              14.23,
+              42.48
             ],
             [
-              14,
-              38
+              7.38,
+              29.54
             ],
             [
-              8,
-              17
+              0,
+              3.69
             ]
           ]
+        }
+      }
+    },
+    {
+      "name": "herringbone_brick",
+      "display_name": "herringbone brick",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            29.54
+          ],
+          "height": 59.08
         }
       }
     },
@@ -3015,7 +3370,7 @@
       "name": "hockey_puck",
       "display_name": "hockey puck",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -3023,32 +3378,32 @@
           "type": "convex",
           "vertices": [
             [
-              10,
-              34
+              0,
+              11.64
             ],
             [
               32,
-              26
+              0
             ],
             [
-              54,
-              34
+              64,
+              11.64
             ],
             [
-              52.33,
-              41.06
+              61.57,
+              21.91
             ],
             [
-              40.42,
-              45.39
+              44.25,
+              28.21
             ],
             [
-              23.58,
-              45.39
+              19.75,
+              28.21
             ],
             [
-              10,
-              38
+              0,
+              17.46
             ]
           ]
         }
@@ -3058,18 +3413,18 @@
       "name": "ice_block",
       "display_name": "ice block",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
         "collider": {
           "type": "box",
-          "width": 44,
+          "width": 64,
           "center": [
             32,
-            32
+            29.09
           ],
-          "height": 40
+          "height": 58.18
         }
       }
     },
@@ -3077,7 +3432,7 @@
       "name": "ice_cream_cone",
       "display_name": "ice cream cone",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -3085,36 +3440,36 @@
           "type": "convex",
           "vertices": [
             [
-              13,
-              18
+              0,
+              14.77
             ],
             [
-              18.56,
-              9.69
+              6.84,
+              4.54
             ],
             [
-              32,
-              6
+              23.38,
+              0
             ],
             [
-              45.44,
-              9.69
+              39.92,
+              4.54
             ],
             [
-              51,
-              18
+              46.77,
+              14.77
             ],
             [
-              50,
-              28
+              45.54,
+              27.08
             ],
             [
-              32,
-              58
+              23.38,
+              64
             ],
             [
-              14,
-              28
+              1.23,
+              27.08
             ]
           ]
         }
@@ -3124,7 +3479,7 @@
       "name": "iron_cube",
       "display_name": "iron cube",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -3132,28 +3487,28 @@
           "type": "convex",
           "vertices": [
             [
-              12,
-              18
+              0,
+              12.19
             ],
             [
-              44,
-              18
+              48.77,
+              12.19
             ],
             [
-              52,
-              10
+              60.96,
+              0
             ],
             [
-              52,
-              44
+              60.96,
+              51.81
             ],
             [
-              44,
-              52
+              48.77,
+              64
             ],
             [
-              12,
-              52
+              0,
+              64
             ]
           ]
         }
@@ -3163,7 +3518,7 @@
       "name": "kite",
       "display_name": "kite",
       "status": "approved",
-      "version": 3,
+      "version": 5,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -3171,20 +3526,20 @@
           "type": "convex",
           "vertices": [
             [
-              14,
-              30
+              0,
+              27.08
             ],
             [
-              32,
-              8
+              22.15,
+              0
             ],
             [
-              50,
-              30
+              44.31,
+              27.08
             ],
             [
-              32,
-              48
+              22.15,
+              49.23
             ]
           ]
         }
@@ -3194,7 +3549,7 @@
       "name": "large_analog_clock_face",
       "display_name": "large analog clock face",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -3204,7 +3559,7 @@
             32,
             32
           ],
-          "radius": 28
+          "radius": 32
         }
       }
     },
@@ -3212,18 +3567,18 @@
       "name": "large_safe",
       "display_name": "large safe",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
         "collider": {
           "type": "box",
-          "width": 48,
+          "width": 64,
           "center": [
             32,
-            36
+            26.67
           ],
-          "height": 40
+          "height": 53.33
         }
       }
     },
@@ -3231,7 +3586,7 @@
       "name": "marble",
       "display_name": "marble",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -3241,7 +3596,45 @@
             32,
             32
           ],
-          "radius": 18
+          "radius": 32
+        }
+      }
+    },
+    {
+      "name": "marble_column",
+      "display_name": "marble column",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 39.39,
+          "center": [
+            19.69,
+            32
+          ],
+          "height": 64
+        }
+      }
+    },
+    {
+      "name": "marble_tile",
+      "display_name": "marble tile",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            27.08
+          ],
+          "height": 54.16
         }
       }
     },
@@ -3249,18 +3642,18 @@
       "name": "metal_cube",
       "display_name": "metal cube",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
         "collider": {
           "type": "box",
-          "width": 44,
+          "width": 64,
           "center": [
-            36,
+            32,
             32
           ],
-          "height": 44
+          "height": 64
         }
       }
     },
@@ -3268,7 +3661,7 @@
       "name": "metronome",
       "display_name": "metronome",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -3276,32 +3669,32 @@
           "type": "convex",
           "vertices": [
             [
-              18,
-              56
+              0,
+              61.54
             ],
             [
-              32,
-              6
+              17.23,
+              0
             ],
             [
-              43.15,
-              11.23
+              30.95,
+              6.44
             ],
             [
-              44.77,
-              12.85
+              32.95,
+              8.43
             ],
             [
-              46,
-              56
+              34.46,
+              61.54
             ],
             [
-              42,
-              58
+              29.54,
+              64
             ],
             [
-              22,
-              58
+              4.92,
+              64
             ]
           ]
         }
@@ -3311,7 +3704,7 @@
       "name": "milk_carton",
       "display_name": "milk carton",
       "status": "approved",
-      "version": 3,
+      "version": 5,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -3319,24 +3712,24 @@
           "type": "convex",
           "vertices": [
             [
-              16,
-              28
+              0,
+              19.2
             ],
             [
-              32,
-              16
+              25.6,
+              0
             ],
             [
-              48,
-              28
+              51.2,
+              19.2
             ],
             [
-              48,
-              56
+              51.2,
+              64
             ],
             [
-              16,
-              56
+              0,
+              64
             ]
           ]
         }
@@ -3346,7 +3739,7 @@
       "name": "moon",
       "display_name": "moon",
       "status": "approved",
-      "version": 2,
+      "version": 3,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -3356,7 +3749,26 @@
             32,
             32
           ],
-          "radius": 20
+          "radius": 32
+        }
+      }
+    },
+    {
+      "name": "oak_plank",
+      "display_name": "oak plank",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            19.69
+          ],
+          "height": 39.39
         }
       }
     },
@@ -3364,7 +3776,7 @@
       "name": "open_umbrella",
       "display_name": "open umbrella",
       "status": "approved",
-      "version": 3,
+      "version": 5,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -3372,36 +3784,36 @@
           "type": "convex",
           "vertices": [
             [
-              21.96,
-              42.39
+              15.93,
+              35.81
             ],
             [
-              16.67,
-              29.63
+              7.47,
+              15.4
             ],
             [
-              22,
-              23
+              16,
+              4.8
             ],
             [
-              32,
-              20
+              31.99,
+              0
             ],
             [
-              42,
-              23
+              47.98,
+              4.8
             ],
             [
-              48.57,
-              30.93
+              58.49,
+              17.48
             ],
             [
-              41.99,
-              41.54
+              47.96,
+              34.45
             ],
             [
-              30.07,
-              60.43
+              28.9,
+              64.65
             ]
           ]
         }
@@ -3411,7 +3823,7 @@
       "name": "orange_fruit",
       "display_name": "orange fruit",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -3419,38 +3831,57 @@
           "type": "convex",
           "vertices": [
             [
-              15.16,
-              19.35
+              5.98,
+              20.34
             ],
             [
-              27.78,
-              12.35
+              20.62,
+              12.22
             ],
             [
-              44.18,
-              15.26
+              39.63,
+              15.6
             ],
             [
-              52.6,
-              22.96
+              49.4,
+              24.53
             ],
             [
-              54.61,
-              42.78
+              51.73,
+              47.51
             ],
             [
-              38.57,
-              56.92
+              33.13,
+              63.91
             ],
             [
-              18.72,
-              54.74
+              10.11,
+              61.38
             ],
             [
-              10.08,
-              32.26
+              0.09,
+              35.31
             ]
           ]
+        }
+      }
+    },
+    {
+      "name": "orbital_station",
+      "display_name": "orbital station",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 66.14,
+          "center": [
+            32,
+            14.93
+          ],
+          "height": 32
         }
       }
     },
@@ -3458,7 +3889,7 @@
       "name": "paper_airplane",
       "display_name": "paper airplane",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -3466,16 +3897,16 @@
           "type": "convex",
           "vertices": [
             [
-              8,
-              32
+              0,
+              21.33
             ],
             [
-              56,
-              16
+              64,
+              0
             ],
             [
-              40,
-              48
+              42.67,
+              42.66
             ]
           ]
         }
@@ -3485,7 +3916,7 @@
       "name": "parachute",
       "display_name": "parachute",
       "status": "approved",
-      "version": 3,
+      "version": 5,
       "color_tag": "blue",
       "parent": null,
       "physical_properties": {
@@ -3493,36 +3924,36 @@
           "type": "convex",
           "vertices": [
             [
-              8,
-              24
+              0,
+              22.86
             ],
             [
-              9.5,
-              15.25
+              1.72,
+              12.86
             ],
             [
-              21.5,
-              5.25
+              15.43,
+              1.43
             ],
             [
-              42.5,
-              5.25
+              39.43,
+              1.43
             ],
             [
-              54.5,
-              15.25
+              53.15,
+              12.86
             ],
             [
-              56,
-              24
+              54.86,
+              22.86
             ],
             [
-              36,
-              60
+              32,
+              64
             ],
             [
-              28,
-              60
+              22.86,
+              64
             ]
           ]
         }
@@ -3532,7 +3963,7 @@
       "name": "person_walking",
       "display_name": "person walking",
       "status": "approved",
-      "version": 6,
+      "version": 8,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -3540,32 +3971,32 @@
           "type": "convex",
           "vertices": [
             [
-              20.35,
-              26.21
+              -0.38,
+              23.67
             ],
             [
-              27.6,
-              8.69
+              9.04,
+              0.9
             ],
             [
-              37.25,
-              9.83
+              21.58,
+              2.38
             ],
             [
-              43.36,
-              33.7
+              29.52,
+              33.4
             ],
             [
-              45.7,
-              55.32
+              32.56,
+              61.5
             ],
             [
-              26.81,
-              56.26
+              8.01,
+              62.72
             ],
             [
-              19.17,
-              39.55
+              -1.92,
+              41
             ]
           ]
         }
@@ -3575,7 +4006,7 @@
       "name": "pink_balloon",
       "display_name": "pink balloon",
       "status": "approved",
-      "version": 2,
+      "version": 5,
       "color_tag": "pink",
       "parent": "balloon",
       "physical_properties": {
@@ -3583,36 +4014,36 @@
           "type": "convex",
           "vertices": [
             [
-              16.87,
-              14.74
+              1.43,
+              6.11
             ],
             [
-              25.88,
-              5.52
+              15.23,
+              -0.71
             ],
             [
-              38.12,
-              5.52
+              26,
+              1.3
             ],
             [
-              46.78,
-              16.35
+              34.9,
+              15.42
             ],
             [
-              46.78,
-              31.65
+              34.02,
+              30.19
             ],
             [
-              40.39,
-              48.36
+              25.99,
+              47.37
             ],
             [
-              32.9,
-              64
+              17.8,
+              62.62
             ],
             [
-              17.22,
-              31.65
+              -2.13,
+              26.9
             ]
           ]
         }
@@ -3622,7 +4053,7 @@
       "name": "pink_bell",
       "display_name": "pink bell",
       "status": "approved",
-      "version": 2,
+      "version": 7,
       "color_tag": "pink",
       "parent": "bell",
       "physical_properties": {
@@ -3630,36 +4061,36 @@
           "type": "convex",
           "vertices": [
             [
-              14,
-              40
+              2.83,
+              32.84
             ],
             [
-              20,
-              20.5
+              10.13,
+              11.52
             ],
             [
-              29.88,
-              5.88
+              23.74,
+              -1.64
             ],
             [
-              33.15,
-              5.23
+              34.12,
+              8.12
             ],
             [
-              44,
-              20.5
+              43.81,
+              23.09
             ],
             [
-              50,
-              44
+              48.92,
+              50.01
             ],
             [
-              32,
-              54
+              24.21,
+              65.8
             ],
             [
-              14,
-              44
+              -1.28,
+              50.82
             ]
           ]
         }
@@ -3669,7 +4100,7 @@
       "name": "pink_bicycle",
       "display_name": "pink bicycle",
       "status": "approved",
-      "version": 2,
+      "version": 6,
       "color_tag": "pink",
       "parent": "bicycle",
       "physical_properties": {
@@ -3677,36 +4108,36 @@
           "type": "convex",
           "vertices": [
             [
-              19.05,
-              15.1
+              19.78,
+              1.46
             ],
             [
-              46,
-              15
+              49.44,
+              1.59
             ],
             [
-              54.91,
-              26.68
+              62.56,
+              21.78
             ],
             [
-              62.64,
-              40.01
+              65.32,
+              35.85
             ],
             [
-              53.13,
-              53.58
+              53.51,
+              44.28
             ],
             [
-              6.89,
-              53.47
+              7.77,
+              44.32
             ],
             [
-              2.54,
-              36.67
+              -0.17,
+              29
             ],
             [
-              8.83,
-              26.01
+              3.82,
+              15.99
             ]
           ]
         }
@@ -3716,7 +4147,7 @@
       "name": "pink_boat",
       "display_name": "pink boat",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": "pink",
       "parent": "boat",
       "physical_properties": {
@@ -3724,28 +4155,28 @@
           "type": "convex",
           "vertices": [
             [
-              6,
-              38
+              2.07,
+              26.02
             ],
             [
-              30,
-              16
+              29.74,
+              4.03
             ],
             [
-              33,
-              16
+              37.03,
+              5.46
             ],
             [
-              58.96,
-              37.53
+              63.95,
+              26.11
             ],
             [
-              52,
-              50
+              56.33,
+              41.99
             ],
             [
-              12,
-              50
+              8.56,
+              41.93
             ]
           ]
         }
@@ -3755,18 +4186,34 @@
       "name": "pink_cat",
       "display_name": "pink cat",
       "status": "approved",
-      "version": 2,
+      "version": 6,
       "color_tag": "pink",
       "parent": "cat",
       "physical_properties": {
         "collider": {
-          "type": "box",
-          "width": 28,
-          "center": [
-            32,
-            30
-          ],
-          "height": 44
+          "type": "convex",
+          "vertices": [
+            [
+              -0.97,
+              0.56
+            ],
+            [
+              42.4,
+              0.96
+            ],
+            [
+              39.46,
+              62.53
+            ],
+            [
+              2.27,
+              63.65
+            ],
+            [
+              0.31,
+              35.28
+            ]
+          ]
         }
       }
     },
@@ -3774,7 +4221,7 @@
       "name": "pink_feather",
       "display_name": "pink feather",
       "status": "approved",
-      "version": 2,
+      "version": 8,
       "color_tag": "pink",
       "parent": "feather",
       "physical_properties": {
@@ -3782,36 +4229,36 @@
           "type": "convex",
           "vertices": [
             [
-              20.11,
-              18.11
+              6.47,
+              50
             ],
             [
-              20.11,
-              13.3
+              -1.4,
+              16.03
             ],
             [
-              21.78,
-              8.91
+              3.81,
+              6.22
             ],
             [
-              30.14,
-              1.39
+              12.01,
+              0.26
             ],
             [
-              38.5,
-              8.91
+              22.33,
+              9.92
             ],
             [
-              40.17,
-              13.3
+              24.85,
+              19.9
             ],
             [
-              40.17,
-              18.11
+              17.4,
+              46.26
             ],
             [
-              29.1,
-              55.18
+              11.04,
+              65.18
             ]
           ]
         }
@@ -3821,7 +4268,7 @@
       "name": "pink_parachute",
       "display_name": "pink parachute",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": "pink",
       "parent": "parachute",
       "physical_properties": {
@@ -3829,36 +4276,36 @@
           "type": "convex",
           "vertices": [
             [
-              8,
-              24
+              0,
+              22.86
             ],
             [
-              9.5,
-              15.25
+              1.72,
+              12.86
             ],
             [
-              21.5,
-              5.25
+              15.43,
+              1.43
             ],
             [
-              42.5,
-              5.25
+              39.43,
+              1.43
             ],
             [
-              54.5,
-              15.25
+              53.15,
+              12.86
             ],
             [
-              56,
-              24
+              54.86,
+              22.86
             ],
             [
-              36,
-              60
+              32,
+              64
             ],
             [
-              28,
-              60
+              22.86,
+              64
             ]
           ]
         }
@@ -3868,7 +4315,7 @@
       "name": "planet",
       "display_name": "planet",
       "status": "approved",
-      "version": 5,
+      "version": 7,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -3876,38 +4323,57 @@
           "type": "convex",
           "vertices": [
             [
-              62.27,
-              31.64
+              65.58,
+              19.57
             ],
             [
-              43.64,
-              44.58
+              44.91,
+              33.92
             ],
             [
-              30.94,
-              49.84
+              30.82,
+              39.76
             ],
             [
-              18.24,
-              44.58
+              16.74,
+              33.92
             ],
             [
-              1.96,
-              32.22
+              -1.32,
+              20.21
             ],
             [
-              18.24,
-              19.18
+              16.74,
+              5.75
             ],
             [
-              30.94,
-              13.92
+              30.82,
+              -0.09
             ],
             [
-              43.64,
-              19.18
+              44.91,
+              5.75
             ]
           ]
+        }
+      }
+    },
+    {
+      "name": "plywood_sheet",
+      "display_name": "plywood sheet",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            19.69
+          ],
+          "height": 39.39
         }
       }
     },
@@ -3915,7 +4381,7 @@
       "name": "pool_triangle_rack",
       "display_name": "pool triangle rack",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -3924,15 +4390,15 @@
           "vertices": [
             [
               32,
-              8
+              0
             ],
             [
-              60,
-              56
+              64,
+              54.86
             ],
             [
-              4,
-              56
+              0,
+              54.86
             ]
           ]
         }
@@ -3942,7 +4408,7 @@
       "name": "pumpkin",
       "display_name": "pumpkin",
       "status": "approved",
-      "version": 4,
+      "version": 6,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -3950,36 +4416,36 @@
           "type": "convex",
           "vertices": [
             [
-              5.18,
-              34.45
+              -2.32,
+              30.98
             ],
             [
-              16.78,
-              24.55
+              12.49,
+              18.34
             ],
             [
-              35.08,
-              17.24
+              35.86,
+              9
             ],
             [
-              58.06,
-              30.15
+              65.21,
+              25.49
             ],
             [
-              55.12,
-              48.89
+              61.45,
+              49.42
             ],
             [
-              36.17,
-              53.04
+              37.25,
+              54.72
             ],
             [
-              23.82,
-              53.96
+              21.48,
+              55.9
             ],
             [
-              9.6,
-              48.99
+              3.32,
+              49.55
             ]
           ]
         }
@@ -3989,7 +4455,7 @@
       "name": "purple_balloon",
       "display_name": "purple balloon",
       "status": "approved",
-      "version": 2,
+      "version": 5,
       "color_tag": "purple",
       "parent": "balloon",
       "physical_properties": {
@@ -3997,36 +4463,36 @@
           "type": "convex",
           "vertices": [
             [
-              16.87,
-              14.74
+              1.43,
+              6.11
             ],
             [
-              25.88,
-              5.52
+              15.23,
+              -0.71
             ],
             [
-              38.12,
-              5.52
+              26,
+              1.3
             ],
             [
-              46.78,
-              16.35
+              34.9,
+              15.42
             ],
             [
-              46.78,
-              31.65
+              34.02,
+              30.19
             ],
             [
-              40.39,
-              48.36
+              25.99,
+              47.37
             ],
             [
-              32.9,
-              64
+              17.8,
+              62.62
             ],
             [
-              17.22,
-              31.65
+              -2.13,
+              26.9
             ]
           ]
         }
@@ -4036,7 +4502,7 @@
       "name": "purple_bell",
       "display_name": "purple bell",
       "status": "approved",
-      "version": 2,
+      "version": 7,
       "color_tag": "purple",
       "parent": "bell",
       "physical_properties": {
@@ -4044,36 +4510,36 @@
           "type": "convex",
           "vertices": [
             [
-              14,
-              40
+              2.83,
+              32.84
             ],
             [
-              20,
-              20.5
+              10.13,
+              11.52
             ],
             [
-              29.88,
-              5.88
+              23.74,
+              -1.64
             ],
             [
-              33.15,
-              5.23
+              34.12,
+              8.12
             ],
             [
-              44,
-              20.5
+              43.81,
+              23.09
             ],
             [
-              50,
-              44
+              48.92,
+              50.01
             ],
             [
-              32,
-              54
+              24.21,
+              65.8
             ],
             [
-              14,
-              44
+              -1.28,
+              50.82
             ]
           ]
         }
@@ -4083,7 +4549,7 @@
       "name": "purple_bicycle",
       "display_name": "purple bicycle",
       "status": "approved",
-      "version": 2,
+      "version": 6,
       "color_tag": "purple",
       "parent": "bicycle",
       "physical_properties": {
@@ -4091,36 +4557,36 @@
           "type": "convex",
           "vertices": [
             [
-              19.05,
-              15.1
+              19.78,
+              1.46
             ],
             [
-              46,
-              15
+              49.44,
+              1.59
             ],
             [
-              54.91,
-              26.68
+              62.56,
+              21.78
             ],
             [
-              62.64,
-              40.01
+              65.32,
+              35.85
             ],
             [
-              53.13,
-              53.58
+              53.51,
+              44.28
             ],
             [
-              6.89,
-              53.47
+              7.77,
+              44.32
             ],
             [
-              2.54,
-              36.67
+              -0.17,
+              29
             ],
             [
-              8.83,
-              26.01
+              3.82,
+              15.99
             ]
           ]
         }
@@ -4130,7 +4596,7 @@
       "name": "purple_boat",
       "display_name": "purple boat",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": "purple",
       "parent": "boat",
       "physical_properties": {
@@ -4138,28 +4604,28 @@
           "type": "convex",
           "vertices": [
             [
-              6,
-              38
+              2.07,
+              26.02
             ],
             [
-              30,
-              16
+              29.74,
+              4.03
             ],
             [
-              33,
-              16
+              37.03,
+              5.46
             ],
             [
-              58.96,
-              37.53
+              63.95,
+              26.11
             ],
             [
-              52,
-              50
+              56.33,
+              41.99
             ],
             [
-              12,
-              50
+              8.56,
+              41.93
             ]
           ]
         }
@@ -4169,18 +4635,34 @@
       "name": "purple_cat",
       "display_name": "purple cat",
       "status": "approved",
-      "version": 2,
+      "version": 6,
       "color_tag": "purple",
       "parent": "cat",
       "physical_properties": {
         "collider": {
-          "type": "box",
-          "width": 28,
-          "center": [
-            32,
-            30
-          ],
-          "height": 44
+          "type": "convex",
+          "vertices": [
+            [
+              -0.97,
+              0.56
+            ],
+            [
+              42.4,
+              0.96
+            ],
+            [
+              39.46,
+              62.53
+            ],
+            [
+              2.27,
+              63.65
+            ],
+            [
+              0.31,
+              35.28
+            ]
+          ]
         }
       }
     },
@@ -4188,7 +4670,7 @@
       "name": "purple_feather",
       "display_name": "purple feather",
       "status": "approved",
-      "version": 2,
+      "version": 8,
       "color_tag": "purple",
       "parent": "feather",
       "physical_properties": {
@@ -4196,36 +4678,36 @@
           "type": "convex",
           "vertices": [
             [
-              20.11,
-              18.11
+              6.47,
+              50
             ],
             [
-              20.11,
-              13.3
+              -1.4,
+              16.03
             ],
             [
-              21.78,
-              8.91
+              3.81,
+              6.22
             ],
             [
-              30.14,
-              1.39
+              12.01,
+              0.26
             ],
             [
-              38.5,
-              8.91
+              22.33,
+              9.92
             ],
             [
-              40.17,
-              13.3
+              24.85,
+              19.9
             ],
             [
-              40.17,
-              18.11
+              17.4,
+              46.26
             ],
             [
-              29.1,
-              55.18
+              11.04,
+              65.18
             ]
           ]
         }
@@ -4235,7 +4717,7 @@
       "name": "purple_parachute",
       "display_name": "purple parachute",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": "purple",
       "parent": "parachute",
       "physical_properties": {
@@ -4243,36 +4725,36 @@
           "type": "convex",
           "vertices": [
             [
-              8,
-              24
+              0,
+              22.86
             ],
             [
-              9.5,
-              15.25
+              1.72,
+              12.86
             ],
             [
-              21.5,
-              5.25
+              15.43,
+              1.43
             ],
             [
-              42.5,
-              5.25
+              39.43,
+              1.43
             ],
             [
-              54.5,
-              15.25
+              53.15,
+              12.86
             ],
             [
-              56,
-              24
+              54.86,
+              22.86
             ],
             [
-              36,
-              60
+              32,
+              64
             ],
             [
-              28,
-              60
+              22.86,
+              64
             ]
           ]
         }
@@ -4282,7 +4764,7 @@
       "name": "rabbit",
       "display_name": "rabbit",
       "status": "approved",
-      "version": 2,
+      "version": 4,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
@@ -4290,1148 +4772,40 @@
           "type": "convex",
           "vertices": [
             [
-              20,
-              40
+              0,
+              49.02
             ],
             [
-              24,
-              4
+              5.45,
+              0
             ],
             [
-              40,
-              4
+              27.23,
+              0
             ],
             [
-              45,
-              38
+              34.04,
+              46.3
             ],
             [
-              43.09,
-              44.21
+              31.44,
+              54.75
             ],
             [
-              32,
-              51
-            ],
-            [
-              20.91,
-              44.21
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "red_balloon",
-      "display_name": "red balloon",
-      "status": "approved",
-      "version": 2,
-      "color_tag": "red",
-      "parent": "balloon",
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              16.87,
-              14.74
-            ],
-            [
-              25.88,
-              5.52
-            ],
-            [
-              38.12,
-              5.52
-            ],
-            [
-              46.78,
-              16.35
-            ],
-            [
-              46.78,
-              31.65
-            ],
-            [
-              40.39,
-              48.36
-            ],
-            [
-              32.9,
+              16.34,
               64
             ],
             [
-              17.22,
-              31.65
+              1.24,
+              54.75
             ]
           ]
         }
       }
     },
     {
-      "name": "red_bell",
-      "display_name": "red bell",
-      "status": "approved",
-      "version": 2,
-      "color_tag": "red",
-      "parent": "bell",
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              14,
-              40
-            ],
-            [
-              20,
-              20.5
-            ],
-            [
-              29.88,
-              5.88
-            ],
-            [
-              33.15,
-              5.23
-            ],
-            [
-              44,
-              20.5
-            ],
-            [
-              50,
-              44
-            ],
-            [
-              32,
-              54
-            ],
-            [
-              14,
-              44
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "red_bicycle",
-      "display_name": "red bicycle",
-      "status": "approved",
-      "version": 2,
-      "color_tag": "red",
-      "parent": "bicycle",
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              19.05,
-              15.1
-            ],
-            [
-              46,
-              15
-            ],
-            [
-              54.91,
-              26.68
-            ],
-            [
-              62.64,
-              40.01
-            ],
-            [
-              53.13,
-              53.58
-            ],
-            [
-              6.89,
-              53.47
-            ],
-            [
-              2.54,
-              36.67
-            ],
-            [
-              8.83,
-              26.01
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "red_boat",
-      "display_name": "red boat",
-      "status": "approved",
-      "version": 2,
-      "color_tag": "red",
-      "parent": "boat",
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              6,
-              38
-            ],
-            [
-              30,
-              16
-            ],
-            [
-              33,
-              16
-            ],
-            [
-              58.96,
-              37.53
-            ],
-            [
-              52,
-              50
-            ],
-            [
-              12,
-              50
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "red_cat",
-      "display_name": "red cat",
-      "status": "approved",
-      "version": 2,
-      "color_tag": "red",
-      "parent": "cat",
-      "physical_properties": {
-        "collider": {
-          "type": "box",
-          "width": 28,
-          "center": [
-            32,
-            30
-          ],
-          "height": 44
-        }
-      }
-    },
-    {
-      "name": "red_feather",
-      "display_name": "red feather",
-      "status": "approved",
-      "version": 2,
-      "color_tag": "red",
-      "parent": "feather",
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              20.11,
-              18.11
-            ],
-            [
-              20.11,
-              13.3
-            ],
-            [
-              21.78,
-              8.91
-            ],
-            [
-              30.14,
-              1.39
-            ],
-            [
-              38.5,
-              8.91
-            ],
-            [
-              40.17,
-              13.3
-            ],
-            [
-              40.17,
-              18.11
-            ],
-            [
-              29.1,
-              55.18
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "red_parachute",
-      "display_name": "red parachute",
-      "status": "approved",
-      "version": 2,
-      "color_tag": "red",
-      "parent": "parachute",
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              8,
-              24
-            ],
-            [
-              9.5,
-              15.25
-            ],
-            [
-              21.5,
-              5.25
-            ],
-            [
-              42.5,
-              5.25
-            ],
-            [
-              54.5,
-              15.25
-            ],
-            [
-              56,
-              24
-            ],
-            [
-              36,
-              60
-            ],
-            [
-              28,
-              60
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "rocket",
-      "display_name": "rocket",
-      "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              18,
-              44
-            ],
-            [
-              29.38,
-              9.38
-            ],
-            [
-              32,
-              4
-            ],
-            [
-              34.63,
-              9.38
-            ],
-            [
-              46,
-              44
-            ],
-            [
-              40,
-              56
-            ],
-            [
-              24,
-              56
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "rubber_block",
-      "display_name": "rubber block",
-      "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "box",
-          "width": 44,
-          "center": [
-            32,
-            33
-          ],
-          "height": 30
-        }
-      }
-    },
-    {
-      "name": "runner",
-      "display_name": "runner",
-      "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              26.43,
-              12.02
-            ],
-            [
-              34,
-              4.26
-            ],
-            [
-              49.17,
-              16.81
-            ],
-            [
-              51.63,
-              35.68
-            ],
-            [
-              53.4,
-              54.37
-            ],
-            [
-              19.13,
-              51.65
-            ],
-            [
-              19.24,
-              32.88
-            ],
-            [
-              20.12,
-              20.12
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "satellite",
-      "display_name": "satellite",
-      "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              4,
-              28
-            ],
-            [
-              24,
-              24
-            ],
-            [
-              40,
-              24
-            ],
-            [
-              60,
-              28
-            ],
-            [
-              60,
-              36
-            ],
-            [
-              40,
-              40
-            ],
-            [
-              24,
-              40
-            ],
-            [
-              4,
-              36
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "skateboard",
-      "display_name": "skateboard",
-      "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              6,
-              30
-            ],
-            [
-              58,
-              30
-            ],
-            [
-              57,
-              33
-            ],
-            [
-              50.47,
-              42.47
-            ],
-            [
-              48,
-              43.5
-            ],
-            [
-              14.66,
-              43.23
-            ],
-            [
-              6.25,
-              31.75
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "sled",
-      "display_name": "sled",
-      "status": "approved",
-      "version": 5,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "box",
-          "width": 36,
-          "center": [
-            28.73,
-            25.88
-          ],
-          "height": 5.94
-        }
-      }
-    },
-    {
-      "name": "slide_of_pepperoni_pizza",
-      "display_name": "slide of pepperoni pizza",
-      "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              6,
-              58
-            ],
-            [
-              32,
-              4
-            ],
-            [
-              58,
-              58
-            ],
-            [
-              32,
-              58.5
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "soap_bubble",
-      "display_name": "soap bubble",
-      "status": "approved",
-      "version": 3,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "circle",
-          "center": [
-            32,
-            32
-          ],
-          "radius": 22
-        }
-      }
-    },
-    {
-      "name": "soccer_ball",
-      "display_name": "soccer ball",
-      "status": "approved",
-      "version": 6,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              22.21,
-              4.42
-            ],
-            [
-              43.52,
-              5.04
-            ],
-            [
-              57.87,
-              21.28
-            ],
-            [
-              57.87,
-              42.72
-            ],
-            [
-              42.72,
-              57.87
-            ],
-            [
-              21.28,
-              57.87
-            ],
-            [
-              6.5,
-              46.98
-            ],
-            [
-              3.63,
-              20.13
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "sphere",
-      "display_name": "sphere",
-      "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "circle",
-          "center": [
-            32,
-            32
-          ],
-          "radius": 20
-        }
-      }
-    },
-    {
-      "name": "stone_block",
-      "display_name": "stone block",
-      "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "box",
-          "width": 48,
-          "center": [
-            32,
-            32
-          ],
-          "height": 36
-        }
-      }
-    },
-    {
-      "name": "striped_ball",
-      "display_name": "striped ball",
-      "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "circle",
-          "center": [
-            32,
-            32
-          ],
-          "radius": 28
-        }
-      }
-    },
-    {
-      "name": "teal_balloon",
-      "display_name": "teal balloon",
-      "status": "approved",
-      "version": 2,
-      "color_tag": "teal",
-      "parent": "balloon",
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              16.87,
-              14.74
-            ],
-            [
-              25.88,
-              5.52
-            ],
-            [
-              38.12,
-              5.52
-            ],
-            [
-              46.78,
-              16.35
-            ],
-            [
-              46.78,
-              31.65
-            ],
-            [
-              40.39,
-              48.36
-            ],
-            [
-              32.9,
-              64
-            ],
-            [
-              17.22,
-              31.65
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "teal_bell",
-      "display_name": "teal bell",
-      "status": "approved",
-      "version": 2,
-      "color_tag": "teal",
-      "parent": "bell",
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              14,
-              40
-            ],
-            [
-              20,
-              20.5
-            ],
-            [
-              29.88,
-              5.88
-            ],
-            [
-              33.15,
-              5.23
-            ],
-            [
-              44,
-              20.5
-            ],
-            [
-              50,
-              44
-            ],
-            [
-              32,
-              54
-            ],
-            [
-              14,
-              44
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "teal_bicycle",
-      "display_name": "teal bicycle",
-      "status": "approved",
-      "version": 2,
-      "color_tag": "teal",
-      "parent": "bicycle",
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              19.05,
-              15.1
-            ],
-            [
-              46,
-              15
-            ],
-            [
-              54.91,
-              26.68
-            ],
-            [
-              62.64,
-              40.01
-            ],
-            [
-              53.13,
-              53.58
-            ],
-            [
-              6.89,
-              53.47
-            ],
-            [
-              2.54,
-              36.67
-            ],
-            [
-              8.83,
-              26.01
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "teal_boat",
-      "display_name": "teal boat",
-      "status": "approved",
-      "version": 2,
-      "color_tag": "teal",
-      "parent": "boat",
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              6,
-              38
-            ],
-            [
-              30,
-              16
-            ],
-            [
-              33,
-              16
-            ],
-            [
-              58.96,
-              37.53
-            ],
-            [
-              52,
-              50
-            ],
-            [
-              12,
-              50
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "teal_cat",
-      "display_name": "teal cat",
-      "status": "approved",
-      "version": 2,
-      "color_tag": "teal",
-      "parent": "cat",
-      "physical_properties": {
-        "collider": {
-          "type": "box",
-          "width": 28,
-          "center": [
-            32,
-            30
-          ],
-          "height": 44
-        }
-      }
-    },
-    {
-      "name": "teal_feather",
-      "display_name": "teal feather",
-      "status": "approved",
-      "version": 2,
-      "color_tag": "teal",
-      "parent": "feather",
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              20.11,
-              18.11
-            ],
-            [
-              20.11,
-              13.3
-            ],
-            [
-              21.78,
-              8.91
-            ],
-            [
-              30.14,
-              1.39
-            ],
-            [
-              38.5,
-              8.91
-            ],
-            [
-              40.17,
-              13.3
-            ],
-            [
-              40.17,
-              18.11
-            ],
-            [
-              29.1,
-              55.18
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "teal_parachute",
-      "display_name": "teal parachute",
-      "status": "approved",
-      "version": 2,
-      "color_tag": "teal",
-      "parent": "parachute",
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              8,
-              24
-            ],
-            [
-              9.5,
-              15.25
-            ],
-            [
-              21.5,
-              5.25
-            ],
-            [
-              42.5,
-              5.25
-            ],
-            [
-              54.5,
-              15.25
-            ],
-            [
-              56,
-              24
-            ],
-            [
-              36,
-              60
-            ],
-            [
-              28,
-              60
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "tennis_ball",
-      "display_name": "tennis ball",
-      "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "circle",
-          "center": [
-            32,
-            32
-          ],
-          "radius": 20
-        }
-      }
-    },
-    {
-      "name": "train",
-      "display_name": "train",
-      "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "box",
-          "width": 48,
-          "center": [
-            32,
-            31.5
-          ],
-          "height": 43
-        }
-      }
-    },
-    {
-      "name": "truck",
-      "display_name": "truck",
-      "status": "approved",
-      "version": 3,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              4,
-              20
-            ],
-            [
-              60,
-              20
-            ],
-            [
-              60.4,
-              43.56
-            ],
-            [
-              54.1,
-              51.2
-            ],
-            [
-              32.03,
-              52.43
-            ],
-            [
-              13.87,
-              52.01
-            ],
-            [
-              3.49,
-              46.66
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "wagon",
-      "display_name": "wagon",
-      "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "box",
-          "width": 42,
-          "center": [
-            29,
-            33.5
-          ],
-          "height": 31
-        }
-      }
-    },
-    {
-      "name": "watermelon_slice",
-      "display_name": "watermelon slice",
-      "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "convex",
-          "vertices": [
-            [
-              8,
-              48
-            ],
-            [
-              20,
-              33
-            ],
-            [
-              32,
-              28
-            ],
-            [
-              44,
-              33
-            ],
-            [
-              56,
-              48
-            ]
-          ]
-        }
-      }
-    },
-    {
-      "name": "wooden_block",
-      "display_name": "wooden block",
-      "status": "approved",
-      "version": 2,
-      "color_tag": null,
-      "parent": null,
-      "physical_properties": {
-        "collider": {
-          "type": "box",
-          "width": 40,
-          "center": [
-            32,
-            34
-          ],
-          "height": 28
-        }
-      }
-    },
-    {
-      "name": "wooden_bucket",
-      "display_name": "wooden bucket",
+      "name": "raft",
+      "display_name": "raft",
       "status": "approved",
       "version": 4,
       "color_tag": null,
@@ -5441,36 +4815,1667 @@
           "type": "convex",
           "vertices": [
             [
-              16,
-              22
+              0,
+              27.07
             ],
             [
-              25.88,
-              18.3
+              29.7,
+              -0.1
             ],
             [
-              46.78,
-              20.47
+              64,
+              27.07
             ],
             [
-              47,
-              41
+              64,
+              39.38
             ],
             [
-              44,
-              52
+              0,
+              39.38
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "rebar_bundle",
+      "display_name": "rebar bundle",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            17.33
+          ],
+          "height": 29.33
+        }
+      }
+    },
+    {
+      "name": "red_balloon",
+      "display_name": "red balloon",
+      "status": "approved",
+      "version": 5,
+      "color_tag": "red",
+      "parent": "balloon",
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              1.43,
+              6.11
+            ],
+            [
+              15.23,
+              -0.71
+            ],
+            [
+              26,
+              1.3
+            ],
+            [
+              34.9,
+              15.42
+            ],
+            [
+              34.02,
+              30.19
+            ],
+            [
+              25.99,
+              47.37
+            ],
+            [
+              17.8,
+              62.62
+            ],
+            [
+              -2.13,
+              26.9
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "red_bell",
+      "display_name": "red bell",
+      "status": "approved",
+      "version": 7,
+      "color_tag": "red",
+      "parent": "bell",
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              2.83,
+              32.84
+            ],
+            [
+              10.13,
+              11.52
+            ],
+            [
+              23.74,
+              -1.64
+            ],
+            [
+              34.12,
+              8.12
+            ],
+            [
+              43.81,
+              23.09
+            ],
+            [
+              48.92,
+              50.01
+            ],
+            [
+              24.21,
+              65.8
+            ],
+            [
+              -1.28,
+              50.82
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "red_bicycle",
+      "display_name": "red bicycle",
+      "status": "approved",
+      "version": 6,
+      "color_tag": "red",
+      "parent": "bicycle",
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              19.78,
+              1.46
+            ],
+            [
+              49.44,
+              1.59
+            ],
+            [
+              62.56,
+              21.78
+            ],
+            [
+              65.32,
+              35.85
+            ],
+            [
+              53.51,
+              44.28
+            ],
+            [
+              7.77,
+              44.32
+            ],
+            [
+              -0.17,
+              29
+            ],
+            [
+              3.82,
+              15.99
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "red_boat",
+      "display_name": "red boat",
+      "status": "approved",
+      "version": 4,
+      "color_tag": "red",
+      "parent": "boat",
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              2.07,
+              26.02
+            ],
+            [
+              29.74,
+              4.03
+            ],
+            [
+              37.03,
+              5.46
+            ],
+            [
+              63.95,
+              26.11
+            ],
+            [
+              56.33,
+              41.99
+            ],
+            [
+              8.56,
+              41.93
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "red_cat",
+      "display_name": "red cat",
+      "status": "approved",
+      "version": 6,
+      "color_tag": "red",
+      "parent": "cat",
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              -0.97,
+              0.56
+            ],
+            [
+              42.4,
+              0.96
+            ],
+            [
+              39.46,
+              62.53
+            ],
+            [
+              2.27,
+              63.65
+            ],
+            [
+              0.31,
+              35.28
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "red_feather",
+      "display_name": "red feather",
+      "status": "approved",
+      "version": 8,
+      "color_tag": "red",
+      "parent": "feather",
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              6.47,
+              50
+            ],
+            [
+              -1.4,
+              16.03
+            ],
+            [
+              3.81,
+              6.22
+            ],
+            [
+              12.01,
+              0.26
+            ],
+            [
+              22.33,
+              9.92
+            ],
+            [
+              24.85,
+              19.9
+            ],
+            [
+              17.4,
+              46.26
+            ],
+            [
+              11.04,
+              65.18
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "red_parachute",
+      "display_name": "red parachute",
+      "status": "approved",
+      "version": 4,
+      "color_tag": "red",
+      "parent": "parachute",
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              0,
+              22.86
+            ],
+            [
+              1.72,
+              12.86
+            ],
+            [
+              15.43,
+              1.43
+            ],
+            [
+              39.43,
+              1.43
+            ],
+            [
+              53.15,
+              12.86
+            ],
+            [
+              54.86,
+              22.86
             ],
             [
               32,
-              54
+              64
             ],
             [
-              20,
-              52
+              22.86,
+              64
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "relay_satellite",
+      "display_name": "relay satellite",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            17.23
+          ],
+          "height": 34.46
+        }
+      }
+    },
+    {
+      "name": "rocket",
+      "display_name": "rocket",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              0,
+              49.23
+            ],
+            [
+              14.01,
+              6.62
+            ],
+            [
+              17.23,
+              0
+            ],
+            [
+              20.47,
+              6.62
+            ],
+            [
+              34.46,
+              49.23
+            ],
+            [
+              27.08,
+              64
+            ],
+            [
+              7.38,
+              64
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "rubber_block",
+      "display_name": "rubber block",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            21.82
+          ],
+          "height": 43.64
+        }
+      }
+    },
+    {
+      "name": "runner",
+      "display_name": "runner",
+      "status": "approved",
+      "version": 5,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              14.16,
+              3.25
+            ],
+            [
+              22.86,
+              -0.67
+            ],
+            [
+              38.78,
+              20.7
+            ],
+            [
+              49.76,
+              48.49
+            ],
+            [
+              51.11,
+              63.15
+            ],
+            [
+              -2.21,
+              61.43
+            ],
+            [
+              7.34,
+              20.75
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "sailboat",
+      "display_name": "sailboat",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              0,
+              48.64
+            ],
+            [
+              5.12,
+              58.88
+            ],
+            [
+              31,
+              65.59
+            ],
+            [
+              56.32,
+              58.88
+            ],
+            [
+              61.44,
+              48.64
+            ],
+            [
+              30.72,
+              0
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "sandstone_block",
+      "display_name": "sandstone block",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            26.67
+          ],
+          "height": 53.33
+        }
+      }
+    },
+    {
+      "name": "sandstone_brick",
+      "display_name": "sandstone brick",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            18.67
+          ],
+          "height": 37.33
+        }
+      }
+    },
+    {
+      "name": "satellite",
+      "display_name": "satellite",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              0,
+              4.57
+            ],
+            [
+              22.86,
+              0
+            ],
+            [
+              41.14,
+              0
+            ],
+            [
+              64,
+              4.57
+            ],
+            [
+              64,
+              13.71
+            ],
+            [
+              41.14,
+              18.28
+            ],
+            [
+              22.86,
+              18.28
+            ],
+            [
+              0,
+              13.71
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "skateboard",
+      "display_name": "skateboard",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              0,
+              0
+            ],
+            [
+              64,
+              0
+            ],
+            [
+              62.77,
+              3.7
+            ],
+            [
+              54.73,
+              15.35
+            ],
+            [
+              51.69,
+              16.62
+            ],
+            [
+              10.66,
+              16.29
+            ],
+            [
+              0.31,
+              2.16
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "slate_panel",
+      "display_name": "slate panel",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            28.16
+          ],
+          "height": 56.32
+        }
+      }
+    },
+    {
+      "name": "sled",
+      "display_name": "sled",
+      "status": "approved",
+      "version": 7,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 47.76,
+          "center": [
+            27.5,
+            8.11
+          ],
+          "height": 7.88
+        }
+      }
+    },
+    {
+      "name": "slide_of_pepperoni_pizza",
+      "display_name": "slide of pepperoni pizza",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              0,
+              63.41
+            ],
+            [
+              30.53,
+              0
+            ],
+            [
+              61.06,
+              63.41
+            ],
+            [
+              30.53,
+              64
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "soap_bubble",
+      "display_name": "soap bubble",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 32
+        }
+      }
+    },
+    {
+      "name": "soccer_ball",
+      "display_name": "soccer ball",
+      "status": "approved",
+      "version": 7,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              20.94,
+              0.72
+            ],
+            [
+              45.13,
+              1.43
+            ],
+            [
+              61.42,
+              19.86
+            ],
+            [
+              61.42,
+              44.21
+            ],
+            [
+              44.22,
+              61.41
+            ],
+            [
+              19.88,
+              61.41
+            ],
+            [
+              3.1,
+              49.04
+            ],
+            [
+              -0.16,
+              18.56
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "soccer_goal_front_view",
+      "display_name": "soccer goal front view",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              0,
+              0
+            ],
+            [
+              64,
+              0
+            ],
+            [
+              64,
+              54.86
+            ],
+            [
+              44.5,
+              55.03
+            ],
+            [
+              0,
+              54.86
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "soccer_goal_side_wireframe",
+      "display_name": "soccer goal side wireframe",
+      "status": "approved",
+      "version": 5,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              0,
+              0
+            ],
+            [
+              64,
+              0
+            ],
+            [
+              64,
+              62.72
+            ],
+            [
+              5.12,
+              62.72
+            ],
+            [
+              0,
+              62.72
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "solar_panel_satellite",
+      "display_name": "solar panel satellite",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              -0.73,
+              -0.29
+            ],
+            [
+              66.4,
+              -0.59
+            ],
+            [
+              65.07,
+              18.14
+            ],
+            [
+              -1.07,
+              18.14
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "space_probe",
+      "display_name": "space probe",
+      "status": "approved",
+      "version": 3,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              0,
+              0
+            ],
+            [
+              64,
+              0
+            ],
+            [
+              64,
+              56.9
+            ],
+            [
+              31.96,
+              64.74
+            ],
+            [
+              0,
+              56.9
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "sphere",
+      "display_name": "sphere",
+      "status": "approved",
+      "version": 3,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 32
+        }
+      }
+    },
+    {
+      "name": "spy_satellite",
+      "display_name": "spy satellite",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              0.52,
+              -0.02
+            ],
+            [
+              64.34,
+              0.15
+            ],
+            [
+              64,
+              29.72
+            ],
+            [
+              32.2,
+              32.81
+            ],
+            [
+              0,
+              29.72
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "steel_beam",
+      "display_name": "steel beam",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            26.67
+          ],
+          "height": 53.33
+        }
+      }
+    },
+    {
+      "name": "stone_block",
+      "display_name": "stone block",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            24
+          ],
+          "height": 48
+        }
+      }
+    },
+    {
+      "name": "striped_ball",
+      "display_name": "striped ball",
+      "status": "approved",
+      "version": 3,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 32
+        }
+      }
+    },
+    {
+      "name": "taco",
+      "display_name": "taco",
+      "status": "approved",
+      "version": 3,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              0,
+              30.82
+            ],
+            [
+              11.85,
+              7.11
+            ],
+            [
+              32,
+              0
+            ],
+            [
+              52.15,
+              7.11
+            ],
+            [
+              64,
+              30.82
+            ],
+            [
+              51.77,
+              36.45
+            ],
+            [
+              32,
+              37.93
+            ],
+            [
+              13.12,
+              37.56
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "teal_balloon",
+      "display_name": "teal balloon",
+      "status": "approved",
+      "version": 5,
+      "color_tag": "teal",
+      "parent": "balloon",
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              1.43,
+              6.11
+            ],
+            [
+              15.23,
+              -0.71
+            ],
+            [
+              26,
+              1.3
+            ],
+            [
+              34.9,
+              15.42
+            ],
+            [
+              34.02,
+              30.19
+            ],
+            [
+              25.99,
+              47.37
+            ],
+            [
+              17.8,
+              62.62
+            ],
+            [
+              -2.13,
+              26.9
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "teal_bell",
+      "display_name": "teal bell",
+      "status": "approved",
+      "version": 7,
+      "color_tag": "teal",
+      "parent": "bell",
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              2.83,
+              32.84
+            ],
+            [
+              10.13,
+              11.52
+            ],
+            [
+              23.74,
+              -1.64
+            ],
+            [
+              34.12,
+              8.12
+            ],
+            [
+              43.81,
+              23.09
+            ],
+            [
+              48.92,
+              50.01
+            ],
+            [
+              24.21,
+              65.8
+            ],
+            [
+              -1.28,
+              50.82
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "teal_bicycle",
+      "display_name": "teal bicycle",
+      "status": "approved",
+      "version": 6,
+      "color_tag": "teal",
+      "parent": "bicycle",
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              19.78,
+              1.46
+            ],
+            [
+              49.44,
+              1.59
+            ],
+            [
+              62.56,
+              21.78
+            ],
+            [
+              65.32,
+              35.85
+            ],
+            [
+              53.51,
+              44.28
+            ],
+            [
+              7.77,
+              44.32
+            ],
+            [
+              -0.17,
+              29
+            ],
+            [
+              3.82,
+              15.99
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "teal_boat",
+      "display_name": "teal boat",
+      "status": "approved",
+      "version": 4,
+      "color_tag": "teal",
+      "parent": "boat",
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              2.07,
+              26.02
+            ],
+            [
+              29.74,
+              4.03
+            ],
+            [
+              37.03,
+              5.46
+            ],
+            [
+              63.95,
+              26.11
+            ],
+            [
+              56.33,
+              41.99
+            ],
+            [
+              8.56,
+              41.93
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "teal_cat",
+      "display_name": "teal cat",
+      "status": "approved",
+      "version": 6,
+      "color_tag": "teal",
+      "parent": "cat",
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              -0.97,
+              0.56
+            ],
+            [
+              42.4,
+              0.96
+            ],
+            [
+              39.46,
+              62.53
+            ],
+            [
+              2.27,
+              63.65
+            ],
+            [
+              0.31,
+              35.28
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "teal_feather",
+      "display_name": "teal feather",
+      "status": "approved",
+      "version": 8,
+      "color_tag": "teal",
+      "parent": "feather",
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              6.47,
+              50
+            ],
+            [
+              -1.4,
+              16.03
+            ],
+            [
+              3.81,
+              6.22
+            ],
+            [
+              12.01,
+              0.26
+            ],
+            [
+              22.33,
+              9.92
+            ],
+            [
+              24.85,
+              19.9
+            ],
+            [
+              17.4,
+              46.26
+            ],
+            [
+              11.04,
+              65.18
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "teal_parachute",
+      "display_name": "teal parachute",
+      "status": "approved",
+      "version": 4,
+      "color_tag": "teal",
+      "parent": "parachute",
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              0,
+              22.86
+            ],
+            [
+              1.72,
+              12.86
+            ],
+            [
+              15.43,
+              1.43
+            ],
+            [
+              39.43,
+              1.43
+            ],
+            [
+              53.15,
+              12.86
+            ],
+            [
+              54.86,
+              22.86
+            ],
+            [
+              32,
+              64
+            ],
+            [
+              22.86,
+              64
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "telescope_satellite",
+      "display_name": "telescope satellite",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              1.17,
+              12.06
+            ],
+            [
+              33.07,
+              -0.97
+            ],
+            [
+              63.11,
+              11.23
+            ],
+            [
+              64.1,
+              40.32
+            ],
+            [
+              0.1,
+              40.32
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "tennis_ball",
+      "display_name": "tennis ball",
+      "status": "approved",
+      "version": 3,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "circle",
+          "center": [
+            32,
+            32
+          ],
+          "radius": 32
+        }
+      }
+    },
+    {
+      "name": "terracotta_tile",
+      "display_name": "terracotta tile",
+      "status": "approved",
+      "version": 3,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            32
+          ],
+          "height": 64
+        }
+      }
+    },
+    {
+      "name": "train",
+      "display_name": "train",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            28.67
+          ],
+          "height": 57.33
+        }
+      }
+    },
+    {
+      "name": "truck",
+      "display_name": "truck",
+      "status": "approved",
+      "version": 5,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              0,
+              0
+            ],
+            [
+              64,
+              0
+            ],
+            [
+              64.46,
+              26.92
+            ],
+            [
+              57.26,
+              35.66
+            ],
+            [
+              32.04,
+              37.06
+            ],
+            [
+              11.28,
+              36.58
+            ],
+            [
+              -0.58,
+              30.47
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "wagon",
+      "display_name": "wagon",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 51.69,
+          "center": [
+            25.85,
+            19.08
+          ],
+          "height": 38.15
+        }
+      }
+    },
+    {
+      "name": "watermelon_slice",
+      "display_name": "watermelon slice",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              0,
+              26.66
             ],
             [
               16,
-              29
+              6.66
+            ],
+            [
+              32,
+              0
+            ],
+            [
+              48,
+              6.66
+            ],
+            [
+              64,
+              26.66
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "weather_satellite",
+      "display_name": "weather satellite",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              0.19,
+              0.54
+            ],
+            [
+              64.19,
+              0.54
+            ],
+            [
+              64.19,
+              39.4
+            ],
+            [
+              32.01,
+              42.14
+            ],
+            [
+              0.19,
+              39.4
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "wooden_block",
+      "display_name": "wooden block",
+      "status": "approved",
+      "version": 4,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "box",
+          "width": 64,
+          "center": [
+            32,
+            22.4
+          ],
+          "height": 44.8
+        }
+      }
+    },
+    {
+      "name": "wooden_bucket",
+      "display_name": "wooden bucket",
+      "status": "approved",
+      "version": 6,
+      "color_tag": null,
+      "parent": null,
+      "physical_properties": {
+        "collider": {
+          "type": "convex",
+          "vertices": [
+            [
+              0,
+              14.05
+            ],
+            [
+              15.43,
+              8.27
+            ],
+            [
+              48.05,
+              11.66
+            ],
+            [
+              48.4,
+              43.71
+            ],
+            [
+              43.71,
+              60.88
+            ],
+            [
+              24.98,
+              64
+            ],
+            [
+              6.25,
+              60.88
+            ],
+            [
+              0,
+              24.98
             ]
           ]
         }
@@ -5480,18 +6485,18 @@
       "name": "xylophone",
       "display_name": "xylophone",
       "status": "approved",
-      "version": 3,
+      "version": 5,
       "color_tag": null,
       "parent": null,
       "physical_properties": {
         "collider": {
           "type": "box",
-          "width": 56,
+          "width": 64,
           "center": [
             32,
-            34.5
+            23.43
           ],
-          "height": 41
+          "height": 46.86
         }
       }
     }
