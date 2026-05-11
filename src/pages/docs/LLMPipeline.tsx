@@ -82,8 +82,8 @@ const issuesChart = `
 flowchart LR
   subgraph BUGS["Three concrete prompt bugs"]
     direction TB
-    B1["🔴 Vector2DSchema.y description<br/>says 'positive = downward'<br/>(contradicts every other place)<br/>simulation.ts:27"]
-    B2["🔴 frictionStatic field is<br/>advertised but unwired<br/>gist_instructions.py:88"]
+    B1["🟢 Vector2DSchema.y description<br/>positive = upward (FIXED 2026-05-11)<br/>simulation.ts:27"]
+    B2["🟢 frictionStatic removed from<br/>schema + prompt (FIXED 2026-05-11);<br/>μs/μk story moves to frictionDemo"]
     B3["🔴 frictionAir ranges in<br/>prompts predate Rapier/Planck<br/>(calibrate against current engines)"]
   end
 
@@ -97,8 +97,10 @@ flowchart LR
   end
 
   classDef bug fill:#fee2e2,stroke:#dc2626,color:#991b1b;
+  classDef done fill:#dcfce7,stroke:#16a34a,color:#166534;
   classDef priority fill:#dbeafe,stroke:#2563eb,color:#1e40af;
-  class B1,B2,B3 bug;
+  class B1,B2 done;
+  class B3 bug;
   class I1,I2,I3,I4,I5 priority;
 `;
 

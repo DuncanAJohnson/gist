@@ -23,8 +23,8 @@ export type UnitType = z.infer<typeof UnitTypeSchema>;
 // ============================================
 
 export const Vector2DSchema = z.object({
-  x: z.number().describe('X component. For velocity: positive = rightward, negative = leftward. For position: depends on pixelsPerUnit scale.'),
-  y: z.number().describe('Y component. For velocity: positive = downward, negative = upward. For position: Y increases upward from origin at bottom-left.'),
+  x: z.number().describe('X component. Positive = rightward, negative = leftward. Applies to position, velocity, and acceleration uniformly. Values are in the simulation\'s configured units (e.g., meters).'),
+  y: z.number().describe('Y component. Positive = upward, negative = downward (physics convention: Y-up, origin at bottom-left). Applies to position, velocity, and acceleration uniformly. Note: gravity is a separate scalar field with its own sign convention (positive magnitude = downward pull).'),
 }).describe('2D vector for position, velocity, or acceleration. Coordinate system: origin (0,0) at BOTTOM-LEFT, X increases right, Y increases upward (real-world physics coordinates).');
 
 export type Vector2D = z.infer<typeof Vector2DSchema>;
@@ -45,7 +45,6 @@ export const ObjectConfigSchema = z.object({
   restitution: z.number().optional().describe('Bounciness (0-1). 0 = no bounce, 1 = perfect bounce, 0.8 = realistic. Default: 0.8'),
   frictionAir: z.number().optional().describe('Air resistance (0-1). 0 = no drag, 0.01-0.05 = light damping, 0.1 = high drag. Default: 0'),
   friction: z.number().optional().describe('Surface friction (0-1). Affects sliding against other objects. Default: 0.1'),
-  frictionStatic: z.number().optional().describe('Static surface friction (0-10). As in a Coulomb friction model, static friction affects friction resistance when an object is at rest. Default: 0.5'),
   inertia: z.number().optional().describe('inertia is the second moment of area in two dimensions, affects rotation. Set to 1e10 for to prevent body rotation. Default: 0'),
   isStatic: z.boolean().optional().describe('If true, object is immovable (good for floors, walls, platforms). Default: false'),
   mass: z.number().optional().describe('Mass of the object in kg. Default: 1'),

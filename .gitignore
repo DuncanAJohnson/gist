@@ -25,3 +25,7 @@ dist-ssr
 
 CLAUDE.md
 .claude
+
+__pycache__/
+
+.venv/

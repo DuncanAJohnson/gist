@@ -159,14 +159,50 @@ It exercises every part of the runtime pipeline (per-body setter on the adapter,
 
 ---
 
+## Design rationale: diorama scoping (why linear-in-A, not squared-in-A)
+
+This is a load-bearing design decision worth pinning down before Phase 2 code lands.
+
+**The classroom-scale problem.** Real-world air resistance is negligible at the spatial and temporal scales a GIST sim affords. A canvas is on the order of tens of meters; a sim runs for tens of seconds. Real terminal velocity for a baseball requires a 7-story drop and a multi-second fall; getting a real bowling ball anywhere near its real terminal velocity requires hundreds of meters. If we use the textbook 3D formula `F = ½·ρ·Cd·A·v²` with `A` in m² and physically accurate `Cd`, drag is invisible across the scales students can see — the bowling ball and the feather both fall at ~g.
+
+**What we want students to see** isn't textbook numerics; it's the qualitative physics: *mass matters; shape matters; terminal velocity exists; heavier-thing-falls-faster-with-air* — visible within the canvas, within a few seconds of sim time. That's the diorama.
+
+**The decision.** Use `A` as a **linear stand-in** rather than a squared 2D area:
+
+- `A = widest horizontal extent` (for circles: `2r`; for rectangles: `width`; for polygons: the widest horizontal bounding-box span).
+- Dimensionally, we treat the 2D world as a 1m-deep slice of a 3D world. Numerically `A` is a length in meters, with implicit area units of m² (× 1m depth). Document this in the schema description and the implementation comment so a future reader doesn't think we forgot a unit factor.
+
+This gives drag enough authority over motion to be visible at our canvas scale. It's not the textbook formula, and that's intentional.
+
+**Trade-offs the team is accepting:**
+
+| What we keep | What we give up |
+|---|---|
+| Qualitative ordering across objects (feather < baseball < bowling ball). | Absolute terminal velocities matching Wikipedia. |
+| Mass-dependence (heavier-with-same-shape falls faster). | A "real physics" sim where students can compute SI answers. |
+| Visible drag at canvas-scale drops (10–30 m, 1–5 s). | A sim that holds up to "let's calculate the terminal velocity of a falling raindrop." |
+
+**The override path.** Schema's `referenceArea` field stays optional and explicit. When a sim author (or the LLM) needs different physics — horizontal motion, a flat plate broadside-on, a sim intentionally calibrated for SI verification — they set it directly. The default rule applies only when the field is absent.
+
+**The horizontal-motion caveat.** "Widest horizontal extent" is wrong for predominantly horizontal motion (a car rolling sideways: its frontal area is the *vertical* extent, not the horizontal one). The schema description and the LLM prompt should note this explicitly so authors know when to override. Secondary curriculum's air-resistance scope is overwhelmingly vertical, so this is acceptable as a default.
+
+**Beyond air resistance.** This is the first concrete diorama-scoped decision; future scoping (gravity-scaled orbital demos, time-warped collision elasticity, etc.) will follow the same pattern. See the in-app `8. Design philosophy` doc page for the system-level articulation.
+
+---
+
 ## What this gives you physically
 
-For a falling object with no walls and `g = 9.8`, `airDensity = 1.225`, `Cd = 0.47`, `referenceArea = 0.05` (small ball), `mass = 0.5` kg:
+For a falling object with `g = 9.8`, `airDensity = 1.225`, using the diorama-scoped rule `A = widest horizontal extent`:
 
-- `k = 0.5 · 1.225 · 0.47 · 0.05 ≈ 0.0144`
-- Terminal velocity: `v_t = √(mg/k) = √(0.5 · 9.8 / 0.0144) ≈ 18.4 m/s`
-- A 5 kg version of the same ball: `v_t ≈ 58 m/s` — heavier objects fall faster, which is the qualitative win.
-- A feather (`mass = 0.001`, same Cd·A): `v_t ≈ 0.83 m/s` — the mass dependency we wanted.
+**Bowling ball** (`mass = 7` kg, `radius = 0.11` m → `A = 0.22`, `Cd = 0.47`):
+- `k = ½ · 1.225 · 0.47 · 0.22 ≈ 0.0633`
+- Terminal velocity: `v_t = √(mg/k) = √(7 · 9.8 / 0.0633) ≈ 32.9 m/s`
+
+**Feather** (`mass = 0.001` kg, `radius = 0.01` m → `A = 0.02`, `Cd = 1.5`):
+- `k = ½ · 1.225 · 1.5 · 0.02 ≈ 0.01838`
+- Terminal velocity: `v_t = √(0.001 · 9.8 / 0.01838) ≈ 0.73 m/s`
+
+Ratio of ~45× between the two — dramatic and visible within a 60-meter canvas. The bowling ball reaches ~33 m/s in a few seconds of fall (real-world ~55 m/s, off by ~1.7×); the feather settles to ~0.7 m/s almost immediately (real-world ~0.4 m/s). Qualitative physics is preserved; absolute numbers are pedagogically tuned, not Wikipedia-accurate.
 
 ---
 

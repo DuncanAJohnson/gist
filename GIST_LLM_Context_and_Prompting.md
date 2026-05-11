@@ -63,13 +63,11 @@ Per [`generate_simulation.py`](modal_functions/generate_simulation.py): OpenAI (
 
 ## 3. Known issues in current prompts
 
-### 3.1 🔴 Y-velocity sign convention is internally inconsistent
-[simulation.ts:27](src/schemas/simulation.ts#L27): `'Y component. For velocity: positive = downward, negative = upward.'` Every other description says Y increases upward (line 28, 39, 43, 164). The vector schema's per-axis description directly contradicts the surrounding consensus. The LLM is reading both and resolving the contradiction at random.
-- **Fix:** one-line edit. Should be `'positive = upward, negative = downward'` to match everything else.
+### 3.1 🟢 Y-velocity sign convention — FIXED (2026-05-11)
+Resolved: `Vector2DSchema.y` now reads "Positive = upward, negative = downward (physics convention: Y-up, origin at bottom-left). Applies to position, velocity, and acceleration uniformly." Also rewrote the `x` description to drop the confusing "depends on pixelsPerUnit scale" parenthetical. Coordinate frames documented end-to-end: physics layer is Y-up everywhere; the Y-flip lives only inside the renderer (e.g., [VectorArrow.ts:52](src/components/simulation_components/renderables/visuals/VectorArrow.ts#L52)).
 
-### 3.2 🔴 `frictionStatic` is advertised but unwired
-The objects-fill stage ([gist_instructions.py:88](modal_functions/gist_instructions.py#L88)) explicitly instructs the LLM to set `frictionStatic`. The schema description (`simulation.ts:48`) gives a range and default. **No engine maps it.** The LLM is being told to populate a no-op field, which silently makes sims behave wrong relative to the LLM's intent.
-- **Fix:** part of the [applied-forces refactor](Notes_on_Applied_Forces_Refactor.md). Strong recommendation: remove the field from `BodyDef`, the schema, and the prompt. The principled `μs ≠ μk` story moves to opt-in `frictionDemo` mode.
+### 3.2 🟢 `frictionStatic` was advertised but unwired — REMOVED (2026-05-11)
+Resolved: the field was removed from `BodyDef`, the schema, the `ObjectRenderer` pipeline, and the prompt. Saved configs that still carry `frictionStatic` continue to load — Zod silently strips unknown keys at parse time. The principled `μs ≠ μk` story will return as an opt-in `frictionDemo` mode in the [applied-forces refactor](Notes_on_Applied_Forces_Refactor.md).
 
 ### 3.3 🔴 `frictionAir` numeric ranges are calibrated to Matter, but Rapier is the default
 Schema description: "0.01–0.05 = light damping, 0.1 = high drag" — those numbers are right for Matter's `v *= 1 − f` per-step decay, **wrong** for Planck/Rapier's `linearDamping` (`v / (1 + d·dt)`). Same number, different physics. With Rapier as the default engine, LLM-generated `frictionAir` values are effectively no-ops.

@@ -18,6 +18,7 @@ const LLMPipeline = lazy(() => import('./pages/docs/LLMPipeline'))
 const RefactorRoadmap = lazy(() => import('./pages/docs/RefactorRoadmap'))
 const VectorArrows = lazy(() => import('./pages/docs/VectorArrows'))
 const RecordingsAndCameras = lazy(() => import('./pages/docs/RecordingsAndCameras'))
+const DesignPhilosophy = lazy(() => import('./pages/docs/DesignPhilosophy'))
 
 function DocsFallback() {
   return (
@@ -69,6 +70,10 @@ function AppContent() {
         <Route
           path="/docs/recordings-and-cameras"
           element={<Suspense fallback={<DocsFallback />}><RecordingsAndCameras /></Suspense>}
+        />
+        <Route
+          path="/docs/design-philosophy"
+          element={<Suspense fallback={<DocsFallback />}><DesignPhilosophy /></Suspense>}
         />
       </Routes>
     </>

@@ -37,6 +37,11 @@ const diagrams = [
     title: '7. Recordings & cameras',
     blurb: 'Rich precompute + lean replay → sealed sim artifacts (saved experimental runs, comparison library) and reference-frame cameras (relative motion, inclined-plane decomposition, Newton\'s 3rd Law contact pairs).',
   },
+  {
+    to: '/docs/design-philosophy',
+    title: '8. Design philosophy',
+    blurb: 'Diorama-scoped physics — why GIST sims are teaching dioramas rather than physics oracles. The principle behind every coefficient, default, and schema choice. First worked example: the linear-in-A air-resistance scoping.',
+  },
 ];
 
 const docFiles = [

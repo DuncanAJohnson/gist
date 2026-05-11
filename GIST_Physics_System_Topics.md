@@ -17,9 +17,9 @@ Status legend:
 Matter (`matter-js`) was the project's first physics engine and stayed in-tree as a third `PhysicsAdapter` while Rapier and Planck were brought up. **Removed 2026-05-11.** The motivating costs: Matter's Y-down convention required adapter-level flipping, its per-step `frictionAir` formula (`v *= 1 − f`) diverged from Planck/Rapier's substep-correct `v / (1 + d·dt)`, and several adapter features (joints, sensors, contact events, CCD) were going to need engine-pair-only implementations anyway. Active engines are Rapier (WASM, default) and Planck (pure-JS Box2D port).
 - **Migration shim:** [src/schemas/simulation.ts](src/schemas/simulation.ts) preprocesses `physicsEngine: "matter"` → `"rapier"` so any lingering saved configs load cleanly.
 
-### 🟡 `frictionStatic` field on `BodyDef` is a no-op
-Field exists at [src/physics/types.ts:35](src/physics/types.ts#L35) but no engine maps it. Confuses LLM-generated configs into thinking it's wired.
-- **Plan:** remove in the applied-forces refactor; the principled `μs ≠ μk` story moves to opt-in `frictionDemo` mode.
+### 🟢 `frictionStatic` field on `BodyDef` — removed
+Field was advertised in the schema + prompt but no engine mapped it. **Removed 2026-05-11** from `simulation.ts`, `BodyDef`, `ObjectRenderer`, and `gist_instructions.py`. Saved configs that still carry `frictionStatic` continue to load — Zod silently strips unknown keys.
+- **Next step:** the principled `μs ≠ μk` story will return as an opt-in `frictionDemo` mode in the applied-forces refactor.
 - See [Notes_on_Applied_Forces_Refactor.md](Notes_on_Applied_Forces_Refactor.md) "Static friction caveat".
 
 ### 🟡 `frictionAir` schema-prose calibration

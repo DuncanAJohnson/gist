@@ -137,7 +137,7 @@ PhET's "the box doesn't move until force exceeds `μ · m · g`" is approximatel
 Practical implications:
 
 - For PhET parity, set `friction` to PhET's static value. The slight breakaway "stiction" PhET shows (where μs > μk produces a brief jolt at the moment of slip) isn't reproducible without a custom layer for the *general* case — see the next section for the opt-in demo mode that handles it for explicit static-friction sims.
-- **Strong recommend: drop `frictionStatic` from [`BodyDef`](src/physics/types.ts#L35).** It's currently unwired (no engine maps to it) and that's a footgun for LLM-generated configs — the model assumes it's load-bearing, the runtime ignores it, sims silently behave wrong. The principled separate-coefficients story lives in the demo mode below, not in a per-body field that's silently a no-op for ordinary sims.
+- **`frictionStatic` removed from `BodyDef` + schema + prompt (2026-05-11).** Was unwired (no engine mapped it) and a footgun for LLM-generated configs. The principled separate-coefficients story lives in the demo mode below, not in a per-body field that's silently a no-op for ordinary sims.
 
 ---
 
@@ -266,7 +266,7 @@ Independent of Phases 3–4; can run alongside Phase 2 once `applyImpulse` exist
 
 1. **Force vs impulse semantics in the JSON.** Schema says "force in N" (pedagogical); implementation translates to impulse internally. User-facing units stay clean. Lean: keep this.
 2. **Off-center forces (torque from a force).** PhET Basics doesn't need them — bodies are translation-only on flat ground. Defer `applyImpulseAtPoint` until a sim actually needs torque-from-force.
-3. **`frictionStatic` field — alias or remove?** Decided: **remove** from `BodyDef`. The principled `μs / μk` story lives in the opt-in `frictionDemo` mode (see the Static-friction demo section), not in a per-body field that's silently a no-op for ordinary sims.
+3. **`frictionStatic` field — alias or remove?** Done: **removed** from `BodyDef` + schema + prompt (2026-05-11). The principled `μs / μk` story will return as part of the opt-in `frictionDemo` mode (see the Static-friction demo section), not as a per-body field that's silently a no-op for ordinary sims.
 4. **Camera follow / scrolling background.** Not a physics concern — separate UI work; flag for whoever owns the canvas/viewport code.
 5. **Per-body `applyForce` (truly continuous) vs impulse-per-frame.** Stick with impulse. Revisit only if a sim shows visible artifacts at 60 Hz.
 

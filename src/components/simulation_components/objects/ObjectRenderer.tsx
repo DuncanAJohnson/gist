@@ -53,7 +53,6 @@ const ObjectRenderer = forwardRef<PhysicsBody, ObjectConfig>(function ObjectRend
     restitution = 0.8,
     frictionAir = 0,
     friction = 0,
-    frictionStatic = 0,
     isStatic = false,
     angularVelocity = 0,
     angle = 0,
@@ -89,7 +88,6 @@ const ObjectRenderer = forwardRef<PhysicsBody, ObjectConfig>(function ObjectRend
       inertia,
       restitution,
       friction,
-      frictionStatic,
       frictionAir,
       isStatic,
     };

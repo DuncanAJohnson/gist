@@ -6,6 +6,22 @@ Scope: 1D kinematics, free fall, 2D kinematics, projectile motion, dynamics (New
 
 ---
 
+## Design principle: diorama-scoped physics
+
+Before the affordance maps below, one principle sets the lens. **GIST simulations are not physics oracles; they are teaching dioramas.** Each curriculum unit lives inside a bounded scene with affordances scoped to what students can see, manipulate, and learn from at that scene's spatial and temporal scale (tens of meters wide, tens of seconds long).
+
+Concretely: real-world classroom-lab air resistance is negligible at those scales; accurate physics would make drag effects imperceptible. Instead, GIST tunes its physics to make the qualitative claims visible at the scale of the diorama: *mass matters; shape matters; terminal velocity exists; heavier-thing-falls-faster-with-air*. Absolute numbers don't always match Wikipedia; the lessons land within the canvas.
+
+This has a few concrete consequences for how to read the affordance maps below:
+
+- **Coefficients in the schema are pedagogically tuned**, not extracted from physical tables. The drag coefficient combination `k = ½·ρ·Cd·A` uses `A` as a linear stand-in (widest horizontal extent), not a squared 2D area — see [Notes_on_Air_Resistance_Refactor.md](Notes_on_Air_Resistance_Refactor.md) "Design rationale: diorama scoping" for the worked-out rationale and tradeoffs.
+- **Defaults privilege visibility over realism.** Schema defaults (e.g. `restitution: 0.8`) make behaviors visible within the canvas; real-world calibrated values (a basketball on hardwood is ~0.5) would make for less-readable demos. Explicit overrides are always available when a sim needs realism.
+- **Engines stay in SI internally.** The framing happens at the schema/runtime layer. The engines (Rapier, Planck) themselves are unscaled, deterministic, and would behave identically to any other physics codebase given the same inputs. The tuning lives in *what we feed them*, not in *what they do*.
+
+The in-app doc `8. Design philosophy` carries the system-level articulation of this principle and lists known scoping decisions across the codebase. Future scoping decisions (e.g., for gravity, time, restitution) will get worked out following the same pattern.
+
+---
+
 ## Cross-cutting affordances (both engines)
 
 These are the building blocks every unit below leans on:
