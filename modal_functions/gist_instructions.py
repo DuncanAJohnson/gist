@@ -85,7 +85,7 @@ objects_fill_fragment = """
 
 You are filling in the full ObjectConfig array. The skeleton has already chosen each object's `id`, `svg`, and `(x, y)` center — use those values VERBATIM. Your remaining job is to:
 1. Set `width` and `height` (in the configured unit) for each object based on the typical real-world bounding-box size of the chosen svg. Examples: `soccer_ball` ~0.22 m diameter, `brick_block` ~0.5 m wide, `boat` ~5 m long, `person` ~1.8 m tall, `bowling_ball` ~0.22 m diameter, `bicycle` ~1.7 m long.
-2. Set physics fields appropriate to the object's role: `velocity`, `acceleration` (rare — gravity is usually enough), `mass`, `restitution`, `friction`, `frictionAir`, `frictionStatic`, `isStatic`, `angle`, `angularVelocity`, etc. Use the role from the skeleton to decide — e.g. a "ramp" or "platform" should be `isStatic: true`; a "projectile" needs an initial velocity; a "ball" gets restitution ~0.8.
+2. Set physics fields appropriate to the object's role: `velocity`, `acceleration` (rare — gravity is usually enough), `mass`, `restitution`, `friction`, `frictionAir`, `isStatic`, `angle`, `angularVelocity`, etc. Use the role from the skeleton to decide — e.g. a "ramp" or "platform" should be `isStatic: true`; a "projectile" needs an initial velocity; a "ball" gets restitution ~0.8.
 
 Each object's `width`/`height` defines its bounding box. The collider shape (rectangle, circle, or convex hull) and the visual sprite both come from the manifest entry referenced by `svg`, scaled to that bounding box. Do NOT emit a `body` field — there is no body discriminated union anymore.
 

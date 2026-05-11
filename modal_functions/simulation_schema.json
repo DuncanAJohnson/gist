@@ -105,11 +105,11 @@
             "type": "object",
             "properties": {
               "x": {
-                "description": "X component. For velocity: positive = rightward, negative = leftward. For position: depends on pixelsPerUnit scale.",
+                "description": "X component. Positive = rightward, negative = leftward. Applies to position, velocity, and acceleration uniformly. Values are in the simulation's configured units (e.g., meters).",
                 "type": "number"
               },
               "y": {
-                "description": "Y component. For velocity: positive = downward, negative = upward. For position: Y increases upward from origin at bottom-left.",
+                "description": "Y component. Positive = upward, negative = downward (physics convention: Y-up, origin at bottom-left). Applies to position, velocity, and acceleration uniformly. Note: gravity is a separate scalar field with its own sign convention (positive magnitude = downward pull).",
                 "type": "number"
               }
             },
@@ -124,11 +124,11 @@
             "type": "object",
             "properties": {
               "x": {
-                "description": "X component. For velocity: positive = rightward, negative = leftward. For position: depends on pixelsPerUnit scale.",
+                "description": "X component. Positive = rightward, negative = leftward. Applies to position, velocity, and acceleration uniformly. Values are in the simulation's configured units (e.g., meters).",
                 "type": "number"
               },
               "y": {
-                "description": "Y component. For velocity: positive = downward, negative = upward. For position: Y increases upward from origin at bottom-left.",
+                "description": "Y component. Positive = upward, negative = downward (physics convention: Y-up, origin at bottom-left). Applies to position, velocity, and acceleration uniformly. Note: gravity is a separate scalar field with its own sign convention (positive magnitude = downward pull).",
                 "type": "number"
               }
             },
@@ -148,10 +148,6 @@
           },
           "friction": {
             "description": "Surface friction (0-1). Affects sliding against other objects. Default: 0.1",
-            "type": "number"
-          },
-          "frictionStatic": {
-            "description": "Static surface friction (0-10). As in a Coulomb friction model, static friction affects friction resistance when an object is at rest. Default: 0.5",
             "type": "number"
           },
           "inertia": {
