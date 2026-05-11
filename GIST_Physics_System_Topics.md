@@ -13,22 +13,17 @@ Status legend:
 
 ## Legacy & deprecation
 
-### 🔵 Matter is deprioritized but still in the codebase
-Matter remains as one of three `PhysicsAdapter` implementations and is the default in some configs, but is **not being pursued further**. Rapier and Planck are the actively-developed engines.
-- **Decision (per memory, 2026-04-27):** don't proactively rip out Matter; don't propose Matter-only features, perf work, or bug fixes. Treat as legacy that just needs to keep working.
-- **Open question:** when (if ever) do we formally remove? Triggers worth watching: a refactor where Matter parity is a real cost (see `frictionAir` and `applyImpulse`); the moment no live sims default to Matter; the moment a feature ships that materially benefits from being engine-pair-only.
+### 🟢 Matter removed (was an early exploration)
+Matter (`matter-js`) was the project's first physics engine and stayed in-tree as a third `PhysicsAdapter` while Rapier and Planck were brought up. **Removed 2026-05-11.** The motivating costs: Matter's Y-down convention required adapter-level flipping, its per-step `frictionAir` formula (`v *= 1 − f`) diverged from Planck/Rapier's substep-correct `v / (1 + d·dt)`, and several adapter features (joints, sensors, contact events, CCD) were going to need engine-pair-only implementations anyway. Active engines are Rapier (WASM, default) and Planck (pure-JS Box2D port).
+- **Migration shim:** [src/schemas/simulation.ts](src/schemas/simulation.ts) preprocesses `physicsEngine: "matter"` → `"rapier"` so any lingering saved configs load cleanly.
 
 ### 🟡 `frictionStatic` field on `BodyDef` is a no-op
 Field exists at [src/physics/types.ts:35](src/physics/types.ts#L35) but no engine maps it. Confuses LLM-generated configs into thinking it's wired.
 - **Plan:** remove in the applied-forces refactor; the principled `μs ≠ μk` story moves to opt-in `frictionDemo` mode.
 - See [Notes_on_Applied_Forces_Refactor.md](Notes_on_Applied_Forces_Refactor.md) "Static friction caveat".
 
-### 🟡 `frictionAir` semantics drift across engines
-Same numeric value behaves wildly differently:
-- Matter: `v *= 1 − frictionAir` (per-step velocity scaling)
-- Planck/Rapier: `linearDamping` → `v / (1 + d·dt)` (substep-correct integration)
-
-Schema description is calibrated to Matter, but Rapier is the default engine — so LLM-generated `frictionAir` values are effectively no-ops under the default engine.
+### 🟡 `frictionAir` schema-prose calibration
+With Matter gone, both remaining engines map `frictionAir` to `linearDamping` → `v / (1 + d·dt)`, so the cross-engine drift is resolved. The remaining concern is that the LLM-prompt prose around `frictionAir` ranges was historically calibrated against Matter's per-step formula; the ranges may need re-tuning for the substep-correct integrators.
 - **Plan:** subsumed by the quadratic-drag model in the air-resistance refactor; `frictionAir` will eventually be deprecated end-to-end.
 - See [Notes_on_Air_Resistance_Refactor.md](Notes_on_Air_Resistance_Refactor.md).
 
@@ -47,7 +42,7 @@ Planck's `fixture.setFriction(μ)` only affects *new* contacts. Existing contact
 - **Plan:** the eventual `setFriction(μ)` on `PhysicsBody` (Phase 2.5 of applied-forces) must reset live contacts under Planck. Document the asymmetry in the adapter, not at the call site.
 
 ### 📋 Y-axis convention — Y-up at the adapter boundary
-[`PhysicsAdapter`](src/physics/types.ts#L1-L14) docstring states Y-up across all engines. Matter is internally Y-down; the Matter adapter normalizes. Worth knowing if anyone debugs at the adapter level.
+[`PhysicsAdapter`](src/physics/types.ts#L1-L14) docstring states Y-up. Both Rapier and Planck are Y-up natively, so no per-engine normalization is needed at the adapter layer.
 
 ### 📋 Angle convention — counter-clockwise from +X
 Same docstring. Vector representation refactor's polar form (`.angle`) inherits this.
@@ -161,10 +156,10 @@ For ordinary sims this is plenty; for stiff systems (high-stiffness spring, very
 ## Tooling & developer experience
 
 ### 🔴 No automated test for setter idempotency / cross-engine parity
-The Rapier mass-setter bug was caught by hand. A small test harness that pumps each public `PhysicsBody` setter twice with the same value and diffs the resulting state across all three engines would catch a whole class of regressions. Same for "after restore, every setter returns to a documented baseline."
+The Rapier mass-setter bug was caught by hand. A small test harness that pumps each public `PhysicsBody` setter twice with the same value and diffs the resulting state across both engines would catch a whole class of regressions. Same for "after restore, every setter returns to a documented baseline."
 
 ### 🔴 No "physics-engine matrix" CI test
-For the same input config, do all three engines produce *qualitatively* the same outcome (e.g., a 1 kg ball falls X meters in 1 s under g=9.81 within tolerance)? Today, divergences are found by hand at debug time (see the slider-confound investigation in the air-resistance notes).
+For the same input config, do both engines produce *qualitatively* the same outcome (e.g., a 1 kg ball falls X meters in 1 s under g=9.81 within tolerance)? Today, divergences are found by hand at debug time (see the slider-confound investigation in the air-resistance notes).
 
 ### 📋 Debug logging convention
 The slider-confound investigation in the air-resistance notes used a one-off `console.log` template ([Notes_on_Air_Resistance_Refactor.md](Notes_on_Air_Resistance_Refactor.md), "Empirical debug procedure"). Worth keeping that template handy — same shape catches other UI-input/physics-output confounds.
@@ -187,5 +182,5 @@ A short list of things that could plausibly belong here but I'm less sure about 
 - **Locales / i18n for physics-related strings** — recent commit added "first pass at localization." Is there a system-level concern about which physics labels are localizable (e.g., "velocity", units like "m/s"), or is this orthogonal?
 - **Multiple sliders binding to the same property** — what happens? Race? Last-wins? Probably untested.
 - **Stale body references when objects are destroyed mid-sim** — does the slider system hold direct references that go bad? Or look up by id every time?
-- **Mouse/touch interaction with physics bodies** — recent commits added drag-to-move and zoom; is that path interacting with physics correctly across all three engines?
+- **Mouse/touch interaction with physics bodies** — recent commits added drag-to-move and zoom; is that path interacting with physics correctly across both engines?
 - **Edit mode vs. play mode setter contract** — does editing a body's position in Edit mode go through the same code path as a slider in Play mode? If they diverge, that's a class of bugs.

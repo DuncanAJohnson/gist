@@ -84,7 +84,7 @@ flowchart LR
     direction TB
     B1["🔴 Vector2DSchema.y description<br/>says 'positive = downward'<br/>(contradicts every other place)<br/>simulation.ts:27"]
     B2["🔴 frictionStatic field is<br/>advertised but unwired<br/>gist_instructions.py:88"]
-    B3["🔴 frictionAir ranges are<br/>Matter-calibrated but<br/>Rapier is the default"]
+    B3["🔴 frictionAir ranges in<br/>prompts predate Rapier/Planck<br/>(calibrate against current engines)"]
   end
 
   subgraph IMPROVES["Top-5 priorities (LLM doc §8)"]

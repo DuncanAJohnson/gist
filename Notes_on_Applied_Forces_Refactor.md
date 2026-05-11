@@ -1,8 +1,10 @@
 # Notes on Applied Forces Refactor
 
 Status: design notes for review (not yet implemented).
-Scope: Planck and Rapier adapters. Matter is being removed and is mostly ignored here (left as a no-op).
+Scope: Planck and Rapier adapters.
 Reference target: PhET's *Forces and Motion: Basics* — applied-force slider, force arrows, sum-of-forces arrow, friction toggle.
+
+> **Note (2026-05-11):** these notes were written while Matter was still in-tree. Matter has since been removed; "Matter no-op" mentions below are historical. The plan itself is unaffected — it always targeted Planck/Rapier.
 
 ---
 

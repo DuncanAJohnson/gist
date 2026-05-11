@@ -2,7 +2,7 @@
 
 Enter in a prompt and an interactive simulation with controls, objects, outputs, and graphs will appear! Currently, only very basic simulations are possible, and our goal is to expand the possibilities.
 
-We use [Matter.js](https://brm.io/matter-js/) for our physics engine.
+We run physics through a `PhysicsAdapter` abstraction (`src/physics/`) with two engines behind it: [Rapier](https://rapier.rs/) (WASM, SI-native, deterministic — default) and [Planck.js](https://piqnt.com/planck.js/) (pure-JS port of Box2D). [Matter.js](https://brm.io/matter-js/) was used as an early exploration and removed in May 2026.
 
 We use [Recharts](https://recharts.github.io/) for graphing output.
 

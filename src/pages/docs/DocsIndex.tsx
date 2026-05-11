@@ -10,7 +10,7 @@ const diagrams = [
   {
     to: '/docs/physics-stack',
     title: '2. Physics stack',
-    blurb: 'The PhysicsAdapter interface, three engine adapters (Matter / Planck / Rapier), and which refactors touch which layer. Cross-engine quirks are called out at the points of impact.',
+    blurb: 'The PhysicsAdapter interface, two engine adapters (Planck / Rapier), and which refactors touch which layer. Cross-engine quirks are called out at the points of impact.',
   },
   {
     to: '/docs/runtime-loop',

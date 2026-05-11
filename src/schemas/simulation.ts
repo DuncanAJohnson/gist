@@ -146,7 +146,12 @@ export const EnvironmentConfigSchema = z.object({
   gravity: z.number().optional().default(9.8).describe('Gravity acceleration in units/s² (downward). Default: 9.8 for Earth gravity in m/s². Set to 0 for zero-gravity. For cm/s² use 980.'),
   unit: UnitTypeSchema.optional().default('m').describe('Unit of measurement for all positions, velocities, and sizes. Default: "m" (meters). Options: "m", "cm", "km", "ft", "in".'),
   pixelsPerUnit: z.number().optional().default(10).describe('Scale factor: how many pixels equal one unit. The simulation canvas is 800×600 pixels, so the SI canvas size is (800/pixelsPerUnit) × (600/pixelsPerUnit). Pick this value so the largest object is roughly 10–25% of the smaller canvas dimension.'),
-  physicsEngine: z.enum(['matter', 'rapier', 'planck']).optional().default('rapier').describe('Which physics engine powers the simulation. "matter" uses Matter.js. "rapier" uses Rapier (WASM, SI-native, deterministic, default). "planck" uses Planck.js (pure JS port of Box2D, SI-native). Existing configs without this field use rapier.'),
+  // Legacy "matter" values (early exploration, removed 2026-05-11) are coerced
+  // to "rapier" so older saved configs don't fail validation on load.
+  physicsEngine: z.preprocess(
+    (v) => (v === 'matter' ? 'rapier' : v),
+    z.enum(['rapier', 'planck']).optional().default('rapier'),
+  ).describe('Which physics engine powers the simulation. "rapier" uses Rapier (WASM, SI-native, deterministic, default). "planck" uses Planck.js (pure JS port of Box2D, SI-native). Existing configs without this field use rapier.'),
 }).describe('Environment settings. Controls units, scale, boundaries, and gravity. Uses real-world physics coordinates: origin at bottom-left, Y increases upward.');
 
 export type EnvironmentConfig = z.infer<typeof EnvironmentConfigSchema>;

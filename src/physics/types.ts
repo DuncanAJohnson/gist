@@ -80,7 +80,7 @@ export interface PhysicsBody {
 }
 
 export interface PhysicsAdapter {
-  readonly kind: 'matter' | 'rapier' | 'planck';
+  readonly kind: 'rapier' | 'planck';
 
   init(): Promise<void>;
   setGravity(g: Vec2): void;

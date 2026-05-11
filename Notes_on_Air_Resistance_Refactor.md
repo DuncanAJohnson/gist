@@ -1,7 +1,9 @@
 # Notes on Air Resistance Refactor
 
 Status: design notes for review (not yet implemented).
-Scope: Planck and Rapier adapters only. Matter is being removed and is ignored here.
+Scope: Planck and Rapier adapters.
+
+> **Note (2026-05-11):** these notes were written while Matter was still in-tree. Matter has since been removed; references to `MatterAdapter.ts` below are historical. The plan itself is unaffected — it always targeted Planck/Rapier.
 
 ## Background — what's wrong today
 

@@ -123,8 +123,8 @@ function BaseSimulation({
   useEffect(() => { positionItersRef.current = positionIterations; }, [positionIterations]);
 
   // Push iteration-count changes to the live adapter without re-creating it.
-  // Adapters that don't expose the knob (Matter today; Rapier for position
-  // iters) silently ignore it.
+  // Adapters that don't expose the knob (Rapier for position iters) silently
+  // ignore it.
   useEffect(() => {
     if (solverIterations === undefined) return;
     adapterRef.current?.setSolverIterations?.(solverIterations);

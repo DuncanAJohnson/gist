@@ -9,7 +9,6 @@ interface EngineSwitcherProps {
 
 const ENGINE_LABELS: Record<PhysicsEngineKind, string> = {
   rapier: 'Rapier',
-  matter: 'Matter',
   planck: 'Planck',
 };
 

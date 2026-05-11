@@ -16,14 +16,12 @@ flowchart TB
 
   subgraph ADAPTERS["Engine adapters"]
     direction LR
-    MATTER["MatterAdapter<br/><i>legacy / deprioritized</i>"]
     PLANCK["PlanckAdapter<br/>(Box2D port, JS)"]
     RAPIER["RapierAdapter<br/>(WASM, default)"]
   end
 
   subgraph LIBS["Engine libraries"]
     direction LR
-    LMATTER["matter-js"]
     LPLANCK["planck"]
     LRAPIER["@dimforge/rapier2d-compat"]
   end
@@ -31,19 +29,15 @@ flowchart TB
   CALLERS --> IFACE
   IFACE --> BODY
   IFACE --> DEF
-  IFACE --> MATTER
   IFACE --> PLANCK
   IFACE --> RAPIER
-  MATTER --> LMATTER
   PLANCK --> LPLANCK
   RAPIER --> LRAPIER
 
   classDef done fill:#dcfce7,stroke:#16a34a,color:#166534;
   classDef inprog fill:#fef3c7,stroke:#d97706,color:#92400e;
   classDef open fill:#fee2e2,stroke:#dc2626,color:#991b1b;
-  classDef legacy fill:#f3f4f6,stroke:#6b7280,color:#374151;
 
-  class MATTER legacy;
   class RAPIER,PLANCK done;
 `;
 
@@ -76,8 +70,6 @@ flowchart LR
     direction TB
     Q1["Rapier setAdditionalMass<br/>replaces, not adds<br/><b>FIXED 2026-04-29</b>"]
     Q2["Planck friction caches<br/>per-contact at creation<br/><b>OPEN — affects frictionDemo</b>"]
-    Q3["Matter Y-down vs<br/>Planck/Rapier Y-up<br/>(adapter normalizes)"]
-    Q4["frictionAir formula differs<br/>Matter: v *= (1−f)<br/>Planck/Rapier: v / (1+d·dt)"]
   end
 
   classDef done fill:#dcfce7,stroke:#16a34a,color:#166534;
@@ -88,7 +80,7 @@ flowchart LR
   class AI,SF,APAT inprog;
   class JOINTS,SENSORS,EVENTS,CCD open;
   class Q1 done;
-  class Q2,Q4 open;
+  class Q2 open;
 `;
 
 function PhysicsStack() {
@@ -99,18 +91,28 @@ function PhysicsStack() {
     >
       <p>
         All physics code above the adapter boundary is engine-agnostic. The interface lives in{' '}
-        <code>src/physics/types.ts</code>; three concrete adapters implement it. Matter is in
-        legacy / maintenance mode (per project memory); new work targets Planck and Rapier with
-        Rapier as the default.
+        <code>src/physics/types.ts</code>; two concrete adapters implement it (Planck and Rapier),
+        with Rapier as the default.
+      </p>
+      <p className="bg-gray-50 border-l-4 border-gray-300 pl-4 py-2 text-sm text-gray-600">
+        <strong>Historical note:</strong> a third adapter, <code>MatterAdapter</code> (matter-js),
+        was the project's original physics engine and remained in-tree as a fallback through 2026
+        while Planck and Rapier were brought up. It was an early exploration — its Y-down
+        convention, per-step <code>frictionAir</code> formula (<code>v *= (1 − f)</code> rather
+        than <code>v / (1 + d·dt)</code>), and a few solver gaps cost more than they bought.
+        Removed 2026-05-11; saved configs with <code>physicsEngine: "matter"</code> are silently
+        normalized to <code>"rapier"</code> at schema load.
       </p>
 
-      <MermaidDiagram chart={chart} caption="Layers: callers → boundary → adapters → engine libraries." />
+      <MermaidDiagram chart={chart} caption="Layers: callers → boundary → adapters → engine libraries. Matter (matter-js) was a third adapter, removed 2026-05-11." />
 
       <h2>What's wired vs. what each refactor adds</h2>
       <p>
         Today the adapter exposes the basics: position, velocity, mass, restitution, and (since
         the air-resistance refactor) <code>setLinearDamping</code>. The applied-forces refactor
-        adds force application; sensors, joints, and contact events remain feature gaps.
+        adds force application; sensors, joints, and contact events remain feature gaps. Both
+        remaining engines are Y-up and SI-native, so the cross-engine-convention bugs that
+        existed while Matter was in-tree are gone.
       </p>
 
       <MermaidDiagram chart={refactorChart} caption="Green = wired today; yellow = proposed; red = open gap or hazard." />
@@ -131,8 +133,7 @@ function PhysicsStack() {
           take effect.
         </li>
         <li>
-          <strong>Y-up convention</strong> — uniform across all three adapters. Matter's
-          internal Y-down is normalized by the Matter adapter so callers always see Y-up.
+          <strong>Y-up convention</strong> — uniform across both adapters; SI-native throughout.
         </li>
       </ul>
 

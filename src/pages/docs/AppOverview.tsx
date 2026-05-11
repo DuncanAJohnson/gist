@@ -16,7 +16,7 @@ flowchart LR
     RENDERERS["ObjectRenderer<br/>controls / graphs / outputs"]
     SCHEMA["src/schemas/simulation.ts<br/>(Zod source of truth)"]
     ADAPTER["PhysicsAdapter interface<br/>src/physics/types.ts"]
-    ENGINES["Matter (legacy) ·<br/>Planck · Rapier (default)"]
+    ENGINES["Planck · Rapier (default)"]
   end
 
   subgraph BACKEND["Modal serverless backend"]

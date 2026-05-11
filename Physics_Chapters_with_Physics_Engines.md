@@ -1,6 +1,6 @@
 # Physics Chapters with Physics Engines
 
-What Planck and Rapier offer natively for the introductory-physics units we want to support, and what the `PhysicsAdapter` would need to expose to actually use it. Matter is intentionally omitted (deprioritized).
+What Planck and Rapier offer natively for the introductory-physics units we want to support, and what the `PhysicsAdapter` would need to expose to actually use it. Matter (matter-js) was an early exploration and was removed 2026-05-11; this doc has always been a two-engine comparison.
 
 Scope: 1D kinematics, free fall, 2D kinematics, projectile motion, dynamics (Newton's laws), conservation of momentum, conservation of energy.
 

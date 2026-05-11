@@ -55,7 +55,7 @@ interface SimulationConfig {
     gravity?: number;
     unit?: UnitType;
     pixelsPerUnit?: number;
-    physicsEngine?: 'matter' | 'rapier' | 'planck';
+    physicsEngine?: 'rapier' | 'planck';
   };
   objects?: Array<ObjectConfig>;
   controls?: Array<ControlConfig>;
