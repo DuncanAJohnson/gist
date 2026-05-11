@@ -57,7 +57,7 @@ flowchart LR
 
     DRAG --> DRAGOK["body.setLinearDamping(<br/>(k/m)·|v|)<br/>← survives all 8 substeps ✓"]
     FORCE --> FORCEOK["body.applyImpulse(<br/>F · FIXED_DT)<br/>← velocity change persists ✓"]
-    FORCE -.->|Why not applyForce?<br/>cleared after each step()| FORCEBAD["applyForce in onUpdate<br/>only reaches substep 1<br/>(under-delivers in precompute) ✗"]
+    FORCE -.->|"Why not applyForce?<br/>cleared after each step#40;#41;"| FORCEBAD["applyForce in onUpdate<br/>only reaches substep 1<br/>#40;under-delivers in precompute#41; ✗"]
   end
 
   classDef good fill:#dcfce7,stroke:#16a34a,color:#166534;
@@ -114,11 +114,71 @@ function RuntimeLoop() {
         </li>
       </ul>
 
-      <h2>Replay sidesteps the engine entirely</h2>
+      <h2>Replay sidesteps the engine — and that forced a data-pipeline reframe</h2>
       <p>
-        Anything dynamic in <code>onUpdate</code> (force arrows reading <code>userData</code>,
-        applied-force visualization, etc.) needs to either bake into the snapshot or compute purely
-        from snapshot fields — the engine isn't running during replay.
+        Two snapshot formats are at play in this codebase, and the distinction
+        matters:
+      </p>
+      <ul>
+        <li>
+          <strong>Engine-level <code>WorldSnapshot</code></strong> (<code>src/physics/types.ts</code>)
+          — <em>position, velocity, angle, angular velocity</em> per body.
+          Used inside <code>BaseSimulation.precompute</code> for batch yielding;
+          gets clobbered each batch. Not consumed by replay rendering directly.
+        </li>
+        <li>
+          <strong>JsonSimulation-level <code>Frame[]</code></strong>{' '}
+          (<code>frameCacheRef.current.frames</code>) — the actual replay storage.
+          Today its <code>FrameBodySnap</code> carries only{' '}
+          <code>{`{ id, x, y, angle }`}</code>. <strong>No velocity, no
+            acceleration, no forces.</strong> Whatever <code>handleUpdate</code>{' '}
+          last wrote to <code>body.userData</code> persists unchanged through
+          every replay frame.
+        </li>
+      </ul>
+      <p>
+        That bit us as soon as the vector-arrow refactor fixed{' '}
+        <code>F_net</code>'s gravity double-count (Phase 1b). The legacy formula
+        <code>m · (a_derived + g)</code> had been accidentally serving as a
+        replay safety net — the <code>+ g</code> term pulled gravity from{' '}
+        <code>drawCtx.gravity</code> (a direct world-level read, not userData), so
+        the arrow always rendered something during replay even when{' '}
+        <code>a_derived</code> was stale. With the correct{' '}
+        <code>F_net = m · a_derived</code>, that safety net is gone: derived
+        state must actually exist per replay frame.
+      </p>
+      <p>
+        The first-pass fix was "call <code>onUpdate</code> after replay snapshot
+        restore, run the finite-diff there." That doesn't work — the replay path
+        doesn't restore velocity to the body either, so the finite-diff would
+        compare two stale values. The real fix is architectural:
+      </p>
+      <p>
+        <strong>Phase 1c-rev:</strong> extend <code>FrameBodySnap</code> with the
+        kinematic fields (<code>vx, vy, omega, ax, ay, alpha</code>). Populate
+        them during precompute. Restore them to the body during replay. Vector
+        arrow source resolvers read from the body in any mode and see fresh state
+        — because either the engine just stepped it (live) or the replay loop
+        just restored it from the recorded Frame (replay). Same code path; the
+        body abstraction is mode-agnostic.
+      </p>
+      <p>
+        This generalizes. Every derived quantity a visual layer wants to display
+        — kinematic, dynamic (forces), momentum, energy — gets a place in a tiered
+        Frame schema, computed during precompute, restored during replay. The
+        Frame becomes the sealed deterministic artifact that drives all
+        visualization. Replay does no physics calculation, only geometric
+        transforms. The full design is in{' '}
+        <a href="/docs/recordings-and-cameras">7. Recordings &amp; cameras</a> —
+        same architectural shift, plus the recording-library and reference-frame
+        camera capabilities it unlocks.
+      </p>
+      <p>
+        <strong>Invariant for anything new the visual layer wants to display:</strong>{' '}
+        if it has to be visible in replay, it belongs in the Frame schema for the
+        relevant diorama tier. Putting it on <code>userData</code> alone — even
+        with a write inside the pre-<code>isReplay</code>-return block — is the
+        same bug class. Frames carry; userData doesn't.
       </p>
 
       <h2>Source files</h2>

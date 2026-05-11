@@ -16,14 +16,18 @@ import {
  * Phase 2 adds velocity + acceleration sources, Phase 3 adds the decomposed
  * force kinds once `JsonSimulation.onUpdate` writes their `userData` fields.
  *
- * For `force-net`, the source is the same as the legacy ForceArrow:
- *   F = m · (a_derived + g)
- * where a_derived is the finite-differenced acceleration written by
- * JsonSimulation each frame.
+ * For `force-net`, the source is Newton's 2nd Law:
+ *   F_net = m · a_derived
+ * where a_derived is the finite-differenced *total* acceleration written by
+ * JsonSimulation each frame. Because a_derived already includes the effect of
+ * gravity, no separate gravity term is added — adding one would double-count
+ * (legacy bug, fixed in Phase 1b). For a body at rest, F_net is zero and the
+ * arrow is suppressed; in free fall, F_net is the weight; with friction or
+ * drag balancing an applied force at terminal velocity, F_net is again zero.
  */
 function drawVectorArrow(drawCtx: DrawContext, visual: PixelVisual) {
   if (visual.type !== 'vector-arrow') return;
-  const { ctx, body, opacity, position, gravity } = drawCtx;
+  const { ctx, body, opacity, position } = drawCtx;
   if (!body) return;
 
   const { kind } = visual;
@@ -33,8 +37,8 @@ function drawVectorArrow(drawCtx: DrawContext, visual: PixelVisual) {
   let vy: number;
   if (kind === 'force-net') {
     const derived = (body.userData.derivedAcceleration as Vec2 | undefined) ?? { x: 0, y: 0 };
-    vx = body.mass * (derived.x + gravity.x);
-    vy = body.mass * (derived.y + gravity.y);
+    vx = body.mass * derived.x;
+    vy = body.mass * derived.y;
   } else {
     // Phase 2/3: source resolvers for the remaining kinds.
     return;

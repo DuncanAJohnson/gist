@@ -32,6 +32,11 @@ const diagrams = [
     title: '6. Vector arrows',
     blurb: 'Standardize the vector-arrow renderable across velocity, acceleration, and the force family. Theme module + 7 arrow kinds + 8 SVG test scenes pulled from /public/renderables.',
   },
+  {
+    to: '/docs/recordings-and-cameras',
+    title: '7. Recordings & cameras',
+    blurb: 'Rich precompute + lean replay → sealed sim artifacts (saved experimental runs, comparison library) and reference-frame cameras (relative motion, inclined-plane decomposition, Newton\'s 3rd Law contact pairs).',
+  },
 ];
 
 const docFiles = [

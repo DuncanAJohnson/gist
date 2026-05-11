@@ -1,0 +1,87 @@
+{
+  "title": "Bowling Ball and Feather Drop",
+  "description": "Both objects start in free fall: F_net equals each body's weight, m·g, pointing down. The bowling ball ignores air, so its arrow stays put all the way to the floor. The feather has high drag — as drag grows to balance gravity, its F_net arrow shrinks and vanishes the moment terminal velocity is reached. The disappearing arrow IS the lesson. Both arrows go to zero when the objects come to rest on the floor. Note: feather mass is dialed up to 1 kg so the arrow is visible at the default scale (per-arrow scale overrides land in Phase 2).",
+  "environment": {
+    "walls": ["bottom"],
+    "gravity": 9.8,
+    "unit": "m",
+    "pixelsPerUnit": 10,
+    "physicsEngine": "rapier"
+  },
+  "objects": [
+    {
+      "id": "bowling_ball",
+      "x": 25,
+      "y": 55,
+      "width": 1,
+      "height": 1,
+      "svg": "bowling_ball",
+      "mass": 5,
+      "restitution": 0.3,
+      "frictionAir": 0,
+      "showForceArrows": true
+    },
+    {
+      "id": "feather",
+      "x": 55,
+      "y": 55,
+      "width": 1,
+      "height": 0.4,
+      "svg": "feather",
+      "mass": 1,
+      "restitution": 0.1,
+      "frictionAir": 0.15,
+      "showForceArrows": true
+    }
+  ],
+  "controls": [
+    {
+      "type": "slider",
+      "label": "Bowling Ball Initial Velocity",
+      "targetObj": "bowling_ball",
+      "property": "velocity.y",
+      "min": -10,
+      "max": 10,
+      "step": 0.5,
+      "defaultValue": 0
+    }
+  ],
+  "outputs": [
+    {
+      "title": "Bowling Ball",
+      "values": [
+        { "label": "Velocity Y", "targetObj": "bowling_ball", "property": "velocity.y", "unit": "m/s" },
+        { "label": "Acceleration Y", "targetObj": "bowling_ball", "property": "acceleration.y", "unit": "m/s²" }
+      ]
+    },
+    {
+      "title": "Feather",
+      "values": [
+        { "label": "Velocity Y", "targetObj": "feather", "property": "velocity.y", "unit": "m/s" },
+        { "label": "Acceleration Y", "targetObj": "feather", "property": "acceleration.y", "unit": "m/s²" }
+      ]
+    }
+  ],
+  "graphs": [
+    {
+      "type": "line",
+      "title": "Velocity Over Time",
+      "yAxisRange": { "min": -35, "max": 5 },
+      "yAxisLabel": "Velocity Y (m/s)",
+      "lines": [
+        { "label": "Bowling Ball", "targetObj": "bowling_ball", "property": "velocity.y", "color": "#34495e" },
+        { "label": "Feather", "targetObj": "feather", "property": "velocity.y", "color": "#2ecc71" }
+      ]
+    },
+    {
+      "type": "line",
+      "title": "Acceleration Over Time",
+      "yAxisRange": { "min": -12, "max": 2 },
+      "yAxisLabel": "Acceleration Y (m/s²)",
+      "lines": [
+        { "label": "Bowling Ball", "targetObj": "bowling_ball", "property": "acceleration.y", "color": "#34495e" },
+        { "label": "Feather", "targetObj": "feather", "property": "acceleration.y", "color": "#2ecc71" }
+      ]
+    }
+  ]
+}

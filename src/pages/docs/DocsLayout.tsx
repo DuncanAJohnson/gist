@@ -9,6 +9,7 @@ const sections = [
   { to: '/docs/llm-pipeline', label: '4. LLM pipeline' },
   { to: '/docs/refactor-roadmap', label: '5. Refactor roadmap' },
   { to: '/docs/vector-arrows', label: '6. Vector arrows' },
+  { to: '/docs/recordings-and-cameras', label: '7. Recordings & cameras' },
 ];
 
 interface DocsLayoutProps {

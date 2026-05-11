@@ -17,6 +17,7 @@ const RuntimeLoop = lazy(() => import('./pages/docs/RuntimeLoop'))
 const LLMPipeline = lazy(() => import('./pages/docs/LLMPipeline'))
 const RefactorRoadmap = lazy(() => import('./pages/docs/RefactorRoadmap'))
 const VectorArrows = lazy(() => import('./pages/docs/VectorArrows'))
+const RecordingsAndCameras = lazy(() => import('./pages/docs/RecordingsAndCameras'))
 
 function DocsFallback() {
   return (
@@ -64,6 +65,10 @@ function AppContent() {
         <Route
           path="/docs/vector-arrows"
           element={<Suspense fallback={<DocsFallback />}><VectorArrows /></Suspense>}
+        />
+        <Route
+          path="/docs/recordings-and-cameras"
+          element={<Suspense fallback={<DocsFallback />}><RecordingsAndCameras /></Suspense>}
         />
       </Routes>
     </>

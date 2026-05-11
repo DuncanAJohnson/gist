@@ -424,16 +424,51 @@ flowchart TB
 
 const phaseChart = `
 flowchart LR
-  P1["Phase 1: theme + rename<br/>(no behavior change;<br/>force-net keeps drawing)"]
-  P2["Phase 2: velocity + acceleration<br/>(free-fall + projectile dioramas)"]
-  P3["Phase 3: applied / friction / drag<br/>(coordinates with applied-forces)"]
-  P4["Phase 4: legend overlay<br/>+ diorama presets"]
-  P5["Phase 5: auto-scale calibration<br/>(optional)"]
-  P1 --> P2 --> P3 --> P4 --> P5
+  P1A["Phase 1a:<br/>rename + kind field<br/>+ theme module<br/><b>SHIPPED</b>"]
+  P1B["Phase 1b:<br/>drop gravity<br/>double-count in F_net<br/><b>SHIPPED</b>"]
+  P1C["Phase 1c-rev:<br/>store kinematics<br/>in Frame schema<br/><b>PROPOSED</b>"]
+  P2["Phase 2:<br/>velocity + acceleration<br/>(free-fall, projectile)"]
+  P3["Phase 3:<br/>applied / friction /<br/>drag / gravity kinds"]
+  P4["Phase 4:<br/>legend overlay<br/>+ diorama presets"]
+  P5["Phase 5:<br/>auto-scale<br/>calibration (opt.)"]
+  P1A --> P1B --> P1C --> P2 --> P3 --> P4 --> P5
 
   classDef done fill:#dcfce7,stroke:#16a34a,color:#166534;
+  classDef proposed fill:#fef3c7,stroke:#d97706,color:#92400e;
   classDef pending fill:#dbeafe,stroke:#2563eb,color:#1e40af;
-  class P1,P2,P3,P4,P5 pending;
+  class P1A,P1B done;
+  class P1C proposed;
+  class P2,P3,P4,P5 pending;
+`;
+
+const precomputeReplayChart = `
+flowchart TB
+  PLAY["User: press play"] --> PRESTART["Mode → precomputing"]
+
+  subgraph PRE["Precompute phase (hidden, runs in batches via rAF yields)"]
+    direction TB
+    PRESTART --> P1["handleUpdate(t)"]
+    P1 -->|"computes #40;v − v_prev#41; / dt"| P1W["frame.bodies#91;i#93; ←<br/>#123;x, y, angle,<br/>vx, vy, omega,<br/>ax, ay, alpha#125;"]
+    P1W --> P2["adapter.step(FIXED_DT)"]
+    P2 --> P3["frames#91;#93;.push#40;frame#41;<br/>(no userData;<br/>frame IS the truth)"]
+    P3 -->|next frame| P1
+  end
+
+  PRE -->|all frames done| FLIP["Mode → replay"]
+  FLIP --> REP
+
+  subgraph REP["Replay phase (visible, real-time, one rAF per frame)"]
+    direction TB
+    R1["read frames#91;idx#93;"]
+    R1 --> R2["write to body:<br/>position, angle,<br/>velocity, omega<br/>+ userData.derivedAccel<br/>(no compute; just restore)"]
+    R2 --> DRAW["VectorArrow source resolver<br/>reads body — same code<br/>as if physics were live"]
+    DRAW -->|next rAF| R1
+  end
+
+  classDef fix fill:#dcfce7,stroke:#16a34a,color:#166534;
+  classDef neutral fill:#fef3c7,stroke:#d97706,color:#92400e;
+  class P1W,R2 fix;
+  class P1,DRAW neutral;
 `;
 
 // ============================================================================
@@ -489,7 +524,7 @@ function VectorArrows() {
               [
                 ['velocity', '20 px per (m/s)', 'body.velocity'],
                 ['acceleration', '10 px per (m/s²)', 'userData.derivedAcceleration'],
-                ['force-net', '2 px per N', 'm · (a + g)'],
+                ['force-net', '2 px per N', 'm · a_derived'],
                 ['force-applied', '2 px per N', 'userData.appliedForce'],
                 ['force-friction', '2 px per N', 'userData.frictionForce (analytical)'],
                 ['force-drag', '2 px per N', 'userData.dragForce'],
@@ -652,18 +687,254 @@ function VectorArrows() {
         <code>showVectors: ["force-net"]</code> for one release, then is dropped.
       </p>
 
+      <h2>Runtime modes &amp; what they mean for vector arrows</h2>
+      <p>
+        See <a href="/docs/runtime-loop">3. Runtime loop</a> for the general picture of
+        BaseSimulation's three modes (<em>live</em>, <em>precomputing</em>,{' '}
+        <em>replay</em>). The piece that matters specifically for vector arrows is{' '}
+        <strong>where each kind gets its numbers</strong> — because that question
+        was being answered badly. Two bugs surfaced in close succession (Phase 1b
+        and the discovery that became Phase 1c-rev), and the cleanest fix isn't a
+        patch but an architectural reframe: <strong>derived physics belongs in the
+        Frame, not in <code>userData</code></strong>.
+      </p>
+
+      <h3>The architectural shift</h3>
+      <p>
+        Pre-1c, the data pipeline split state into two stores:
+      </p>
+      <ul>
+        <li>
+          <strong>Direct state</strong> — values living on the physics body or
+          world: <code>body.velocity</code>, <code>body.position</code>,{' '}
+          <code>body.angle</code>, <code>body.mass</code>, world{' '}
+          <code>gravity</code>. These rode in <code>WorldSnapshot</code> and were
+          written back into the body by <code>adapter.restore()</code> at every
+          replay frame. Always current.
+        </li>
+        <li>
+          <strong>Derived state</strong> — values written by{' '}
+          <code>JsonSimulation.handleUpdate</code> to <code>body.userData</code>:{' '}
+          <code>userData.derivedAcceleration</code> and (future) per-force vectors.
+          These were <em>not</em> in the snapshot. During replay,{' '}
+          <code>handleUpdate</code> early-returned, so userData froze at its
+          end-of-precompute value. The F<sub>net</sub> arrow vanished during the
+          visible replay because the value backing it was stale.
+        </li>
+      </ul>
+      <p>
+        Phase 1c-rev erases the split. Every quantity a vector arrow needs to
+        display — kinematic (velocity, acceleration) and dynamic (force vectors,
+        contact data) — is computed during precompute and stored in the per-frame
+        recording. <strong>Replay does no physics calculation</strong>; it reads
+        the frame and writes its contents back to the body. Vector arrow source
+        resolvers don't know or care whether they're seeing live physics or
+        replayed data — they always read from the body, and the body always has
+        fresh state because either the engine just stepped it (live) or the
+        replay loop just restored it from a frame (replay).
+      </p>
+      <p>
+        This is the architectural pattern formalized in{' '}
+        <a href="/docs/recordings-and-cameras">7. Recordings &amp; cameras</a>:
+        rich precompute, lean replay. The per-frame schema becomes "everything you
+        could possibly want to visualize," tiered by diorama type (kinematics,
+        dynamics, momentum). Recordings become sealed artifacts that can be saved,
+        shared, scrubbed, and compared — none of which requires the physics engine
+        to run again.
+      </p>
+
+      <h3>The data flow across precompute → replay</h3>
+      <MermaidDiagram
+        chart={precomputeReplayChart}
+        caption="Pre-1c, derived state was on userData and got clobbered each replay frame. Post-1c-rev, derived state IS the Frame: handleUpdate writes it during precompute, the replay loop writes it back to the body during replay, and vector resolvers read from the body unchanged. Same data path, mode-agnostic."
+      />
+
+      <h3>Per-kind dependency</h3>
+      <p>
+        With Phase 1c-rev, every kind reads from the body. The architectural
+        question is just <em>what gets recorded in the Frame so the body has the
+          right state during replay</em>. Tiers grow as needed:
+      </p>
+      <div className="not-prose overflow-x-auto">
+        <table className="min-w-full text-sm border-collapse border border-gray-200 rounded">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-3 py-2 text-left border border-gray-200">Kind</th>
+              <th className="px-3 py-2 text-left border border-gray-200">Source on body</th>
+              <th className="px-3 py-2 text-left border border-gray-200">Recorded in Frame?</th>
+              <th className="px-3 py-2 text-left border border-gray-200">Tier</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="px-3 py-2 border border-gray-200 font-mono text-xs">velocity</td>
+              <td className="px-3 py-2 border border-gray-200"><code>body.velocity</code></td>
+              <td className="px-3 py-2 border border-gray-200">Yes (new in 1c-rev: vx, vy, omega)</td>
+              <td className="px-3 py-2 border border-gray-200">Kinematics</td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 border border-gray-200 font-mono text-xs">acceleration</td>
+              <td className="px-3 py-2 border border-gray-200"><code>userData.derivedAcceleration</code></td>
+              <td className="px-3 py-2 border border-gray-200">Yes (new: ax, ay, alpha)</td>
+              <td className="px-3 py-2 border border-gray-200">Kinematics</td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 border border-gray-200 font-mono text-xs">force-net</td>
+              <td className="px-3 py-2 border border-gray-200"><code>m · userData.derivedAcceleration</code></td>
+              <td className="px-3 py-2 border border-gray-200">Derived at render from acceleration</td>
+              <td className="px-3 py-2 border border-gray-200">Kinematics</td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 border border-gray-200 font-mono text-xs">force-applied</td>
+              <td className="px-3 py-2 border border-gray-200"><code>userData.appliedForce</code></td>
+              <td className="px-3 py-2 border border-gray-200">Yes (Phase 3, dynamics tier)</td>
+              <td className="px-3 py-2 border border-gray-200">Dynamics</td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 border border-gray-200 font-mono text-xs">force-friction</td>
+              <td className="px-3 py-2 border border-gray-200"><code>userData.frictionForce</code></td>
+              <td className="px-3 py-2 border border-gray-200">Yes (Phase 3, dynamics tier)</td>
+              <td className="px-3 py-2 border border-gray-200">Dynamics</td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 border border-gray-200 font-mono text-xs">force-drag</td>
+              <td className="px-3 py-2 border border-gray-200"><code>userData.dragForce</code></td>
+              <td className="px-3 py-2 border border-gray-200">Yes (Phase 3, dynamics tier)</td>
+              <td className="px-3 py-2 border border-gray-200">Dynamics</td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 border border-gray-200 font-mono text-xs">force-gravity</td>
+              <td className="px-3 py-2 border border-gray-200"><code>m · drawCtx.gravity</code></td>
+              <td className="px-3 py-2 border border-gray-200">No — derived inline from world gravity</td>
+              <td className="px-3 py-2 border border-gray-200">All</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>How Phase 1b's fix exposed Phase 1c's bug</h3>
+      <p>
+        The legacy <code>ForceArrow</code> computed{' '}
+        <code>F = m · (a_derived + g)</code>. That <code>+ g</code> term was quietly
+        playing two roles:
+      </p>
+      <ol>
+        <li>
+          <strong>Pedagogically wrong, but visually convenient.</strong> It baked
+          gravity into the visual so even when <code>derivedAcceleration</code>{' '}
+          was zero (resting body, terminal velocity, any equilibrium), the arrow
+          still showed the body's <em>weight</em> rather than nothing. That's not
+          Newton's-2nd-Law net force — it's "the arrow that's never zero" — but it
+          kept something on screen.
+        </li>
+        <li>
+          <strong>Accidental replay safety net.</strong> Because{' '}
+          <code>g</code> is read from <code>drawCtx.gravity</code> (a direct,
+          world-level read, not userData), even when{' '}
+          <code>derivedAcceleration</code> went stale during replay, the arrow
+          still rendered as roughly <code>m·g</code>. Wrong physics, but visibly{' '}
+          <em>something</em>. The stale-userData bug never surfaced because the
+          gravity term was always doing the work.
+        </li>
+      </ol>
+      <p>
+        Phase 1b fixed (1): the visual now computes{' '}
+        <code>F_net = m · a_derived</code> honestly. That immediately made (2)
+        visible — and you spotted it within minutes of running the
+        bowling-ball-and-feather sim. Two bugs for the price of one fix, and the
+        second bug's correct fix is the architectural reframe above.
+      </p>
+
+      <h3>Phase 1c-rev — store kinematics in the Frame</h3>
+      <p>Three edits restore correctness <em>and</em> set the architectural
+        precedent for everything downstream:</p>
+      <ul>
+        <li>
+          <strong>Extend <code>FrameBodySnap</code></strong> to include kinematic
+          state: <code>vx</code>, <code>vy</code>, <code>omega</code>,{' '}
+          <code>ax</code>, <code>ay</code>, <code>alpha</code>. Roughly doubles the
+          per-body bytes (still trivial in absolute terms — see{' '}
+          <a href="/docs/recordings-and-cameras">recordings doc</a> for sizing).
+        </li>
+        <li>
+          <strong>Precompute recording path</strong> (in JsonSimulation, after each
+          frame's <code>adapter.step()</code>) captures these fields from{' '}
+          <code>body.velocity</code> / <code>angularVelocity</code> and{' '}
+          <code>userData.derivedAcceleration</code> at frame-capture time. No new
+          computation — just include them in the recorded Frame.
+        </li>
+        <li>
+          <strong>Replay restoration path</strong> (<code>handleReplayFrame</code>)
+          writes those fields back to <code>body.velocity</code>,{' '}
+          <code>body.angularVelocity</code>, and{' '}
+          <code>body.userData.derivedAcceleration</code>. Vector arrow source
+          resolvers see the same body interface in any mode.
+        </li>
+      </ul>
+      <p>
+        Result: every replay frame has correct kinematic state. F<sub>net</sub>{' '}
+        renders correctly throughout the replay — weight-magnitude during free
+        fall, zero at rest and at terminal velocity, net-of-friction during sliding.
+        Seek to any frame index works without finite-diff acrobatics — the data is
+        in the frame, no derivation needed.
+      </p>
+
+      <h3>Implications for future kinds</h3>
+      <p>
+        Phase 3's <code>force-applied</code>, <code>force-friction</code>, and{' '}
+        <code>force-drag</code> follow the same pattern: their source vectors are
+        computed during precompute (engine-read where possible, analytical where
+        not) and stored in the dynamics-tier Frame schema. The vector resolver
+        reads from the body during render; the body has fresh state because
+        replay just restored it from the frame. <strong>No mode-aware code in the
+          visual layer. No userData write-during-replay invariant to remember.</strong>
+      </p>
+      <p>
+        <strong>The invariant for new derived kinds is now structural, not
+          behavioral:</strong> if a value must be visible in replay, it goes in the
+        Frame schema for that diorama tier. Period. Putting it on userData without
+        also recording it in the Frame is the same bug class as Phase 1c, and the
+        symptom is the same — works in precompute, vanishes in replay. The Frame
+        schema makes "what gets seen" a compile-time question, not a runtime hope.
+      </p>
+
       <h2>Phasing</h2>
       <MermaidDiagram
         chart={phaseChart}
-        caption="Five phases. Phase 1 is a pure refactor (no rendered output changes). Phase 2 unlocks the free-fall and projectile dioramas. Phase 3 lights up Newton's 2nd Law and tug-of-war once applied-forces lands the userData fields."
+        caption="Phase 1 split into three sub-phases as bugs surfaced during testing: 1a renames + adds the kind field; 1b fixes the gravity double-count in F_net; 1c proposes the replay-aware handleUpdate that keeps derived state fresh during replay. 2+ are the original phases unchanged."
       />
       <ul>
         <li>
-          <strong>Phase 1 — theme + rename.</strong> Create{' '}
-          <code>vectorTheme.ts</code>. Rename <code>ForceArrowVisual</code> →{' '}
+          <strong>Phase 1a — theme module + rename + kind field. <em>SHIPPED.</em></strong>{' '}
+          Created <code>vectorTheme.ts</code>. Renamed <code>ForceArrowVisual</code> →{' '}
           <code>VectorArrowVisual</code> with a <code>kind</code> field. Default kind ={' '}
-          <code>force-net</code>. Existing sims with <code>showForceArrows: true</code> render
-          identically (now with an <code>F_net</code> label).
+          <code>force-net</code>. Visual type string <code>'force-arrow'</code> →{' '}
+          <code>'vector-arrow'</code>. Existing sims with <code>showForceArrows: true</code>{' '}
+          continued rendering identically (now with an F<sub>net</sub> label).
+        </li>
+        <li>
+          <strong>Phase 1b — drop the gravity double-count in <code>F_net</code>.{' '}
+          <em>SHIPPED.</em></strong> The legacy formula{' '}
+          <code>m · (a_derived + g)</code> was wrong: <code>a_derived</code> is the body's
+          total acceleration (including gravity), so adding <code>g</code> separately
+          double-counted. New formula: <code>F_net = m · a_derived</code>. Resting bodies
+          show no arrow, falling bodies show their weight (half the legacy doubled
+          length), terminal velocity shows no arrow.
+        </li>
+        <li>
+          <strong>Phase 1c-rev — store kinematics in the Frame schema.{' '}
+            <em>PROPOSED.</em></strong> Discovered immediately after 1b shipped: F<sub>net</sub>{' '}
+          arrows blink during precompute and vanish during the visible replay. Initial
+          diagnosis was "call <code>handleUpdate</code> during replay too"; deeper
+          investigation found that the replay frame schema only carries position +
+          angle — no velocity, no acceleration — so even firing{' '}
+          <code>handleUpdate</code> would finite-diff against stale values. The
+          architecturally correct fix is to extend <code>FrameBodySnap</code> with{' '}
+          <code>vx, vy, omega, ax, ay, alpha</code>, populate them during precompute,
+          and restore them during replay. Sets the precedent that derived data lives
+          in the Frame, not on userData — see{' '}
+          <a href="/docs/recordings-and-cameras">recordings doc</a> for the broader
+          architecture this fix establishes.
         </li>
         <li>
           <strong>Phase 2 — velocity + acceleration kinds.</strong> Source resolver reads{' '}
@@ -727,13 +998,27 @@ function VectorArrows() {
       <ul>
         <li>
           <strong>Net-force computation on inclines.</strong> The current{' '}
-          <code>force-net</code> source uses <code>m · (a_derived + g)</code> — back-derived
-          from velocity samples — which is correct on any geometry. The decomposed forces
-          (applied / friction / gravity) sum to the same net <em>only on flat ground</em>{' '}
-          unless the analytical decomposition is ramp-aware (see the applied-forces doc's
-          "ramp-aware analytical" question). Worth showing both <code>force-net</code> and the
-          decomposed sum side-by-side on the static-friction ramp diorama to make the
-          difference visible to students — or to flag a bug.
+          <code>force-net</code> source uses <code>m · a_derived</code> — Newton's 2nd Law
+          applied to the body's finite-differenced total acceleration — which is correct on
+          any geometry. The decomposed forces (applied / friction / gravity) sum to the same
+          net <em>only on flat ground</em> unless the analytical decomposition is ramp-aware
+          (see the applied-forces doc's "ramp-aware analytical" question). Worth showing both{' '}
+          <code>force-net</code> and the decomposed sum side-by-side on the static-friction
+          ramp diorama to make the difference visible to students — or to flag a bug.
+        </li>
+        <li>
+          <strong>Phase 1b + 1c-rev: legacy-formula correction and the architectural reframe
+            it forced.</strong> The pre-refactor <code>ForceArrow</code> computed{' '}
+          <code>m · (a_derived + g)</code>, which silently double-counted gravity. Phase 1b
+          dropped the extra <code>+ g</code> — visible consequence: a body at rest now shows
+          no F<sub>net</sub> arrow, free fall is <code>m·g</code> (half the legacy length),
+          terminal velocity is no arrow. That fix unmasked a deeper issue: the replay frame
+          schema only carried position + angle (no velocity, no acceleration), so even if
+          replay re-ran the finite-diff it would do so on stale values. Phase 1c-rev moves
+          derived physics into the Frame schema itself — see the "Runtime modes" section and{' '}
+          <a href="/docs/recordings-and-cameras">7. Recordings &amp; cameras</a> for the
+          architecture. Any saved sims that were visually tuned against the old (doubled)
+          arrow lengths will look different.
         </li>
         <li>
           <strong>Acceleration arrow noise.</strong> <code>derivedAcceleration</code> is
