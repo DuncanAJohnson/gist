@@ -57,6 +57,27 @@
             "rapier",
             "planck"
           ]
+        },
+        "airResistance": {
+          "description": "Optional air-resistance configuration. When omitted or .enabled = false, no per-frame drag is applied; bodies may still feel the legacy frictionAir as constant damping. When .enabled = true, quadratic mass-dependent drag is computed per body each frame from its dragCoefficient · referenceArea and the environment's airDensity.",
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "description": "When true, dynamic objects experience quadratic, mass-dependent drag: F_drag = ½·ρ·Cd·A·|v|·v. Each body uses its dragCoefficient and referenceArea (or shape-based defaults). When false (or omitted), no air-resistance compute runs; bodies may still carry the legacy frictionAir damping. Default: false.",
+              "default": false,
+              "type": "boolean"
+            },
+            "airDensity": {
+              "description": "Air density ρ in kg/m³. Default: 1.225 (Earth at sea level). Use 0 for vacuum, ~0.020 for Mars surface, ~67 for Venus surface, ~1.977 for cold/dense air. Applies uniformly to every body subject to drag.",
+              "default": 1.225,
+              "type": "number"
+            }
+          },
+          "required": [
+            "enabled",
+            "airDensity"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
@@ -143,11 +164,19 @@
             "type": "number"
           },
           "frictionAir": {
-            "description": "Air resistance (0-1). 0 = no drag, 0.01-0.05 = light damping, 0.1 = high drag. Default: 0",
+            "description": "Legacy constant linear damping (0-1). Applied once at body creation. When `environment.airResistance.enabled` is true, the per-frame quadratic drag model takes precedence and frictionAir is ignored (with a console warning if both are set). Will be deprecated once the air-resistance system is the canonical model. Default: 0",
             "type": "number"
           },
           "friction": {
             "description": "Surface friction (0-1). Affects sliding against other objects. Default: 0.1",
+            "type": "number"
+          },
+          "dragCoefficient": {
+            "description": "Dimensionless drag coefficient (Cd) for the per-frame quadratic air-resistance model. Examples: 0.47 (sphere), 1.05 (cube broadside), 1.28 (flat plate), 1.5 (parachute / feather, high-drag). Set to 0 to opt this body out of air resistance entirely. Defaults to a shape-based value (sphere=0.47, rectangle=1.05, polygon=1.0). Active only when environment.airResistance.enabled is true.",
+            "type": "number"
+          },
+          "referenceArea": {
+            "description": "Drag reference area in m² for the per-frame quadratic air-resistance model. Defaults to the body's widest horizontal extent (treating the 2D world as a 1m-deep slice) — a stand-in for projected area perpendicular to vertical motion, the dominant case in secondary-curriculum drag problems. Override explicitly when the body travels horizontally (set to vertical extent instead) or when the body's shape implies a non-default frontal area. See the in-app \"Design philosophy\" doc for the linear-A scoping rationale.",
             "type": "number"
           },
           "inertia": {
