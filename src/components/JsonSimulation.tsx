@@ -56,6 +56,10 @@ interface SimulationConfig {
     unit?: UnitType;
     pixelsPerUnit?: number;
     physicsEngine?: 'rapier' | 'planck';
+    airResistance?: {
+      enabled?: boolean;
+      airDensity?: number;
+    };
   };
   objects?: Array<ObjectConfig>;
   controls?: Array<ControlConfig>;
@@ -97,6 +101,11 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     setSelectedObjectId(null);
     setHasUnsavedChanges(false);
     setSimIsDirty(false);
+    // Air-resistance mode is JSON-authoritative per sim: navigating to a new
+    // sim resets the toggle to whatever the new sim's environment declares.
+    // Within a single sim, the user's debug-panel override persists until
+    // they navigate away or reset.
+    setAirResistanceMode(config.environment.airResistance?.enabled ? 'quadratic' : 'off');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [simulationId]);
 
@@ -248,17 +257,53 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   // Planck-only second knob; Rapier ignores it. 3 matches Planck's default.
   const [positionIterations, setPositionIterations] = useState<number>(3);
 
-  // Phase-1 air-resistance debug toggle. 'off' leaves the engine's create-time
-  // damping in place; 'quadratic' drives `setLinearDamping((k/m)·|v|)` per
-  // frame to mimic mass-dependent quadratic drag. See
-  // Notes_on_Air_Resistance_Refactor.md for the model and the open
-  // questions around schema-side wiring (Phase 2).
+  // Air-resistance debug toggle. 'off' leaves the engine's create-time damping
+  // in place (frictionAir); 'quadratic' drives `setLinearDamping((k/m)·|v|)`
+  // per frame to mimic mass-dependent quadratic drag, where
+  // k = ½·airDensity·(Cd·A) per body. Seeded from environment.airResistance
+  // at config load; user can override via the debug panel for A/B testing.
+  // See Notes_on_Air_Resistance_Refactor.md "Design rationale" for the
+  // diorama-scoped linear-A formulation.
   type AirResistanceMode = 'off' | 'quadratic';
-  const [airResistanceMode, setAirResistanceMode] = useState<AirResistanceMode>('off');
+  const [airResistanceMode, setAirResistanceMode] = useState<AirResistanceMode>(
+    () => (environment.airResistance?.enabled ? 'quadratic' : 'off'),
+  );
   // Ref so handleUpdate (useCallback) reads the current mode without rebinding
   // on every toggle — same pattern as isRunningRef.
-  const airResistanceModeRef = useRef<AirResistanceMode>('off');
+  const airResistanceModeRef = useRef<AirResistanceMode>(airResistanceMode);
   useEffect(() => { airResistanceModeRef.current = airResistanceMode; }, [airResistanceMode]);
+
+  // Air density (kg/m³) for the per-frame compute. Default Earth sea level.
+  // Held as a ref so handleUpdate doesn't rebind when the JSON's density
+  // changes (rare, but future-proof).
+  const airDensityRef = useRef<number>(environment.airResistance?.airDensity ?? 1.225);
+  useEffect(() => {
+    airDensityRef.current = environment.airResistance?.airDensity ?? 1.225;
+  }, [environment.airResistance?.airDensity]);
+
+  // Conflict warning: frictionAir is silently ignored when air resistance is
+  // enabled — the per-frame compute writes setLinearDamping((k/m)·|v|), which
+  // clobbers the create-time frictionAir-driven damping for any body with
+  // non-zero dragCdA (i.e., any body that hasn't explicitly opted out via
+  // dragCoefficient: 0). This warning fires regardless of whether the body
+  // has explicit dragCoefficient/referenceArea overrides, because the default
+  // shape-based dragCdA is enough to cause the silent override. Saves a
+  // confusing-physics debug session later.
+  useEffect(() => {
+    if (!environment.airResistance?.enabled) return;
+    const conflicts = objects.filter((o) => (o.frictionAir ?? 0) > 0);
+    if (conflicts.length > 0) {
+      console.warn(
+        `[air-resistance] ${conflicts.length} object(s) have frictionAir > 0 with ` +
+        `environment.airResistance.enabled = true. frictionAir is the legacy damping ` +
+        `model and is IGNORED whenever the per-frame quadratic drag model runs (which ` +
+        `is whenever a body has dragCdA > 0 — i.e., any body that hasn't set ` +
+        `dragCoefficient: 0 to opt out). Set dragCoefficient and/or referenceArea to ` +
+        `tune drag, or set dragCoefficient: 0 to opt out entirely. ` +
+        `IDs: ${conflicts.map((o) => o.id).join(', ')}`,
+      );
+    }
+  }, [environment.airResistance?.enabled, objects]);
 
   const [maxDuration, setMaxDuration] = useState<number>(10);
 
@@ -422,25 +467,45 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           body.velocity.y = body.velocity.y + cfgAccel.y * deltaTime;
         }
 
-        // Phase-1 air-resistance debug toggle. We approximate quadratic,
-        // mass-dependent drag (a = -(k/m)·|v|·v) by writing a per-frame
-        // linearDamping value of (k/m)·|v|, which the engine then applies
-        // through its substep-correct, unconditionally-stable damping
-        // integrator (v / (1 + damping·dt)). |v| is held constant within a
-        // frame's substeps — fine for educational sims at 60 Hz. When 'off',
-        // restore the body's original frictionAir so flipping the toggle
-        // off doesn't strand it in its last computed damping value.
+        // Air-resistance compute. We approximate quadratic, mass-dependent
+        // drag (a = -(k/m)·|v|·v) by writing a per-frame linearDamping value
+        // of (k/m)·|v|, which the engine then applies through its
+        // substep-correct, unconditionally-stable damping integrator
+        // (v / (1 + damping·dt)). |v| is held constant within a frame's
+        // substeps — fine for educational sims at 60 Hz.
+        //
+        // k = ½ · airDensity · dragCdA, with dragCdA = Cd · A stored on the
+        // body at create time by ObjectRenderer. Factoring density apart
+        // lets it vary at runtime (Mars sim, vacuum sim, etc.) without
+        // recomputing per-body coefficients.
+        //
+        // Also writes userData.dragForce = -k·|v|·v for the vector-arrow
+        // refactor's `force-drag` kind (read at render time; populates
+        // automatically when this loop runs).
+        //
+        // When mode = 'off', restore the body's original frictionAir so
+        // flipping active → inactive doesn't strand it in its last computed
+        // damping value.
         if (!body.isStatic) {
           if (airMode === 'quadratic') {
-            const k = (body.userData.dragK as number | undefined) ?? 0;
+            const dragCdA = (body.userData.dragCdA as number | undefined) ?? 0;
             const m = body.mass;
-            if (k > 0 && m > 0) {
+            if (dragCdA > 0 && m > 0) {
               const speed = Math.hypot(body.velocity.x, body.velocity.y);
+              const k = 0.5 * airDensityRef.current * dragCdA;
               body.setLinearDamping((k / m) * speed);
+              // F_drag = -k·|v|·v, written for downstream vector-arrow rendering.
+              body.userData.dragForce = {
+                x: -k * speed * body.velocity.x,
+                y: -k * speed * body.velocity.y,
+              };
+            } else {
+              body.userData.dragForce = { x: 0, y: 0 };
             }
           } else {
             const original = (body.userData.originalFrictionAir as number | undefined) ?? 0;
             body.setLinearDamping(original);
+            body.userData.dragForce = { x: 0, y: 0 };
           }
         }
 

@@ -43,8 +43,10 @@ export const ObjectConfigSchema = z.object({
   velocity: Vector2DSchema.optional().describe('Initial linear velocity {x, y} in units/second. Positive Y = upward motion. Typical range: -30 to 30 m/s.'),
   acceleration: Vector2DSchema.optional().describe('Initial linear acceleration {x, y} in units/s². Usually not set directly; gravity provides Y acceleration.'),
   restitution: z.number().optional().describe('Bounciness (0-1). 0 = no bounce, 1 = perfect bounce, 0.8 = realistic. Default: 0.8'),
-  frictionAir: z.number().optional().describe('Air resistance (0-1). 0 = no drag, 0.01-0.05 = light damping, 0.1 = high drag. Default: 0'),
+  frictionAir: z.number().optional().describe('Legacy constant linear damping (0-1). Applied once at body creation. When `environment.airResistance.enabled` is true, the per-frame quadratic drag model takes precedence and frictionAir is ignored (with a console warning if both are set). Will be deprecated once the air-resistance system is the canonical model. Default: 0'),
   friction: z.number().optional().describe('Surface friction (0-1). Affects sliding against other objects. Default: 0.1'),
+  dragCoefficient: z.number().optional().describe('Dimensionless drag coefficient (Cd) for the per-frame quadratic air-resistance model. Examples: 0.47 (sphere), 1.05 (cube broadside), 1.28 (flat plate), 1.5 (parachute / feather, high-drag). Set to 0 to opt this body out of air resistance entirely. Defaults to a shape-based value (sphere=0.47, rectangle=1.05, polygon=1.0). Active only when environment.airResistance.enabled is true.'),
+  referenceArea: z.number().optional().describe('Drag reference area in m² for the per-frame quadratic air-resistance model. Defaults to the body\'s widest horizontal extent (treating the 2D world as a 1m-deep slice) — a stand-in for projected area perpendicular to vertical motion, the dominant case in secondary-curriculum drag problems. Override explicitly when the body travels horizontally (set to vertical extent instead) or when the body\'s shape implies a non-default frontal area. See the in-app "Design philosophy" doc for the linear-A scoping rationale.'),
   inertia: z.number().optional().describe('inertia is the second moment of area in two dimensions, affects rotation. Set to 1e10 for to prevent body rotation. Default: 0'),
   isStatic: z.boolean().optional().describe('If true, object is immovable (good for floors, walls, platforms). Default: false'),
   mass: z.number().optional().describe('Mass of the object in kg. Default: 1'),
@@ -137,6 +139,15 @@ export type LineGraphConfig = z.infer<typeof LineGraphConfigSchema>;
 export type GraphConfig = z.infer<typeof GraphConfigSchema>;
 
 // ============================================
+// Air Resistance Config Schema
+// ============================================
+
+export const AirResistanceConfigSchema = z.object({
+  enabled: z.boolean().optional().default(false).describe('When true, dynamic objects experience quadratic, mass-dependent drag: F_drag = ½·ρ·Cd·A·|v|·v. Each body uses its dragCoefficient and referenceArea (or shape-based defaults). When false (or omitted), no air-resistance compute runs; bodies may still carry the legacy frictionAir damping. Default: false.'),
+  airDensity: z.number().optional().default(1.225).describe('Air density ρ in kg/m³. Default: 1.225 (Earth at sea level). Use 0 for vacuum, ~0.020 for Mars surface, ~67 for Venus surface, ~1.977 for cold/dense air. Applies uniformly to every body subject to drag.'),
+}).describe('Air-resistance settings, applied uniformly across the environment when enabled. Per-object drag intensity is set via the object\'s dragCoefficient and referenceArea (or their shape-based defaults). See the in-app "Design philosophy" doc for the diorama-scoped design rationale.');
+
+// ============================================
 // Environment Config Schema
 // ============================================
 
@@ -151,7 +162,10 @@ export const EnvironmentConfigSchema = z.object({
     (v) => (v === 'matter' ? 'rapier' : v),
     z.enum(['rapier', 'planck']).optional().default('rapier'),
   ).describe('Which physics engine powers the simulation. "rapier" uses Rapier (WASM, SI-native, deterministic, default). "planck" uses Planck.js (pure JS port of Box2D, SI-native). Existing configs without this field use rapier.'),
+  airResistance: AirResistanceConfigSchema.optional().describe('Optional air-resistance configuration. When omitted or .enabled = false, no per-frame drag is applied; bodies may still feel the legacy frictionAir as constant damping. When .enabled = true, quadratic mass-dependent drag is computed per body each frame from its dragCoefficient · referenceArea and the environment\'s airDensity.'),
 }).describe('Environment settings. Controls units, scale, boundaries, and gravity. Uses real-world physics coordinates: origin at bottom-left, Y increases upward.');
+
+export type AirResistanceConfig = z.infer<typeof AirResistanceConfigSchema>;
 
 export type EnvironmentConfig = z.infer<typeof EnvironmentConfigSchema>;
 

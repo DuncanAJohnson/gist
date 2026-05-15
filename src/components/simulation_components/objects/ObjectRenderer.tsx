@@ -1,42 +1,32 @@
 import { useEffect, forwardRef } from 'react';
 import { usePhysics } from '../../../contexts/PhysicsContext';
 import type { ObjectConfig } from './types';
-import type { BodyDef, PhysicsBody, ShapeDescriptor, Vec2 } from '../../../physics/types';
+import type { BodyDef, PhysicsBody, ShapeDescriptor } from '../../../physics/types';
 import { getManifestItem } from '../../../lib/renderableManifest';
 import { scaleManifestColliderToShape } from '../../../physics/shapeHelpers';
 
-// Phase-1 air-resistance defaults (debug-panel toggle only — no JSON schema
-// changes yet). The per-frame quadratic drag model in JsonSimulation reads
-// `userData.dragK` for each body. Computing k from the engine-agnostic
-// ShapeDescriptor (rather than from BodyConfig, which no longer exists) means
-// existing sims feel air resistance the moment the toggle flips on, regardless
-// of how the manifest's collider was specified.
-const AIR_DENSITY_KG_PER_M3 = 1.225;          // Earth sea level
-const DEFAULT_CD_SPHERE = 0.47;                // smooth sphere
-const DEFAULT_CD_CUBE = 1.05;                  // cube broadside
-const DEFAULT_CD_FALLBACK = 1.0;               // unknown shape
-
-function polygonArea(verts: Vec2[]): number {
-  let a = 0;
-  for (let i = 0; i < verts.length; i++) {
-    const p = verts[i];
-    const q = verts[(i + 1) % verts.length];
-    a += p.x * q.y - q.x * p.y;
-  }
-  return Math.abs(a) / 2;
-}
-
-function defaultDragK(shape: ShapeDescriptor): number {
+// Phase 2a air-resistance defaults. The per-frame quadratic drag model in
+// JsonSimulation reads `userData.dragCdA` (= Cd · A, factored apart from
+// air density so airDensity can vary at runtime) and multiplies by ½·ρ each
+// frame to produce k.
+//
+// Reference-area default uses the diorama-scoped LINEAR-A rule: A is the
+// body's widest horizontal extent (the bounding-box `width` in this layer),
+// not the body's 2D area. Justified in the in-app "Design philosophy" doc
+// and Notes_on_Air_Resistance_Refactor.md "Design rationale" section. The
+// linear-A choice gives drag enough authority over motion to be visible at
+// canvas-scale drops (10–30 m, 1–5 s); the trade is that absolute terminal
+// velocities don't match Wikipedia, but qualitative ordering across objects
+// (feather < baseball < bowling ball) is preserved.
+//
+// Cd default still dispatches by shape type; authors override via the
+// per-object `dragCoefficient` field when they need a different value.
+function defaultCd(shape: ShapeDescriptor): number {
   switch (shape.type) {
-    case 'circle':
-      return 0.5 * AIR_DENSITY_KG_PER_M3 * DEFAULT_CD_SPHERE * Math.PI * shape.radius * shape.radius;
-    case 'rectangle':
-      return 0.5 * AIR_DENSITY_KG_PER_M3 * DEFAULT_CD_CUBE * shape.width * shape.height;
-    case 'polygon':
-      return 0.5 * AIR_DENSITY_KG_PER_M3 * DEFAULT_CD_FALLBACK * polygonArea(shape.vertices);
-    case 'compound':
-      // Sum part contributions — same Cd applied to each piece's area.
-      return shape.parts.reduce((sum, part) => sum + defaultDragK(part), 0);
+    case 'circle': return 0.47;       // smooth sphere
+    case 'rectangle': return 1.05;    // cube broadside
+    case 'polygon': return 1.0;       // generic
+    case 'compound': return 1.0;      // generic
   }
 }
 
@@ -53,6 +43,8 @@ const ObjectRenderer = forwardRef<PhysicsBody, ObjectConfig>(function ObjectRend
     restitution = 0.8,
     frictionAir = 0,
     friction = 0,
+    dragCoefficient,
+    referenceArea,
     isStatic = false,
     angularVelocity = 0,
     angle = 0,
@@ -100,13 +92,20 @@ const ObjectRenderer = forwardRef<PhysicsBody, ObjectConfig>(function ObjectRend
     created.userData.configuredAcceleration = acceleration
       ? { x: acceleration.x, y: acceleration.y }
       : { x: 0, y: 0 };
-    // Drag coefficient for the Phase-1 debug-panel air-resistance toggle.
-    // JsonSimulation reads this each frame when the toggle is on and writes
+    // Per-body drag coefficient combination (Cd · A), factored apart from
+    // air density. JsonSimulation reads this each frame when air resistance is
+    // active and computes k = ½ · airDensity · dragCdA, then writes
     // `setLinearDamping((k/m)·|v|)` to mimic quadratic, mass-dependent drag
-    // through the engine's stable damping integrator.
-    created.userData.dragK = defaultDragK(shape);
-    // Original frictionAir is restored when the toggle is Off so toggling
-    // Off→On→Off doesn't strand the body in its last computed damping value.
+    // through the engine's stable damping integrator. dragCdA = 0 (because
+    // dragCoefficient = 0 or the shape gives 0 default) opts the body out of
+    // air resistance entirely.
+    const effectiveCd = dragCoefficient ?? defaultCd(shape);
+    const effectiveA = referenceArea ?? width;   // linear-A default: widest horizontal extent
+    created.userData.dragCdA = effectiveCd * effectiveA;
+    // Original frictionAir is restored when air resistance is Off so flipping
+    // active → inactive doesn't strand the body in its last computed damping
+    // value. When air resistance is active, frictionAir is ignored (see
+    // JsonSimulation for the conflict warning).
     created.userData.originalFrictionAir = frictionAir;
 
     if (ref) {

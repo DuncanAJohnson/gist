@@ -48,7 +48,8 @@ Output JSON with this exact shape:
     "walls": ["bottom"],
     "gravity": 9.8,
     "unit": "m",
-    "physicsEngine": "rapier"
+    "physicsEngine": "rapier",
+    "airResistance": { "enabled": true, "airDensity": 1.225 }
   },
   "scene_dimension": {
     "axis": "width" | "height",
@@ -73,6 +74,7 @@ Constraints:
 - Object IDs must be unique, lowercase, snake_case strings (e.g. "ball", "box_a", "ramp").
 - `object_skeletons[].svg` MUST match a name from the AVAILABLE SVGs list verbatim.
 - `environment.walls` is an array drawn from `["left", "right", "top", "bottom"]`. Include walls if objects should bounce or stay in view; use `[]` if objects should fall away (e.g. a thrown projectile). `environment.gravity` is a single positive number (m/s² downward; 9.8 for Earth).
+- `environment.airResistance`: include the block ONLY when the user prompt is about air resistance, drag, terminal velocity, parachutes, falling objects with air, or any scenario where air's effect on motion is the lesson. Otherwise OMIT the field entirely (defaults to disabled). Set `airDensity` to 1.225 for Earth at sea level; 0 for vacuum; 0.020 for Mars; 67 for Venus. When you include the block, the FILL OBJECTS stage will set per-object `dragCoefficient` and `referenceArea` to tune how much drag each body feels.
 - Do NOT include `pixelsPerUnit` anywhere — the pipeline derives it from `scene_dimension`.
 - Do not output `width` or `height` here — the next stage chooses those.
 - Always include at least one control.
@@ -85,7 +87,12 @@ objects_fill_fragment = """
 
 You are filling in the full ObjectConfig array. The skeleton has already chosen each object's `id`, `svg`, and `(x, y)` center — use those values VERBATIM. Your remaining job is to:
 1. Set `width` and `height` (in the configured unit) for each object based on the typical real-world bounding-box size of the chosen svg. Examples: `soccer_ball` ~0.22 m diameter, `brick_block` ~0.5 m wide, `boat` ~5 m long, `person` ~1.8 m tall, `bowling_ball` ~0.22 m diameter, `bicycle` ~1.7 m long.
-2. Set physics fields appropriate to the object's role: `velocity`, `acceleration` (rare — gravity is usually enough), `mass`, `restitution`, `friction`, `frictionAir`, `isStatic`, `angle`, `angularVelocity`, etc. Use the role from the skeleton to decide — e.g. a "ramp" or "platform" should be `isStatic: true`; a "projectile" needs an initial velocity; a "ball" gets restitution ~0.8.
+2. Set physics fields appropriate to the object's role: `velocity`, `acceleration` (rare — gravity is usually enough), `mass`, `restitution`, `friction`, `isStatic`, `angle`, `angularVelocity`, etc. Use the role from the skeleton to decide — e.g. a "ramp" or "platform" should be `isStatic: true`; a "projectile" needs an initial velocity; a "ball" gets restitution ~0.8.
+3. **Air resistance fields** (only relevant when the skeleton included `environment.airResistance`): set `dragCoefficient` (Cd, dimensionless) and optionally `referenceArea` (m²) per body to tune how much drag each object feels. When omitted, both default to shape-based values that produce visible drag in canvas-scale drops:
+   - `dragCoefficient`: defaults to `0.47` for circles (sphere), `1.05` for rectangles (cube broadside), `1.0` for polygons. Override with `1.5` for parachutes / feathers / high-drag objects, `1.28` for flat plates, `0.04` for streamlined shapes (airfoil, fish). **Set `dragCoefficient: 0` to opt this body OUT of air resistance entirely** — useful when you want one object to free-fall as a reference while another experiences drag.
+   - `referenceArea`: defaults to the body's bounding-box `width` (a stand-in for projected frontal area in vertical-motion sims, treating the 2D world as a 1m-deep slice). Override only when the body's direction of travel is predominantly horizontal (set to vertical extent instead) or when the body's shape implies a non-default frontal area.
+
+**Legacy `frictionAir` field**: ignored when air resistance is enabled (the per-frame quadratic compute clobbers it). Use the new fields above instead. `frictionAir` is only useful for sims WITHOUT air resistance, where you want simple constant linear damping for things like spinning objects gradually slowing down. If both `airResistance.enabled = true` and `frictionAir > 0` are set on the same body, frictionAir is silently ignored and a console warning fires.
 
 Each object's `width`/`height` defines its bounding box. The collider shape (rectangle, circle, or convex hull) and the visual sprite both come from the manifest entry referenced by `svg`, scaled to that bounding box. Do NOT emit a `body` field — there is no body discriminated union anymore.
 
@@ -103,7 +110,8 @@ Output JSON with this exact shape (no other top-level fields):
       "velocity": {"x": ..., "y": ...},
       "mass": ...,
       "restitution": ...,
-      "isStatic": ...
+      "isStatic": ...,
+      "dragCoefficient": <optional, only when environment.airResistance is set>
     }
   ]
 }
