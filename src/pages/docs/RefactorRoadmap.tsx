@@ -21,7 +21,7 @@ flowchart TB
   end
 
   subgraph VIS["Visualization & runtime proposals"]
-    VA["Vector Arrows / doc 6<br/>7 kinds + theme<br/><b>Phase 1a/b SHIPPED</b>"]
+    VA["Vector Arrows / doc 6<br/>7 kinds + theme<br/><b>Phase 1a/b/c-rev SHIPPED</b>"]
     REC["Recordings & Cameras / doc 7<br/>rich precompute, lean replay<br/>+ saved sims + camera frames"]
   end
 
@@ -100,7 +100,7 @@ const phaseChart = `
 flowchart LR
   subgraph RECPHASES["5. Recordings / doc 7"]
     direction TB
-    RP0["R0: kinematics-tier Frame<br/>= VA Phase 1c-rev<br/><b>PROPOSED</b>"]
+    RP0["R0: kinematics-tier Frame<br/>= VA Phase 1c-rev<br/><b>SHIPPED</b>"]
     RP1["R1: Recording type<br/>+ local autosave"]
     RP2["R2: Library UI"]
     RP3["R3: Compare mode"]
@@ -133,7 +133,7 @@ flowchart LR
     direction TB
     VAP1A["Phase 1a: rename + theme<br/>+ kind field<br/><b>SHIPPED</b>"]
     VAP1B["Phase 1b: drop gravity<br/>double-count in F_net<br/><b>SHIPPED</b>"]
-    VAP1C["Phase 1c-rev:<br/>kinematics in Frame<br/><b>PROPOSED</b>"]
+    VAP1C["Phase 1c-rev:<br/>kinematics in Frame<br/><b>SHIPPED</b>"]
     VAP2["Phase 2: velocity + accel"]
     VAP3["Phase 3: applied / friction /<br/>drag / gravity kinds"]
     VAP4["Phase 4: legend + presets"]
@@ -153,14 +153,13 @@ flowchart LR
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#92400e;
   classDef pending fill:#dbeafe,stroke:#2563eb,color:#1e40af;
 
-  class AIRP1,VAP1A,VAP1B done;
-  class VAP1C,RP0 proposed;
+  class AIRP1,VAP1A,VAP1B,VAP1C,RP0 done;
   class AIRP2,AIRP3,APPP1,APPP2,APPP25,APPP3,APPP4,VECP1,VECP2,VECP3,VAP2,VAP3,VAP4,VAP5,RP1,RP2,RP3,RP4,RP5,RP6 pending;
 `;
 
 const cameraChart = `
 flowchart LR
-  R0REF["depends on:<br/>R0 kinematics-tier Frame<br/>= VA Phase 1c-rev<br/><b>PROPOSED</b>"]
+  R0REF["depends on:<br/>R0 kinematics-tier Frame<br/>= VA Phase 1c-rev<br/><b>SHIPPED</b>"]
   CP0["C0: lab-frame camera<br/>formalize abstraction"]
   CP1["C1: attached-to-body<br/>relative motion in kinematics"]
   CP2["C2: tilt-with-surface<br/>inclined-plane decomposition"]
@@ -168,9 +167,9 @@ flowchart LR
   CFUT["C-future:<br/>non-inertial frames<br/>(Coriolis, free-fall)"]
   R0REF --> CP0 --> CP1 --> CP2 --> CP3 --> CFUT
 
-  classDef proposed fill:#fef3c7,stroke:#d97706,color:#92400e;
+  classDef done fill:#dcfce7,stroke:#16a34a,color:#166534;
   classDef pending fill:#dbeafe,stroke:#2563eb,color:#1e40af;
-  class R0REF proposed;
+  class R0REF done;
   class CP0,CP1,CP2,CP3,CFUT pending;
 `;
 
@@ -207,9 +206,9 @@ function RefactorRoadmap() {
         </li>
         <li>
           <strong>Vector arrows (doc 6)</strong> — emerged from "let's start with
-          how we show vectors." Phase 1a + 1b shipped during this conversation;
-          1c-rev is the immediate next code change (and is the foundation for
-          the Recordings track too).
+          how we show vectors." Phase 1a + 1b + 1c-rev shipped; 1c-rev was also the
+          foundation for the Recordings track (= R0). Phase 2 (velocity + acceleration
+          kinds) is the natural next step.
         </li>
         <li>
           <strong>Vector representation (magnitude / angle)</strong> — the polar
@@ -225,25 +224,25 @@ function RefactorRoadmap() {
         </li>
         <li>
           <strong>Recordings (doc 7)</strong> — the architectural shift that
-          turns replay into a sealed artifact. R0 = VA Phase 1c-rev (literally
-          the same code change). Everything beyond R0 is library/compare UX and
-          tier extensions.
+          turns replay into a sealed artifact. R0 shipped with VA Phase 1c-rev
+          (literally the same code change). Everything beyond R0 is library/compare
+          UX and tier extensions, all unblocked.
         </li>
       </ol>
       <p>
         Vector arrows broke the standard "Phase 1 / 2 / 3" mold during testing —
-        Phase 1 bisected into 1a (rename, shipped), 1b (drop F<sub>net</sub>'s
-        gravity double-count, shipped), and 1c-rev (move kinematic derived state
-        into the Frame schema, proposed). That last item is literally Phase R0
-        of Recordings — landing one lands both.
+        Phase 1 bisected into 1a (rename), 1b (drop F<sub>net</sub>'s gravity
+        double-count), and 1c-rev (move kinematic derived state into the Frame
+        schema). All three shipped. 1c-rev is also Phase R0 of Recordings — one
+        code change unblocked both tracks.
       </p>
 
-      <MermaidDiagram chart={phaseChart} caption="Per-refactor phase rollout, ordered by chronological priority. Green = shipped, yellow = proposed, blue = pending. VA 1c-rev and REC R0 are the same work — landing one lands both." />
+      <MermaidDiagram chart={phaseChart} caption="Per-refactor phase rollout, ordered by chronological priority. Green = shipped, blue = pending. VA 1c-rev and REC R0 were the same work — one landing unblocked both." />
 
       <h3>Camera track — separate, future, depends on R0</h3>
       <p>
         Cameras are pulled into their own diagram for two reasons. First, they
-        share no code with anything in the chart above — once R0 lands, cameras
+        share no code with anything in the chart above — with R0 shipped, cameras
         are a pure replay-layer concern (geometric transforms on lab-frame
         recording data). Second, they're farther out: no immediate diorama
         depends on a non-default camera, so they ship when there's appetite for
@@ -285,7 +284,7 @@ function RefactorRoadmap() {
         <li>
           <strong>Recordings &amp; cameras + vector arrows</strong> — they share
           a foundation: kinematic state in the per-frame schema. VA Phase 1c-rev
-          and REC Phase R0 are the same code change. Lands once, unblocks both.
+          and REC Phase R0 were the same code change. Shipped once, unblocked both.
         </li>
         <li>
           <strong>Recordings &amp; cameras + vector representation</strong> —
@@ -336,7 +335,7 @@ function RefactorRoadmap() {
       <ul>
         <li>
           <a href="/docs/vector-arrows">6. Vector arrows</a> — 7 arrow kinds,
-          theme module, 8 SVG test scenes, Phase 1a/b shipped, 1c-rev proposed.
+          theme module, 8 SVG test scenes, Phase 1a/b/c-rev shipped (1c-rev also = REC R0).
         </li>
         <li>
           <a href="/docs/recordings-and-cameras">7. Recordings &amp; cameras</a> —

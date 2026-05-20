@@ -154,13 +154,17 @@ function RuntimeLoop() {
         compare two stale values. The real fix is architectural:
       </p>
       <p>
-        <strong>Phase 1c-rev:</strong> extend <code>FrameBodySnap</code> with the
-        kinematic fields (<code>vx, vy, omega, ax, ay, alpha</code>). Populate
-        them during precompute. Restore them to the body during replay. Vector
-        arrow source resolvers read from the body in any mode and see fresh state
-        — because either the engine just stepped it (live) or the replay loop
-        just restored it from the recorded Frame (replay). Same code path; the
-        body abstraction is mode-agnostic.
+        <strong>Phase 1c-rev (shipped 2026-05-15):</strong> extended{' '}
+        <code>FrameBodySnap</code> with the kinematic fields (<code>vx, vy, omega,
+        ax, ay, alpha</code>), populated during precompute, restored to the body
+        during replay. Vector arrow source resolvers now read from the body in any
+        mode and see fresh state — because either the engine just stepped it
+        (live) or the replay loop just restored it from the recorded Frame
+        (replay). Same code path; the body abstraction is mode-agnostic. A
+        related runtime-loop fix landed in the same pass: the replay branch of
+        the rAF accumulator now advances at most one frame per paint, so
+        one-frame-wide events (collision F<sub>net</sub> spikes) can't be
+        clobbered by catch-up iterations on rAF hiccups.
       </p>
       <p>
         This generalizes. Every derived quantity a visual layer wants to display

@@ -215,13 +215,23 @@ function BaseSimulation({
               replayOnFrameRef.current?.(idx);
               replayIndexRef.current = idx + 1;
               simulationTimeRef.current += FIXED_DT_SECONDS;
-            } else {
-              if (onUpdateRef.current) {
-                onUpdateRef.current(a, simulationTimeRef.current);
-              }
-              a.step(FIXED_DT_SECONDS);
-              simulationTimeRef.current += FIXED_DT_SECONDS;
+              accumulator -= FIXED_TIME_STEP;
+              // Replay paints at most one recorded frame per rAF tick. A long
+              // rAF delta (tab refocus, GC, devtools) would otherwise advance
+              // the replay index N times in a single tick — each call
+              // overwrites body.userData with the next frame's restored state
+              // before RenderLayer paints, clobbering one-frame-wide events
+              // (collision F_net spike, brief direction flips) and dropping
+              // them from the canvas. Drifting behind wall-clock on hiccups
+              // is the better failure mode. Live mode keeps the while —
+              // physics integration must catch up.
+              break;
             }
+            if (onUpdateRef.current) {
+              onUpdateRef.current(a, simulationTimeRef.current);
+            }
+            a.step(FIXED_DT_SECONDS);
+            simulationTimeRef.current += FIXED_DT_SECONDS;
             accumulator -= FIXED_TIME_STEP;
           }
         } else if (modeRef.current === 'live' && onUpdateRef.current) {

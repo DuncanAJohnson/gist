@@ -363,10 +363,11 @@ the initial camera set.`}</pre>
       <h3>Recording track</h3>
       <ul>
         <li>
-          <strong>R0 — kinematics-tier Frame schema.</strong> Extend{' '}
-          <code>FrameBodySnap</code> to include linear and rotational velocity and
-          acceleration. This is the Phase 1c-rev work in the vector-arrows doc.
-          Recordings can't carry what frames don't capture.
+          <strong>R0 — kinematics-tier Frame schema. <em>SHIPPED 2026-05-15.</em></strong>{' '}
+          Extended <code>FrameBodySnap</code> to include linear and rotational velocity
+          and acceleration. Same code change as Phase 1c-rev in the vector-arrows doc —
+          one landing unblocked both tracks. Recordings can now carry the derived
+          state every downstream tier extension and visualization mode depends on.
         </li>
         <li>
           <strong>R1 — Recording type + local autosave.</strong> Define the type,

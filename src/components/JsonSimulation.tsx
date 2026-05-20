@@ -74,11 +74,22 @@ interface JsonSimulationProps {
 
 type SimulationControls = BaseSimulationControls;
 
+// Per-body kinematic state captured each precompute frame and restored each
+// replay frame. The kinematic fields (vx, vy, omega, ax, ay, alpha) ride the
+// Frame so derived visuals (vector arrows, graphs bound to acceleration) see
+// fresh state during replay without re-deriving from stale userData. Phase
+// 1c-rev of the vector-arrows refactor; see /docs/vector-arrows.
 type FrameBodySnap = {
   id: string;
   x: number;
   y: number;
   angle: number;
+  vx: number;
+  vy: number;
+  omega: number;
+  ax: number;
+  ay: number;
+  alpha: number;
 };
 
 type Frame = {
@@ -200,6 +211,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
 
   // Finite-difference state for derivedAcceleration.
   const prevVelocitiesRef = useRef<Record<string, { x: number; y: number }>>({});
+  const prevAngularVelocitiesRef = useRef<Record<string, number>>({});
   const prevTimeRef = useRef<number>(0);
 
   // State for control values
@@ -343,9 +355,16 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     frame.bodies.forEach((snap) => {
       const body = objRefs.current[snap.id];
       if (body) {
+        // position/velocity are Vec2Accessors over engine state — mutate .x/.y
+        // rather than reassigning, so writes propagate to the underlying engine.
         body.position.x = snap.x;
         body.position.y = snap.y;
         body.angle = snap.angle;
+        body.velocity.x = snap.vx;
+        body.velocity.y = snap.vy;
+        body.angularVelocity = snap.omega;
+        body.userData.derivedAcceleration = { x: snap.ax, y: snap.ay };
+        body.userData.derivedAngularAcceleration = snap.alpha;
       }
     });
 
@@ -519,7 +538,16 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           body.userData.derivedAcceleration = { x: 0, y: 0 };
         }
 
+        const prevOmega = prevAngularVelocitiesRef.current[objectConfig.id];
+        if (prevOmega !== undefined) {
+          body.userData.derivedAngularAcceleration =
+            (body.angularVelocity - prevOmega) / deltaTime;
+        } else {
+          body.userData.derivedAngularAcceleration = 0;
+        }
+
         prevVelocitiesRef.current[objectConfig.id] = { x: body.velocity.x, y: body.velocity.y };
+        prevAngularVelocitiesRef.current[objectConfig.id] = body.angularVelocity;
       });
     }
     prevTimeRef.current = time;
@@ -565,7 +593,20 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         .map((objectConfig) => {
           const body = objRefs.current[objectConfig.id];
           if (!body) return null;
-          return { id: objectConfig.id, x: body.position.x, y: body.position.y, angle: body.angle };
+          const derived = (body.userData.derivedAcceleration as Vec2 | undefined) ?? { x: 0, y: 0 };
+          const alpha = (body.userData.derivedAngularAcceleration as number | undefined) ?? 0;
+          return {
+            id: objectConfig.id,
+            x: body.position.x,
+            y: body.position.y,
+            angle: body.angle,
+            vx: body.velocity.x,
+            vy: body.velocity.y,
+            omega: body.angularVelocity,
+            ax: derived.x,
+            ay: derived.y,
+            alpha,
+          };
         })
         .filter((b): b is FrameBodySnap => b !== null);
       recordingBufferRef.current.push({
@@ -795,6 +836,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
       frameCacheRef.current = null;
       recordingBufferRef.current = null;
       prevVelocitiesRef.current = {};
+      prevAngularVelocitiesRef.current = {};
       prevTimeRef.current = 0;
     },
     [unitScale, controls],
@@ -874,6 +916,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     const totalFrames = Math.max(1, Math.round(maxDuration * 60) + 1);
     recordingBufferRef.current = [];
     prevVelocitiesRef.current = {};
+    prevAngularVelocitiesRef.current = {};
     prevTimeRef.current = 0;
     setGraphData(graphs.map(() => []));
 
@@ -947,6 +990,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     setSimIsDirty(false);
     setGraphData(graphs.map(() => []));
     prevVelocitiesRef.current = {};
+    prevAngularVelocitiesRef.current = {};
     prevTimeRef.current = 0;
     setTimeout(() => {
       controls.forEach((control) => {

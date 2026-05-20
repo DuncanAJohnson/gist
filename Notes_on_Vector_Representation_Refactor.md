@@ -187,6 +187,22 @@ Per-graph option for whether angle series wraps to `(-180°, 180°]` or unwraps 
 
 ---
 
+## Adjacent fix: replay-loop frame skip (landed 2026-05-15)
+
+Surfaced during vector-arrows Phase 1c-rev. Noted here because vector quantities are the visuals that suffer most when this bites; any future polar-projection arrow built by this refactor would suffer the same way.
+
+**Symptom.** Intermittent missing F_net flip arrows on collision frames during replay, even though the data is in the recorded Frame and visible in the graphs. Flaky — depends on browser state (tab focus, GC timing, devtools open).
+
+**Cause.** [BaseSimulation.tsx:207-226](src/components/BaseSimulation.tsx#L207-L226) used the same `while (accumulator >= FIXED_TIME_STEP)` accumulator pattern for live and replay. Correct for live (physics integration must keep pace with wall-clock or the sim slows down). Wrong for replay: when a single rAF tick delivers a delta > 16.67 ms, the loop runs the replay branch multiple times in one tick. Each call to `handleReplayFrame(idx)` overwrites `body.userData.derivedAcceleration` with that frame's stored value. Only the last iteration's userData write survives until [RenderLayer](src/components/simulation_components/renderables/RenderLayer.tsx) paints. One-frame-wide events (the collision F_net spike, brief direction flips) get restored to userData and clobbered ~0 ms later, never reaching the canvas. Graphs are unaffected — `setGraphData` *appends* per call, so all catch-up frames' data points land in the array regardless of paint timing.
+
+**Fix.** In the replay branch of the rAF loop, `break` after one iteration. Playback drifts slightly behind wall-clock on hiccups (a far better failure mode than dropped visual frames). Live mode keeps the `while`.
+
+**Why it matters for vector representation specifically.** When `velocity.angle` or `appliedForce.magnitude` projections drive polar sliders, the bound value is read at paint time the same way `derivedAcceleration` is. A polar-driven arrow showing a brief direction snap — manual angle-slider step, single-frame impulse, any future spike-prone kind — would have been silently dropped by the same mechanism. The fix protects every one-frame-wide visualization, including ones this refactor hasn't built yet.
+
+**Complementary polish (not landed).** A 1/60 s arrow flash is borderline-perceivable for human viewers even when it does paint. A visual-layer decay on `force-net` (and any other spike-prone kind) — hold peak magnitude for N ms then fade linearly — would make collision impulses comfortably readable. Independent of replay timing; layers cleanly on top of the fix. Worth doing once the Phase 3 force kinds land.
+
+---
+
 ## Decisions deferred
 
 1. **Should existing component sliders be left alone, or migrated to polar where it's pedagogically better?** Lean: leave authored sims alone (no breaking change), but update the LLM prompt and example sims to prefer polar for projectile / force-vector demos.

@@ -426,7 +426,7 @@ const phaseChart = `
 flowchart LR
   P1A["Phase 1a:<br/>rename + kind field<br/>+ theme module<br/><b>SHIPPED</b>"]
   P1B["Phase 1b:<br/>drop gravity<br/>double-count in F_net<br/><b>SHIPPED</b>"]
-  P1C["Phase 1c-rev:<br/>store kinematics<br/>in Frame schema<br/><b>PROPOSED</b>"]
+  P1C["Phase 1c-rev:<br/>store kinematics<br/>in Frame schema<br/><b>SHIPPED</b>"]
   P2["Phase 2:<br/>velocity + acceleration<br/>(free-fall, projectile)"]
   P3["Phase 3:<br/>applied / friction /<br/>drag / gravity kinds"]
   P4["Phase 4:<br/>legend overlay<br/>+ diorama presets"]
@@ -436,8 +436,7 @@ flowchart LR
   classDef done fill:#dcfce7,stroke:#16a34a,color:#166534;
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#92400e;
   classDef pending fill:#dbeafe,stroke:#2563eb,color:#1e40af;
-  class P1A,P1B done;
-  class P1C proposed;
+  class P1A,P1B,P1C done;
   class P2,P3,P4,P5 pending;
 `;
 
@@ -901,7 +900,7 @@ function VectorArrows() {
       <h2>Phasing</h2>
       <MermaidDiagram
         chart={phaseChart}
-        caption="Phase 1 split into three sub-phases as bugs surfaced during testing: 1a renames + adds the kind field; 1b fixes the gravity double-count in F_net; 1c proposes the replay-aware handleUpdate that keeps derived state fresh during replay. 2+ are the original phases unchanged."
+        caption="Phase 1 split into three sub-phases as bugs surfaced during testing: 1a renames + adds the kind field; 1b fixes the gravity double-count in F_net; 1c-rev extends the Frame schema to carry kinematic state, so vector arrows render correctly during replay. 2+ are the original phases unchanged."
       />
       <ul>
         <li>
@@ -923,18 +922,23 @@ function VectorArrows() {
         </li>
         <li>
           <strong>Phase 1c-rev — store kinematics in the Frame schema.{' '}
-            <em>PROPOSED.</em></strong> Discovered immediately after 1b shipped: F<sub>net</sub>{' '}
-          arrows blink during precompute and vanish during the visible replay. Initial
+            <em>SHIPPED 2026-05-15.</em></strong> Discovered immediately after 1b shipped: F<sub>net</sub>{' '}
+          arrows blinked during precompute and vanished during the visible replay. Initial
           diagnosis was "call <code>handleUpdate</code> during replay too"; deeper
-          investigation found that the replay frame schema only carries position +
+          investigation found that the replay frame schema only carried position +
           angle — no velocity, no acceleration — so even firing{' '}
-          <code>handleUpdate</code> would finite-diff against stale values. The
-          architecturally correct fix is to extend <code>FrameBodySnap</code> with{' '}
+          <code>handleUpdate</code> would have finite-diffed against stale values. The
+          architecturally correct fix was to extend <code>FrameBodySnap</code> with{' '}
           <code>vx, vy, omega, ax, ay, alpha</code>, populate them during precompute,
           and restore them during replay. Sets the precedent that derived data lives
           in the Frame, not on userData — see{' '}
           <a href="/docs/recordings-and-cameras">recordings doc</a> for the broader
-          architecture this fix establishes.
+          architecture this fix established. A related runtime-loop fix landed in the
+          same pass: the replay branch of <code>BaseSimulation</code>'s rAF loop now
+          advances at most one frame per paint, so one-frame-wide events (collision F<sub>net</sub>{' '}
+          spikes) survive rAF hiccups instead of being clobbered by catch-up iterations
+          before <code>RenderLayer</code> reads <code>userData</code>. See{' '}
+          <code>Notes_on_Vector_Representation_Refactor.md</code> for the full writeup.
         </li>
         <li>
           <strong>Phase 2 — velocity + acceleration kinds.</strong> Source resolver reads{' '}
