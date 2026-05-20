@@ -94,6 +94,13 @@ You are filling in the full ObjectConfig array. The skeleton has already chosen 
 
 **Legacy `frictionAir` field**: ignored when air resistance is enabled (the per-frame quadratic compute clobbers it). Use the new fields above instead. `frictionAir` is only useful for sims WITHOUT air resistance, where you want simple constant linear damping for things like spinning objects gradually slowing down. If both `airResistance.enabled = true` and `frictionAir > 0` are set on the same body, frictionAir is silently ignored and a console warning fires.
 
+4. **Vector arrows on objects** (`showVectors`, optional): an array declaring which physics vectors to draw on the body as it moves. Each entry is either a shorthand kind string for default styling, or a full `{kind, color?, label?, labelPlacement?, labelFontSize?, pixelsPerUnit?}` config for per-arrow overrides. Available kinds:
+   - `"velocity"` (green) — the body's linear velocity. Use for projectile-motion sims (watch the velocity vector tilt as the apple traces its arc), free-fall sims (watch the downward velocity grow over time), or any kinematics demo where students should see speed-and-direction as one quantity.
+   - `"acceleration"` (purple) — the body's finite-differenced total acceleration. Use for free-fall (constant 9.8 m/s² down) or any scene where the *change* of velocity is the lesson.
+   - `"force-net"` (red) — the net force, computed as `m · a_derived`. Use for Newton's 2nd Law dioramas, collision impulses, or whenever ΣF is the pedagogical focus. (Phase 3 of the refactor will add `"force-applied"`, `"force-friction"`, `"force-drag"`, `"force-gravity"` once their per-frame sources land — don't author those kinds yet.)
+   - Combine kinds freely on one body. Examples: a projectile that should show both motion and acceleration → `"showVectors": ["velocity", "acceleration"]`. A free-fall apple → `"showVectors": ["velocity", "acceleration"]` (acceleration stays constant, velocity grows). A bowling ball whose net force matters → `"showVectors": ["force-net"]`. A cart in Newton's-2nd-Law setup → `"showVectors": ["force-net"]` for now; add applied/friction kinds once Phase 3 ships.
+   - Only declare `showVectors` when the prompt's pedagogy actually benefits from seeing the vector(s). Don't add velocity arrows to a static ramp or a wall; don't add `force-net` to a sim where the lesson is purely kinematics.
+
 Each object's `width`/`height` defines its bounding box. The collider shape (rectangle, circle, or convex hull) and the visual sprite both come from the manifest entry referenced by `svg`, scaled to that bounding box. Do NOT emit a `body` field — there is no body discriminated union anymore.
 
 Output JSON with this exact shape (no other top-level fields):
@@ -127,7 +134,7 @@ controls_fill_fragment = """
 You are producing the full `controls` array. The skeleton listed each control's name, target object, and intent — you must produce one ControlConfig per skeleton entry, using the same `name` (as the control's id) and `target_id`.
 
 For each control:
-- Pick `type`: "slider" for continuous numeric values (velocity, mass, gravity, restitution), "toggle" for on/off booleans (isStatic, showForceArrows).
+- Pick `type`: "slider" for continuous numeric values (velocity, mass, gravity, restitution), "toggle" for on/off booleans (isStatic).
 - For sliders: include `label`, `targetObj`, `property`, `min`, `max`, `step`, `defaultValue` (all required by the schema). For toggles: `label`, `targetObj`, `property`, `defaultValue` (boolean).
 - `property` MUST be a scalar dot-path — always include the axis suffix on vector quantities. Valid: `"velocity.x"`, `"velocity.y"`, `"position.x"`, `"position.y"`, `"mass"`, `"restitution"`, `"angle"`, `"isStatic"`. Invalid: `"velocity"`, `"position"`, `"acceleration"` (these are 2D vectors and a slider can only drive one number at a time). The `targetObj` must equal the skeleton's `target_id`.
 - Choose realistic ranges: velocities -30 to 30, masses 0.1 to 100. The `defaultValue` should match the object's current state from the objects stage.

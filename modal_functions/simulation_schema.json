@@ -199,9 +199,107 @@
             "description": "Initial angle in radians. Default: 0",
             "type": "number"
           },
-          "showForceArrows": {
-            "description": "If true, draw arrows on this object showing the net force from the physics engine. Default: false",
-            "type": "boolean"
+          "showVectors": {
+            "description": "Vector arrows to draw on this object. Each entry is either a shorthand kind string (\"velocity\", \"acceleration\", \"force-net\", \"force-applied\", \"force-friction\", \"force-drag\", \"force-gravity\") for default styling, or a full {kind, color?, label?, labelPlacement?, labelFontSize?, pixelsPerUnit?} config for per-arrow overrides. Multiple kinds can be combined on one body (e.g., [\"velocity\", \"acceleration\"] for a projectile, [\"force-applied\", \"force-friction\", \"force-net\"] for a Newton's 2nd Law diorama). Default: no arrows. (Legacy `showForceArrows: true` is auto-translated to `showVectors: [\"force-net\"]`.)",
+            "type": "array",
+            "items": {
+              "description": "Either a kind name shorthand (\"velocity\") for default styling, or a full {kind, color?, label?, ...} config for per-arrow overrides.",
+              "anyOf": [
+                {
+                  "description": "Vector arrow kind. Drives default color, scale, and label. \"velocity\" reads body.velocity; \"acceleration\" reads finite-differenced total acceleration; \"force-net\" = m·a_derived; the remaining force kinds are wired by later phases.",
+                  "type": "string",
+                  "enum": [
+                    "velocity",
+                    "acceleration",
+                    "force-net",
+                    "force-applied",
+                    "force-friction",
+                    "force-drag",
+                    "force-gravity"
+                  ]
+                },
+                {
+                  "description": "A single vector arrow rendered on an object, with optional per-arrow visual overrides.",
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "description": "Vector arrow kind. Drives default color, scale, and label. \"velocity\" reads body.velocity; \"acceleration\" reads finite-differenced total acceleration; \"force-net\" = m·a_derived; the remaining force kinds are wired by later phases.",
+                      "type": "string",
+                      "enum": [
+                        "velocity",
+                        "acceleration",
+                        "force-net",
+                        "force-applied",
+                        "force-friction",
+                        "force-drag",
+                        "force-gravity"
+                      ]
+                    },
+                    "pixelsPerUnit": {
+                      "description": "Override the kind's default pixels-per-SI-unit scale.",
+                      "type": "number",
+                      "minimum": 0,
+                      "exclusiveMinimum": true
+                    },
+                    "color": {
+                      "description": "Override the kind's standard color (any CSS color string).",
+                      "type": "string"
+                    },
+                    "label": {
+                      "description": "Override the kind's standard label. A plain string is rendered as-is; {main, sub} renders the sub as a subscript; `null` suppresses the label entirely.",
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "main": {
+                              "description": "Main glyph (e.g., \"v\", \"F\").",
+                              "type": "string"
+                            },
+                            "sub": {
+                              "description": "Subscript (e.g., \"net\", \"app\", \"ar\"). Rendered smaller with a baseline shift.",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "main"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "string",
+                          "nullable": true,
+                          "enum": [
+                            null
+                          ]
+                        }
+                      ]
+                    },
+                    "labelPlacement": {
+                      "description": "Where to anchor the label relative to the arrow. Default: \"midpoint\" with a perpendicular offset to the arrow's left.",
+                      "type": "string",
+                      "enum": [
+                        "tail",
+                        "midpoint",
+                        "head"
+                      ]
+                    },
+                    "labelFontSize": {
+                      "description": "Override the default label font size in px.",
+                      "type": "number",
+                      "minimum": 0,
+                      "exclusiveMinimum": true
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
           }
         },
         "required": [
