@@ -15,7 +15,7 @@ Each physics object is described by its center (x, y), bounding-box width/height
 Best practices that apply to every stage:
 - Keep it simple: 1-3 objects is usually sufficient. Focus on one or two physics concepts.
 - Use clear, educational labels with units ("Initial Velocity (m/s)", not "Speed").
-- Use real-world bounding-box sizes that match the chosen svg (e.g. a soccer_ball ~0.22 m, a brick_block ~0.5 m, a person ~1.8 m tall).
+- **GIST sims are diorama-scoped, NOT real-world models.** Object widths/heights are visual diorama sizes, not real-world bounding boxes. The scene scale is set by the action's time budget, not by the real-world span of the situation. Real-world physical constants (g = 9.8 m/s², masses, velocities) DO stay realistic — only spatial scale is diorama-scoped. See the per-stage sizing rules in SKELETON and FILL OBJECTS for the exact formulas. The principle: a 5-meter "bowling ball" is fine if it pops on canvas; absolute size doesn't matter, but order-of-magnitude ordering between objects does ("the bowling ball is bigger than the feather").
 - Realistic parameters: velocities in roughly -30 to 30, restitution 0.7-0.9 (bouncy) or 0.1-0.3 (non-bouncy).
 - Output ONLY valid JSON for your stage's slice — no prose, no markdown fences, no explanation. Numeric values are not quoted; string values use double quotes; no trailing commas.
 """
@@ -33,11 +33,31 @@ Identify the physics concept first (motion, collisions, forces, projectile, etc.
 - What numeric values to display as live outputs.
 - What quantities to plot over time.
 
-To set the scene's scale (CRITICAL — do NOT default this):
-1. Pick the scene's DOMINANT axis — `"width"` if the action stretches horizontally (a runway, a thrown projectile, two boxes colliding), or `"height"` if it stretches vertically (a tall tower, a free fall, a parachute drop). Pick whichever axis the scene needs to be larger on.
-2. Decide HOW MANY of the configured `unit` span that full axis end-to-end. Reason about the real-world: a small-scale tabletop scene might be 5 m wide; a runway scene might be 1000 m wide; a planetary orbit might be 1e9 m wide. Output that number as `size`.
-3. The simulation canvas is 800×600 pixels. The pipeline derives `pixelsPerUnit` from your `scene_dimension` automatically — do NOT set `pixelsPerUnit` yourself.
-4. Pick each object's `(x, y)` center inside that scene. With axis="width" and size=S, X spans 0..S and Y spans 0..(S * 600/800). With axis="height" and size=S, Y spans 0..S and X spans 0..(S * 800/600).
+To set the scene's scale (CRITICAL — diorama-scoped, NOT real-world span):
+
+The scene scale is set by the **action's time budget**, NOT by how big the real-world situation is. The goal is for the main event (drop, throw, collision, push) to resolve in 2–6 seconds — long enough for students to read what's happening, short enough to stay engaging. Working backward from a target time gives a scene size that pops on canvas instead of leaving objects as tiny dots.
+
+1. Pick the DOMINANT axis — `"width"` if the action stretches horizontally (thrown projectile, two boxes colliding, push along a surface), `"height"` if it stretches vertically (free fall, parachute drop, vertical toss).
+
+2. Pick a target action time `t` between **2 and 6 seconds**. Lean toward 2–3s for short snappy events (collisions, brief drops), 4–6s for slower events (parachute, terminal velocity demos). Then compute the action span using the dominant motion equation:
+   - **Free fall from rest** (height axis): `span ≈ 0.5 · g · t²`. So t=2s → 20 m; t=3s → 44 m; t=4s → 78 m.
+   - **Vertical toss upward** (height axis): `span ≈ v₀² / (2·g)`. So v₀=15 m/s → 11 m; v₀=20 m/s → 20 m; v₀=25 m/s → 32 m.
+   - **Horizontal projectile** (width axis): `span ≈ v₀ · t`. So v₀=15 m/s for 3s → 45 m; v₀=20 m/s for 4s → 80 m.
+   - **Collision / 1D push** (width axis): `span ≈ 2 · v_avg · t`. So v=5 m/s for 2s → 20 m.
+   - **Other**: pick the equation that matches the dominant motion. When in doubt: t ≈ 3s, span 20–60 m.
+
+3. Add **20% padding** for visibility: `size = span × 1.2`. Then **clamp to [10, 80]** units — below 10 the objects become absurdly large; above 80 they shrink back into the unreadable regime. If your computation lands outside this range, reduce `t` (for big spans) or pick a different motion (for tiny spans). Most well-tuned dioramas come out in the **20–60 unit** range.
+
+4. The simulation canvas is 800×600 pixels. The pipeline derives `pixelsPerUnit` from your `scene_dimension` automatically — do NOT set `pixelsPerUnit` yourself.
+
+5. Pick each object's `(x, y)` center inside the scene with room for the action:
+   - With axis="width" and size=S, X spans 0..S and Y spans 0..(S * 600/800).
+   - With axis="height" and size=S, Y spans 0..S and X spans 0..(S * 800/600).
+   - **Vertical fall**: start the falling body at Y ≈ 0.85 × (Y-span). Leave room above for a velocity arrow and room below for the impact.
+   - **Vertical toss upward**: start at Y ≈ 0.15 × (Y-span). Leave room above for the peak.
+   - **Horizontal projectile**: start at X ≈ 0.10 × (X-span), Y ≈ 0.20 × (Y-span). Leave room across for the range.
+   - **Collision**: place the two bodies at X ≈ 0.20 and 0.80 of the X-span, moving toward each other.
+   - **Static elements** (ramps, walls, platforms): place where they intercept the action's trajectory, NOT where they look pretty.
 
 Output JSON with this exact shape:
 ```json
@@ -86,7 +106,16 @@ objects_fill_fragment = """
 ## STAGE: FILL OBJECTS
 
 You are filling in the full ObjectConfig array. The skeleton has already chosen each object's `id`, `svg`, and `(x, y)` center — use those values VERBATIM. Your remaining job is to:
-1. Set `width` and `height` (in the configured unit) for each object based on the typical real-world bounding-box size of the chosen svg. Examples: `soccer_ball` ~0.22 m diameter, `brick_block` ~0.5 m wide, `boat` ~5 m long, `person` ~1.8 m tall, `bowling_ball` ~0.22 m diameter, `bicycle` ~1.7 m long.
+1. Set `width` and `height` (in the configured unit) for each object using the **diorama sizing rule** below. These are visual diorama sizes, NOT real-world bounding boxes. Real-world reference sizes (a "real" soccer ball is 0.22 m) would be invisible at our canvas scales. The qualitative claim — that the bowling ball looks bigger than the feather — is what matters; absolute size doesn't.
+
+   **The rule.** Let `D = min(scene_width_in_units, scene_height_in_units)` — the smaller dimension of the scene from the SKELETON's `scene_dimension`. Then:
+   - **Largest object in the scene: width ≈ 0.10 × D.** A scene with D = 60 m gets a largest body around 6 m wide. A scene with D = 20 m gets one around 2 m wide. This is the body the lesson is most about.
+   - **Smallest object: width ≥ 0.04 × D.** Anything below this disappears visually. A 4% floor still lets a feather read as a feather; just not as a real 5cm feather.
+   - **Multi-object ratios: ordering preserved, range compressed.** When real-world ratios are extreme (bowling ball : feather ≈ 5:1 by diameter), compress to ~2:1 or 3:1 for the diorama so both stay visible. When real ratios are mild (soccer ball vs basketball, ~1.1:1), preserve them faithfully. Heuristic: largest visible body ≤ 3× the smallest visible body in any one scene.
+   - **Aspect ratio of an object: keep the svg's natural ratio.** A boat is wider than it is tall (~5:2); a person is taller than wide (~1:3). Pick `height` from `width` to match how the svg renders, then both flow from the rule above.
+   - **Static objects (ramp, platform, wall) follow the same rule but typically reach the larger end.** A ramp object can span 30–50% of the X-span; a floor segment can span the full width. The rule above sets the *minimum* — static set pieces frequently want to be visually dominant.
+
+   Worked example: skeleton says `scene_dimension: {axis: "height", size: 30}`. So scene = 40 m × 30 m, D = 30 m. A "free-fall apple vs feather" sim emits `apple: width 3 m, height 3 m` (10% of D), `feather: width 1.2 m, height 0.4 m` (4% of D for width, natural feather aspect). The lesson reads instantly.
 2. Set physics fields appropriate to the object's role: `velocity`, `acceleration` (rare — gravity is usually enough), `mass`, `restitution`, `friction`, `isStatic`, `angle`, `angularVelocity`, etc. Use the role from the skeleton to decide — e.g. a "ramp" or "platform" should be `isStatic: true`; a "projectile" needs an initial velocity; a "ball" gets restitution ~0.8.
 3. **Air resistance fields** (only relevant when the skeleton included `environment.airResistance`): set `dragCoefficient` (Cd, dimensionless) and optionally `referenceArea` (m²) per body to tune how much drag each object feels. When omitted, both default to shape-based values that produce visible drag in canvas-scale drops:
    - `dragCoefficient`: defaults to `0.47` for circles (sphere), `1.05` for rectangles (cube broadside), `1.0` for polygons. Override with `1.5` for parachutes / feathers / high-drag objects, `1.28` for flat plates, `0.04` for streamlined shapes (airfoil, fish). **Set `dragCoefficient: 0` to opt this body OUT of air resistance entirely** — useful when you want one object to free-fall as a reference while another experiences drag.
@@ -136,8 +165,9 @@ You are producing the full `controls` array. The skeleton listed each control's 
 For each control:
 - Pick `type`: "slider" for continuous numeric values (velocity, mass, gravity, restitution), "toggle" for on/off booleans (isStatic).
 - For sliders: include `label`, `targetObj`, `property`, `min`, `max`, `step`, `defaultValue` (all required by the schema). For toggles: `label`, `targetObj`, `property`, `defaultValue` (boolean).
-- `property` MUST be a scalar dot-path — always include the axis suffix on vector quantities. Valid: `"velocity.x"`, `"velocity.y"`, `"position.x"`, `"position.y"`, `"mass"`, `"restitution"`, `"angle"`, `"isStatic"`. Invalid: `"velocity"`, `"position"`, `"acceleration"` (these are 2D vectors and a slider can only drive one number at a time). The `targetObj` must equal the skeleton's `target_id`.
-- Choose realistic ranges: velocities -30 to 30, masses 0.1 to 100. The `defaultValue` should match the object's current state from the objects stage.
+- `property` MUST be a scalar dot-path — always include the axis suffix on vector quantities. Valid: `"velocity.x"`, `"velocity.y"`, `"position.x"`, `"position.y"`, `"acceleration.x"`, `"acceleration.y"`, `"mass"`, `"restitution"`, `"angle"`, `"isStatic"`. Invalid: `"velocity"`, `"position"`, `"acceleration"` (these are 2D vectors and a slider can only drive one number at a time). The `targetObj` must equal the skeleton's `target_id`.
+- **Acceleration sliders are additional-acceleration knobs, NOT gravity overrides.** Environment gravity always acts on every non-static body via the physics engine; a slider bound to `"acceleration.x"` or `"acceleration.y"` adds a *second* constant acceleration on top. Use them when the lesson involves a non-gravity constant force: rocket thrust (`"acceleration.y"`, default ~15 m/s² upward), braking deceleration on a moving body (`"acceleration.x"` with sign opposite to velocity), constant horizontal wind, magnetic-field push on a uniform-field body. Do NOT use an `"acceleration.y"` slider as a way to set or change gravity — that would double-count. For free-fall and projectile sims, leave acceleration unset (gravity alone) and let students see the kinematics emerge from gravity.
+- Choose realistic ranges: velocities -30 to 30, masses 0.1 to 100, non-gravity acceleration -20 to 20 m/s². The `defaultValue` should match the object's current state from the objects stage (so an `"acceleration.y"` slider with default 15 needs the same object to declare `"acceleration": {"x": 0, "y": 15}` in FILL OBJECTS).
 - Use clear, educational `label`s with units.
 
 Output JSON with this exact shape:
