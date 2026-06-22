@@ -149,12 +149,22 @@ flowchart LR
     AIRP1 --> AIRP2 --> AIRP3
   end
 
+  subgraph CONCAVEPHASES["6. Concave colliders"]
+    direction TB
+    CCP0["Phase 0: prove dynamic compound<br/>(cup catch + tip-over)<br/><b>SHIPPED</b>"]
+    CCP1["Phase 1: concave content<br/>cup / bucket / open-top wagon"]
+    CCP2["Phase 2: CCD robustness"]
+    CCP3["Phase 3: catch detection"]
+    CCP4["Phase 4: schema + LLM prompt<br/>(three-places landing)"]
+    CCP0 --> CCP1 --> CCP2 --> CCP3 --> CCP4
+  end
+
   classDef done fill:#dcfce7,stroke:#16a34a,color:#166534;
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#92400e;
   classDef pending fill:#dbeafe,stroke:#2563eb,color:#1e40af;
 
-  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,RP0 done;
-  class APPP1,APPP2,APPP25,APPP3,APPP4,VECP1,VECP2,VECP3,VAP3,VAP4,VAP5,RP1,RP2,RP3,RP4,RP5,RP6 pending;
+  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,CCP0,RP0 done;
+  class APPP1,APPP2,APPP25,APPP3,APPP4,VECP1,VECP2,VECP3,VAP3,VAP4,VAP5,CCP1,CCP2,CCP3,CCP4,RP1,RP2,RP3,RP4,RP5,RP6 pending;
 `;
 
 const cameraChart = `
@@ -247,6 +257,17 @@ function RefactorRoadmap() {
           turns replay into a sealed artifact. R0 shipped with VA Phase 1c-rev
           (literally the same code change). Everything beyond R0 is library/compare
           UX and tier extensions, all unblocked.
+        </li>
+        <li>
+          <strong>Concave colliders</strong> — open containers (cup/bucket) and
+          open-top vehicles (wagon) for the "catch the marble" and ball-in-wagon
+          (Newton's 1st law) sims. The engine path already existed
+          (<code>decomposePolygonShape</code> → <code>compound</code>, consumed by
+          both adapters); Phase 0 <b>SHIPPED</b> proved a dynamic compound both
+          catches and tips. Remaining work is content, CCD robustness, catch
+          detection, and the three-places landing (schema + prompt) so the LLM can
+          author concave shapes. See{' '}
+          <code>Notes_on_Concave_Colliders_Refactor.md</code>.
         </li>
       </ol>
       <p>
@@ -349,6 +370,7 @@ function RefactorRoadmap() {
         <li><code>Notes_on_Air_Resistance_Refactor.md</code></li>
         <li><code>Notes_on_Applied_Forces_Refactor.md</code></li>
         <li><code>Notes_on_Vector_Representation_Refactor.md</code></li>
+        <li><code>Notes_on_Concave_Colliders_Refactor.md</code></li>
       </ul>
 
       <h3>Visualization &amp; runtime refactor proposals (in-app docs)</h3>

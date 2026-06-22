@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Cup / bucket: two sidewalls + a bottom, open at the top.
+       Authored in the 64x64 manifest space (Y down) so the sprite traces
+       exactly the concave collider outline used for Phase 0 testing. -->
+  <!-- the U body: down left-outer, across bottom-outer, up right-outer,
+       then back along the inner wall to leave the top open -->
+  <path d="M 8 16 L 8 56 L 56 56 L 56 16 L 48 16 L 48 48 L 16 48 L 16 16 Z"
+        fill="#ef4444" stroke="#b91c1c" stroke-width="1.5" stroke-linejoin="round"/>
+  <!-- rim highlights on the two wall tops -->
+  <rect x="8" y="16" width="8" height="3" rx="1" fill="#f87171"/>
+  <rect x="48" y="16" width="8" height="3" rx="1" fill="#f87171"/>
+</svg>

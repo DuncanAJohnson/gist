@@ -70,6 +70,13 @@ interface SimulationConfig {
 interface JsonSimulationProps {
   config: SimulationConfig;
   simulationId?: number;
+  /**
+   * When true (and there's no `simulationId`), surface the "Tweak Simulation
+   * JSON" button and apply edits to the live config locally — re-initializing
+   * the sim in place — instead of persisting to the backend. Used by local
+   * example sims for fast in-browser iteration (e.g. Phase-0 cup tests).
+   */
+  localJsonEdit?: boolean;
 }
 
 type SimulationControls = BaseSimulationControls;
@@ -98,7 +105,7 @@ type Frame = {
   graphPoints: DataPoint[];
 };
 
-function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
+function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationProps) {
   const navigate = useNavigate();
 
   // editedConfig is the source of truth for everything downstream — direct
@@ -590,10 +597,17 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     }
   }, [outputs, graphs, objects]);
 
+  // All three save paths (AI remix, JSON tweak, direct-manipulation edits)
+  // persist via createSimulation. For a local example sim (localJsonEdit, no
+  // simulationId) the new row is a fresh root (parent_id = null); for a DB sim
+  // it's a child of the current sim. Either way we navigate to the new
+  // /simulation/:id, where the standard DB-backed affordances take over.
+  const canPersist = simulationId !== undefined || !!localJsonEdit;
+
   const handleEdit = async (editedJSON: any, userPrompt: string | null) => {
-    if (!simulationId) return;
+    if (!canPersist) return;
     try {
-      const newSimulationId = await createSimulation(editedJSON, true, simulationId, userPrompt);
+      const newSimulationId = await createSimulation(editedJSON, true, simulationId ?? null, userPrompt);
       updateChangesMade(newSimulationId);
       navigate(`/simulation/${newSimulationId}`);
     } catch (error) {
@@ -607,10 +621,10 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   };
 
   const handleSaveTweakedJSON = async (tweakedJSON: any) => {
-    if (!simulationId) return;
+    if (!canPersist) return;
     try {
       // Manual JSON edits have no natural-language prompt.
-      const newSimulationId = await createSimulation(tweakedJSON, false, simulationId, null);
+      const newSimulationId = await createSimulation(tweakedJSON, false, simulationId ?? null, null);
       updateChangesMade(newSimulationId);
       setShowJsonEditor(false);
       navigate(`/simulation/${newSimulationId}`);
@@ -816,13 +830,13 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   );
 
   const handleSaveEdits = useCallback(async () => {
-    if (!simulationId) return;
+    if (simulationId === undefined && !localJsonEdit) return;
     setIsSaving(true);
     try {
       const newSimulationId = await createSimulation(
         editedConfig,
         false,
-        simulationId,
+        simulationId ?? null,
         null,
       );
       setHasUnsavedChanges(false);
@@ -833,7 +847,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     } finally {
       setIsSaving(false);
     }
-  }, [editedConfig, simulationId, navigate]);
+  }, [editedConfig, simulationId, localJsonEdit, navigate]);
 
   // Edit mode is only active when the sim is fully at rest at its initial
   // pose: not running, not picking experimental position, and not dirty from a
@@ -1005,7 +1019,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         description={description}
         simulationId={simulationId}
         currentJSON={editedConfig}
-        onEdit={simulationId ? handleEdit : undefined}
+        onEdit={canPersist ? handleEdit : undefined}
       />
 
       <BaseSimulation
@@ -1079,7 +1093,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
             onAirResistanceModeChange={setAirResistanceMode}
             showGrid={showGrid}
             onShowGridChange={setShowGrid}
-            onTweakJSON={simulationId ? handleTweakJSON : undefined}
+            onTweakJSON={canPersist ? handleTweakJSON : undefined}
           />
           <button
             onClick={() => setShowExperimentalModal(true)}
@@ -1248,7 +1262,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         </>
       )}
       <UnsavedChangesIndicator
-        visible={hasUnsavedChanges && simulationId !== undefined}
+        visible={hasUnsavedChanges && canPersist}
         saving={isSaving}
         onSave={handleSaveEdits}
       />

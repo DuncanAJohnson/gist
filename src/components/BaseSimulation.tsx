@@ -62,6 +62,34 @@ const MAX_DELTA = FIXED_TIME_STEP * 3;
 const PRECOMPUTE_BATCH = 60;
 const DEFAULT_PRECOMPUTE_TIMESTEP_SECONDS = 1 / 480;
 
+// Phase-0 concave-collider debug instrumentation. Gated behind a URL flag
+// (`?simdebug=1`) so it stays silent in normal use. Logs the bodies present
+// after init (does the compound cup collider exist?) and a throttled per-step
+// dump of each body's position / velocity / angle so we can watch a marble
+// fall into the cup, settle, and — on an angled hit — watch the cup's `angle`
+// and `angularVelocity` change as it tips and tumbles.
+const SIM_DEBUG =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).has('simdebug');
+// Log roughly every N live physics steps (~0.25s at 60fps) to avoid flooding.
+const SIM_DEBUG_STEP_INTERVAL = 15;
+
+function logSnapshot(label: string, snap: WorldSnapshot) {
+  // eslint-disable-next-line no-console
+  console.log(
+    `[sim] ${label} t=${snap.t.toFixed(3)} bodies=${snap.bodies.length}`,
+    snap.bodies.map((b) => ({
+      id: b.id,
+      x: +b.position.x.toFixed(2),
+      y: +b.position.y.toFixed(2),
+      vx: +b.velocity.x.toFixed(2),
+      vy: +b.velocity.y.toFixed(2),
+      angleDeg: +((b.angle * 180) / Math.PI).toFixed(1),
+      angVel: +b.angularVelocity.toFixed(2),
+    })),
+  );
+}
+
 function cloneSnapshot(snap: WorldSnapshot): WorldSnapshot {
   return {
     t: snap.t,
@@ -96,6 +124,7 @@ function BaseSimulation({
   const modeRef = useRef<SimulationMode>('live');
   const initialSnapshotRef = useRef<WorldSnapshot | null>(null);
   const simulationTimeRef = useRef(0);
+  const debugStepRef = useRef(0);
   const replayIndexRef = useRef(0);
   const replayTotalRef = useRef(0);
   const replayOnFrameRef = useRef<((frameIndex: number, options?: { seek?: boolean }) => void) | null>(null);
@@ -167,6 +196,7 @@ function BaseSimulation({
           a.setPositionIterations?.(positionItersRef.current);
         }
         setAdapterReady(true);
+        if (SIM_DEBUG) console.log(`[sim] adapter ready, engine=${physicsEngine}`);
 
       if (onInitRef.current) {
         onInitRef.current(a);
@@ -176,6 +206,7 @@ function BaseSimulation({
       // child components (ObjectRenderer), so delay the capture slightly.
       setTimeout(() => {
         initialSnapshotRef.current = cloneSnapshot(a.snapshot());
+        if (SIM_DEBUG) logSnapshot('initial', initialSnapshotRef.current);
       }, 100);
 
       let lastTime = performance.now();
@@ -233,6 +264,9 @@ function BaseSimulation({
             a.step(FIXED_DT_SECONDS);
             simulationTimeRef.current += FIXED_DT_SECONDS;
             accumulator -= FIXED_TIME_STEP;
+            if (SIM_DEBUG && debugStepRef.current++ % SIM_DEBUG_STEP_INTERVAL === 0) {
+              logSnapshot('step', a.snapshot());
+            }
           }
         } else if (modeRef.current === 'live' && onUpdateRef.current) {
           onUpdateRef.current(a, simulationTimeRef.current);
@@ -249,6 +283,7 @@ function BaseSimulation({
             isRunningRef.current = true;
             lastTime = performance.now();
             accumulator = 0;
+            debugStepRef.current = 0;
           },
           pause: () => {
             isRunningRef.current = false;

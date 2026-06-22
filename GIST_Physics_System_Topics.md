@@ -103,6 +103,7 @@ Needed for momentum/energy plots ("show Δp per collision"), 3rd-law force-pair 
 ### 🔴 CCD (continuous collision detection)
 Needed for fast projectiles or thin walls (high-velocity falls in free-fall sims).
 - Planck `body.setBullet(true)`, Rapier `rigidBody.enableCcd(true)`.
+- **Partially mitigated today by precompute:** `handlePlay` always precomputes at `precomputeTimestepHz = 480` and replays, so the fine sub-stepping is a de-facto CCD substitute. The concave-collider Phase 0 cup test caught a fast marble through sub-decimeter walls at a 2 m scene with no tunneling. CCD still matters for live (non-precomputed) play and very fast small bodies. See [Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md), Phase 2.
 
 ### 🟡 Per-body friction setter
 Adapter doesn't expose `setFriction(μ)`. Needed for the `frictionDemo` mode (Phase 2.5 of applied forces).
@@ -163,6 +164,16 @@ For the same input config, do both engines produce *qualitatively* the same outc
 ### 📋 Debug logging convention
 The slider-confound investigation in the air-resistance notes used a one-off `console.log` template ([Notes_on_Air_Resistance_Refactor.md](Notes_on_Air_Resistance_Refactor.md), "Empirical debug procedure"). Worth keeping that template handy — same shape catches other UI-input/physics-output confounds.
 
+### 🟢 Local-only sim testing (static JSON + wrapper + route)
+A way to exercise a sim entirely from the repo, with no DB round-trip and no prompt→sim generation. The pattern (established by the concave-collider Phase 0 cup tests): drop a config at [src/simulations/](src/simulations/)`<name>.json`, add a thin wrapper `<Name>Simulation.tsx` that does `<JsonSimulation config={…} localJsonEdit />`, and register a `<Route path="/simulation/<slug>">` in [App.tsx](src/App.tsx). Two affordances make it useful for engine work:
+
+- **`localJsonEdit` prop** on [JsonSimulation.tsx](src/components/JsonSimulation.tsx) — surfaces the *Tweak Simulation JSON* / edit / remix / save buttons even though there's no `simulationId`. Saving persists a fresh root row (`parent_id = null`) via `createSimulation` and navigates to `/simulation/:id`, after which the normal DB-backed affordances take over.
+- **`?simdebug=1` URL flag** — enables gated per-body logging in [BaseSimulation.tsx](src/components/BaseSimulation.tsx): the initial snapshot (confirms which bodies/colliders were created) plus a throttled per-step dump of each body's position / velocity / angle / angular-velocity. Silent without the flag.
+
+**Gotcha (the divergence trap):** the on-disk `.json` is imported by its `.tsx` wrapper at build time (Vite HMR re-imports on save), but **in-app edits save to the DB, not back to the file**. So a sim tuned through the in-app editor lives in the DB while the repo file stays at its seed value — they silently diverge. Treat the local file as the *seed* and the DB as the *iteration surface*; if you want tuned values back in the repo, copy them in by hand.
+
+**Why this matters going forward:** it's the cheapest way to prototype raw adapter/engine features that the schema and the prompt don't support yet — exactly the 🔴 items under *Adapter feature gaps* above (joints, sensors, contact events, CCD) and wishlist constructs like event sequences. Author the JSON by hand, wire a throwaway route, and watch it with `?simdebug=1` long before the LLM pipeline learns the new field.
+
 ---
 
 ## Index of related refactor docs
@@ -171,6 +182,7 @@ The slider-confound investigation in the air-resistance notes used a one-off `co
 - [Notes_on_Air_Resistance_Refactor.md](Notes_on_Air_Resistance_Refactor.md) — quadratic-drag refactor, includes the mass-setter fix writeup
 - [Notes_on_Applied_Forces_Refactor.md](Notes_on_Applied_Forces_Refactor.md) — PhET Forces and Motion analogue, includes the static-friction demo mode
 - [Notes_on_Vector_Representation_Refactor.md](Notes_on_Vector_Representation_Refactor.md) — magnitude/angle as first-class polar representation for any vector field
+- [Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md) — concave containers via convex decomposition (cup/wagon); Phase 0 shipped
 
 ---
 

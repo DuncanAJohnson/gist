@@ -5,6 +5,8 @@ import Home from './pages/Home'
 import Library from './pages/Library'
 import TwoBoxesSimulation from './simulations/TwoBoxesSimulation'
 import TossBallSimulation from './simulations/TossBallSimulation'
+import BallIntoCupDropSimulation from './simulations/BallIntoCupDropSimulation'
+import BallIntoCupArcSimulation from './simulations/BallIntoCupArcSimulation'
 import DynamicSimulation from './pages/DynamicSimulation'
 import { CreateSimulationProvider } from './contexts/CreateSimulationContext'
 import { LanguageProvider } from './contexts/LanguageContext'
@@ -37,6 +39,8 @@ function AppContent() {
         <Route path="/library" element={<Library />} />
         <Route path="/simulation/two-boxes" element={<TwoBoxesSimulation />} />
         <Route path="/simulation/toss-ball" element={<TossBallSimulation />} />
+        <Route path="/simulation/ball-into-cup-drop" element={<BallIntoCupDropSimulation />} />
+        <Route path="/simulation/ball-into-cup-arc" element={<BallIntoCupArcSimulation />} />
         <Route path="/simulation/dynamic" element={<DynamicSimulation />} />
         <Route path="/simulation/:id" element={<DynamicSimulation />} />
         <Route

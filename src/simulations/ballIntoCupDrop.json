@@ -1,0 +1,86 @@
+{
+  "title": "Ball into Cup — Straight Drop",
+  "description": "Phase 0 concave-collider test. A ball dropped straight down should pass through the open mouth and settle on the floor of the cup (a 3-part compound collider), proving in-line catching works. Scene is a 4 m x 3 m window; drop height tops out at 2 m.",
+  "environment": {
+    "walls": ["left", "right", "bottom"],
+    "gravity": 9.8,
+    "unit": "m",
+    "pixelsPerUnit": 200,
+    "physicsEngine": "rapier"
+  },
+  "objects": [
+    {
+      "id": "cup",
+      "x": 2.0,
+      "y": 0.34,
+      "width": 0.9,
+      "height": 0.9,
+      "svg": "cup",
+      "mass": 2,
+      "restitution": 0.1,
+      "friction": 0.5,
+      "showVectors": ["velocity"]
+    },
+    {
+      "id": "ball",
+      "x": 2.0,
+      "y": 1.5,
+      "width": 0.25,
+      "height": 0.25,
+      "svg": "baseball",
+      "velocity": { "x": 0, "y": 0 },
+      "mass": 1,
+      "restitution": 0.2,
+      "friction": 0.5,
+      "showVectors": ["velocity"]
+    }
+  ],
+  "controls": [
+    {
+      "type": "slider",
+      "label": "Drop Height (ball y)",
+      "targetObj": "ball",
+      "property": "position.y",
+      "min": 0.6,
+      "max": 2.0,
+      "step": 0.05,
+      "defaultValue": 1.5
+    },
+    {
+      "type": "slider",
+      "label": "Ball X (aim)",
+      "targetObj": "ball",
+      "property": "position.x",
+      "min": 1.75,
+      "max": 2.25,
+      "step": 0.01,
+      "defaultValue": 2.0
+    }
+  ],
+  "outputs": [
+    {
+      "title": "Ball",
+      "values": [
+        { "label": "Ball Speed (y)", "targetObj": "ball", "property": "velocity.y", "unit": "m/s" },
+        { "label": "Ball Height", "targetObj": "ball", "property": "position.y", "unit": "m" }
+      ]
+    },
+    {
+      "title": "Cup",
+      "values": [
+        { "label": "Cup Tilt", "targetObj": "cup", "property": "angularVelocity", "unit": "rad/s" }
+      ]
+    }
+  ],
+  "graphs": [
+    {
+      "type": "line",
+      "title": "Ball Height Over Time",
+      "yAxisRange": { "min": 0, "max": 2 },
+      "yAxisLabel": "Height (m)",
+      "lines": [
+        { "label": "Ball y", "targetObj": "ball", "property": "position.y", "color": "#2ecc71" }
+      ]
+    }
+  ]
+}
