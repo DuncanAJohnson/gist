@@ -134,7 +134,7 @@ flowchart LR
     VAP1A["Phase 1a: rename + theme<br/>+ kind field<br/><b>SHIPPED</b>"]
     VAP1B["Phase 1b: drop gravity<br/>double-count in F_net<br/><b>SHIPPED</b>"]
     VAP1C["Phase 1c-rev:<br/>kinematics in Frame<br/><b>SHIPPED</b>"]
-    VAP2["Phase 2: velocity + accel"]
+    VAP2["Phase 2: velocity + accel<br/>+ showVectors schema<br/><b>SHIPPED</b>"]
     VAP3["Phase 3: applied / friction /<br/>drag / gravity kinds"]
     VAP4["Phase 4: legend + presets"]
     VAP5["Phase 5: auto-scale calib"]
@@ -144,8 +144,8 @@ flowchart LR
   subgraph AIRPHASES["1. Air resistance"]
     direction TB
     AIRP1["Phase 1: debug-panel toggle<br/>+ Rapier mass-setter fix<br/><b>SHIPPED</b>"]
-    AIRP2["Phase 2: schema additions<br/>airResistance + dragCoefficient"]
-    AIRP3["Phase 3: deprecate frictionAir"]
+    AIRP2["Phase 2: schema additions<br/>airResistance + dragCoefficient<br/>+ referenceArea + airDensity<br/><b>SHIPPED</b>"]
+    AIRP3["Phase 3: remove frictionAir<br/>end-to-end<br/><b>SHIPPED</b>"]
     AIRP1 --> AIRP2 --> AIRP3
   end
 
@@ -153,8 +153,8 @@ flowchart LR
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#92400e;
   classDef pending fill:#dbeafe,stroke:#2563eb,color:#1e40af;
 
-  class AIRP1,VAP1A,VAP1B,VAP1C,RP0 done;
-  class AIRP2,AIRP3,APPP1,APPP2,APPP25,APPP3,APPP4,VECP1,VECP2,VECP3,VAP2,VAP3,VAP4,VAP5,RP1,RP2,RP3,RP4,RP5,RP6 pending;
+  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,RP0 done;
+  class APPP1,APPP2,APPP25,APPP3,APPP4,VECP1,VECP2,VECP3,VAP3,VAP4,VAP5,RP1,RP2,RP3,RP4,RP5,RP6 pending;
 `;
 
 const cameraChart = `
@@ -200,15 +200,35 @@ function RefactorRoadmap() {
       </p>
       <ol>
         <li>
-          <strong>Air resistance</strong> — first physics refactor; Phase 1
-          already shipped. Quadratic-drag schema field is the natural next move
-          when free-fall + terminal-velocity dioramas are next.
+          <strong>Air resistance</strong> — first physics refactor;{' '}
+          <strong>all three phases shipped</strong>. The quadratic,
+          mass-dependent drag model is live end-to-end: the{' '}
+          <code>environment.airResistance</code> block (<code>enabled</code>,{' '}
+          <code>airDensity</code>) plus per-object <code>dragCoefficient</code> /{' '}
+          <code>referenceArea</code>, wired into the runtime
+          (<code>setLinearDamping((k/m)·|v|)</code>), the generated JSON schema,
+          and the LLM prompt. Phase 3 removed the legacy{' '}
+          <code>frictionAir</code> field end-to-end (schema, <code>BodyDef</code>,
+          both adapters, <code>ObjectRenderer</code>, <code>JsonSimulation</code>,
+          example sims, and the prompt); the quadratic model is now the only
+          damping path, and the air-resistance debug "Off" mode simply clears
+          damping (<code>setLinearDamping(0)</code>).
         </li>
         <li>
           <strong>Vector arrows (doc 6)</strong> — emerged from "let's start with
-          how we show vectors." Phase 1a + 1b + 1c-rev shipped; 1c-rev was also the
-          foundation for the Recordings track (= R0). Phase 2 (velocity + acceleration
-          kinds) is the natural next step.
+          how we show vectors." Phases 1a + 1b + 1c-rev + 2 all shipped. 1c-rev was
+          also the foundation for the Recordings track (= R0). Phase 2 added the{' '}
+          <code>velocity</code> and <code>acceleration</code> kinds plus the{' '}
+          <code>showVectors</code> schema (replacing the boolean{' '}
+          <code>showForceArrows</code> with a discriminated array that accepts
+          shorthand strings or full per-arrow override configs; legacy{' '}
+          <code>showForceArrows: true</code> auto-translates via a{' '}
+          <code>z.preprocess</code> shim plus a synthesize-time runtime fallback).
+          A small parallel change opened acceleration sliders to the LLM (the
+          runtime was already wired; the schema's describe text was the only gap).
+          Phase 3 (the decomposed force kinds — applied, friction, drag, gravity)
+          is the natural next step, gated on the applied-forces refactor landing{' '}
+          its <code>userData.appliedForce</code> writes.
         </li>
         <li>
           <strong>Vector representation (magnitude / angle)</strong> — the polar

@@ -11,10 +11,13 @@ import {
 } from '../vectorTheme';
 
 /**
- * Generalized vector-arrow visual. Phase 1 wires only `kind: 'force-net'`.
- * Other kinds compile (the visual schema accepts them) but draw nothing yet —
- * Phase 2 adds velocity + acceleration sources, Phase 3 adds the decomposed
- * force kinds once `JsonSimulation.onUpdate` writes their `userData` fields.
+ * Generalized vector-arrow visual.
+ *
+ * Phase 1 wired `force-net`. Phase 2 adds `velocity` and `acceleration` (both
+ * read directly from the body — kinematic state is on `body.velocity` and on
+ * `body.userData.derivedAcceleration` in any mode, since Phase 1c-rev moved
+ * kinematics into the Frame schema). Phase 3 adds the decomposed force kinds
+ * once `JsonSimulation.onUpdate` writes their userData fields.
  *
  * For `force-net`, the source is Newton's 2nd Law:
  *   F_net = m · a_derived
@@ -32,15 +35,27 @@ function drawVectorArrow(drawCtx: DrawContext, visual: PixelVisual) {
 
   const { kind } = visual;
 
-  // Source resolution. Phase 1: only force-net is wired.
+  // Source resolution. All vector kinds read from the body (or from userData
+  // on the body) so the visual layer is mode-agnostic — the replay loop
+  // restores both `body.velocity` and `body.userData.derivedAcceleration`
+  // from the Frame, and live mode keeps them current via the engine step and
+  // JsonSimulation.handleUpdate respectively.
   let vx: number;
   let vy: number;
-  if (kind === 'force-net') {
+  if (kind === 'velocity') {
+    vx = body.velocity.x;
+    vy = body.velocity.y;
+  } else if (kind === 'acceleration') {
+    // Undefined for the first live frame, before handleUpdate runs once.
+    const derived = (body.userData.derivedAcceleration as Vec2 | undefined) ?? { x: 0, y: 0 };
+    vx = derived.x;
+    vy = derived.y;
+  } else if (kind === 'force-net') {
     const derived = (body.userData.derivedAcceleration as Vec2 | undefined) ?? { x: 0, y: 0 };
     vx = body.mass * derived.x;
     vy = body.mass * derived.y;
   } else {
-    // Phase 2/3: source resolvers for the remaining kinds.
+    // Phase 3: force-applied, force-friction, force-drag, force-gravity.
     return;
   }
 

@@ -6,14 +6,23 @@
  * See `/docs/vector-arrows` for the design rationale and live test scenes.
  */
 
-export type VectorKind =
-  | 'velocity'
-  | 'acceleration'
-  | 'force-net'
-  | 'force-applied'
-  | 'force-friction'
-  | 'force-drag'
-  | 'force-gravity';
+/**
+ * Canonical list of kinds. Used at runtime to drive registry lookups and at
+ * schema-load time (via `src/schemas/simulation.ts`) to validate authored
+ * `showVectors` entries. Adding a new kind here AND adding entries to all the
+ * `Record<VectorKind, …>` maps below is what it takes to introduce one.
+ */
+export const VECTOR_KINDS = [
+  'velocity',
+  'acceleration',
+  'force-net',
+  'force-applied',
+  'force-friction',
+  'force-drag',
+  'force-gravity',
+] as const;
+
+export type VectorKind = (typeof VECTOR_KINDS)[number];
 
 export const VECTOR_COLORS: Record<VectorKind, string> = {
   velocity: '#2ecc71',          // green    — motion / kinematics

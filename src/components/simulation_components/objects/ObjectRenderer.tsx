@@ -41,7 +41,6 @@ const ObjectRenderer = forwardRef<PhysicsBody, ObjectConfig>(function ObjectRend
     velocity,
     acceleration,
     restitution = 0.8,
-    frictionAir = 0,
     friction = 0,
     dragCoefficient,
     referenceArea,
@@ -60,12 +59,20 @@ const ObjectRenderer = forwardRef<PhysicsBody, ObjectConfig>(function ObjectRend
 
     const item = getManifestItem(svg);
     let shape: ShapeDescriptor;
-    if (item) {
+    if (item && item.physical_properties.collider) {
       shape = scaleManifestColliderToShape(item.physical_properties.collider, width, height);
     } else {
-      console.warn(
-        `ObjectRenderer: svg "${svg}" not found in manifest; falling back to a plain rectangle collider.`,
-      );
+      if (!item) {
+        console.warn(
+          `ObjectRenderer: svg "${svg}" not found in manifest; falling back to a plain rectangle collider.`,
+        );
+      } else {
+        // Manifest entry exists but lacks a collider definition (e.g. legacy
+        // "basketball" entry). Fall back so the sim still loads.
+        console.warn(
+          `ObjectRenderer: svg "${svg}" has no collider in manifest; falling back to a plain rectangle collider.`,
+        );
+      }
       shape = { type: 'rectangle', width, height };
     }
 
@@ -80,7 +87,6 @@ const ObjectRenderer = forwardRef<PhysicsBody, ObjectConfig>(function ObjectRend
       inertia,
       restitution,
       friction,
-      frictionAir,
       isStatic,
     };
 
@@ -102,11 +108,6 @@ const ObjectRenderer = forwardRef<PhysicsBody, ObjectConfig>(function ObjectRend
     const effectiveCd = dragCoefficient ?? defaultCd(shape);
     const effectiveA = referenceArea ?? width;   // linear-A default: widest horizontal extent
     created.userData.dragCdA = effectiveCd * effectiveA;
-    // Original frictionAir is restored when air resistance is Off so flipping
-    // active → inactive doesn't strand the body in its last computed damping
-    // value. When air resistance is active, frictionAir is ignored (see
-    // JsonSimulation for the conflict warning).
-    created.userData.originalFrictionAir = frictionAir;
 
     if (ref) {
       if (typeof ref === 'function') {

@@ -233,8 +233,6 @@ export class PlanckAdapter implements PhysicsAdapter {
       angle: def.angle ?? 0,
       linearVelocity: def.velocity ? { x: def.velocity.x, y: def.velocity.y } : undefined,
       angularVelocity: def.angularVelocity,
-      // Matter's frictionAir ≈ linearDamping in Planck.
-      linearDamping: def.frictionAir,
     });
 
     // Density maps the caller's intended mass across the shape's area. When no

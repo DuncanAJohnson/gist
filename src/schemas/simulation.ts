@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { VECTOR_KINDS } from '../components/simulation_components/renderables/vectorTheme';
 
 // ============================================
 // Example Configurations (imported from simulation files)
@@ -30,20 +31,70 @@ export const Vector2DSchema = z.object({
 export type Vector2D = z.infer<typeof Vector2DSchema>;
 
 // ============================================
+// Vector Arrow Schemas
+// ============================================
+// The `kind` field selects color, default scale, and default label from the
+// vectorTheme; all overridable per-arrow. See `src/components/simulation_components/
+// renderables/vectorTheme.ts` for the runtime registry.
+
+export const VectorKindSchema = z.enum(VECTOR_KINDS).describe('Vector arrow kind. Drives default color, scale, and label. "velocity" reads body.velocity; "acceleration" reads finite-differenced total acceleration; "force-net" = m·a_derived; the remaining force kinds are wired by later phases.');
+
+const VectorLabelDefSchema = z.object({
+  main: z.string().describe('Main glyph (e.g., "v", "F").'),
+  sub: z.string().optional().describe('Subscript (e.g., "net", "app", "ar"). Rendered smaller with a baseline shift.'),
+});
+
+export const VectorArrowConfigSchema = z.object({
+  kind: VectorKindSchema,
+  pixelsPerUnit: z.number().positive().optional().describe('Override the kind\'s default pixels-per-SI-unit scale.'),
+  color: z.string().optional().describe('Override the kind\'s standard color (any CSS color string).'),
+  label: z.union([z.string(), VectorLabelDefSchema, z.null()]).optional().describe('Override the kind\'s standard label. A plain string is rendered as-is; {main, sub} renders the sub as a subscript; `null` suppresses the label entirely.'),
+  labelPlacement: z.enum(['tail', 'midpoint', 'head']).optional().describe('Where to anchor the label relative to the arrow. Default: "midpoint" with a perpendicular offset to the arrow\'s left.'),
+  labelFontSize: z.number().positive().optional().describe('Override the default label font size in px.'),
+}).describe('A single vector arrow rendered on an object, with optional per-arrow visual overrides.');
+
+export const VectorArrowEntrySchema = z.union([
+  VectorKindSchema,
+  VectorArrowConfigSchema,
+]).describe('Either a kind name shorthand ("velocity") for default styling, or a full {kind, color?, label?, ...} config for per-arrow overrides.');
+
+// VectorKind is owned by vectorTheme.ts (runtime source of truth, drives the
+// color/label/scale registries). Re-export here so callers that already pull
+// from the schema don't have to learn a second import path.
+export type { VectorKind } from '../components/simulation_components/renderables/vectorTheme';
+export type VectorArrowConfig = z.infer<typeof VectorArrowConfigSchema>;
+export type VectorArrowEntry = z.infer<typeof VectorArrowEntrySchema>;
+
+// ============================================
 // Object Config Schema
 // ============================================
 
-export const ObjectConfigSchema = z.object({
+// Back-compat shim: legacy sims authored `showForceArrows: true` (Phase 1 of
+// the vector-arrows refactor). Translate to `showVectors: ["force-net"]` before
+// validation. Legacy sims with `showForceArrows: false` (or unset) get the
+// field dropped silently. If the new field is already present we don't touch
+// it — the user's authored value always wins.
+export const ObjectConfigSchema = z.preprocess(
+  (raw) => {
+    if (raw && typeof raw === 'object' && 'showForceArrows' in (raw as object)) {
+      const { showForceArrows, ...rest } = raw as Record<string, unknown> & { showForceArrows?: unknown };
+      if (showForceArrows === true && (rest as { showVectors?: unknown }).showVectors === undefined) {
+        return { ...rest, showVectors: ['force-net'] };
+      }
+      return rest;
+    }
+    return raw;
+  },
+  z.object({
   id: z.string().describe('Unique identifier for this object (e.g., "ball", "boxA", "platform"). Used by controls, outputs, and graphs to reference this object.'),
   x: z.number().describe('Initial X position of the object\'s center, in configured units. With default settings (pixelsPerUnit=10, unit="m"), canvas is 80m wide. X=0 is left edge.'),
   y: z.number().describe('Initial Y position of the object\'s center, in configured units. With default settings, canvas is 60m tall. Y=0 is bottom edge, Y increases upward.'),
-  width: z.number().describe('Bounding-box width in configured units. The actual collider shape (rectangle, circle, or convex hull) is looked up from the SVG manifest by `svg` and scaled into this box.'),
-  height: z.number().describe('Bounding-box height in configured units. The actual collider shape is looked up from the SVG manifest by `svg` and scaled into this box.'),
+  width: z.number().describe('Bounding-box width in configured units. DIORAMA-SIZED, not real-world: pick from the SKELETON\'s scene_dimension so the largest object is ~10% of the smaller scene dimension and the smallest stays ≥ 4%. A "real" soccer ball is 0.22 m, but at a 30 m scene that\'s invisible — emit ~3 m instead. The actual collider shape (rectangle, circle, or convex hull) is looked up from the SVG manifest by `svg` and scaled into this box.'),
+  height: z.number().describe('Bounding-box height in configured units. DIORAMA-SIZED, not real-world: pick to match the SVG\'s natural aspect ratio given `width`. The actual collider shape is looked up from the SVG manifest by `svg` and scaled into this box.'),
   svg: z.string().describe('Name of a renderable from public/renderables/manifest.json (e.g., "soccer_ball", "brick_block", "boat"). Drives both the visual sprite and the physical collider shape, scaled to width × height.'),
   velocity: Vector2DSchema.optional().describe('Initial linear velocity {x, y} in units/second. Positive Y = upward motion. Typical range: -30 to 30 m/s.'),
-  acceleration: Vector2DSchema.optional().describe('Initial linear acceleration {x, y} in units/s². Usually not set directly; gravity provides Y acceleration.'),
+  acceleration: Vector2DSchema.optional().describe('Additional constant linear acceleration {x, y} in units/s², applied ON TOP OF environment gravity each frame via velocity integration (v += a·dt). NOT a gravity override — environment.gravity continues to act on this body. Use for non-gravity constant accelerations: rocket thrust ({x:0, y:15}), constant braking deceleration ({x:-3, y:0} on a body moving +x), conveyor-belt push, a constant horizontal wind, etc. Leave unset (or {x:0, y:0}) for plain gravity-only motion. Typical range: -20 to 20 m/s².'),
   restitution: z.number().optional().describe('Bounciness (0-1). 0 = no bounce, 1 = perfect bounce, 0.8 = realistic. Default: 0.8'),
-  frictionAir: z.number().optional().describe('Legacy constant linear damping (0-1). Applied once at body creation. When `environment.airResistance.enabled` is true, the per-frame quadratic drag model takes precedence and frictionAir is ignored (with a console warning if both are set). Will be deprecated once the air-resistance system is the canonical model. Default: 0'),
   friction: z.number().optional().describe('Surface friction (0-1). Affects sliding against other objects. Default: 0.1'),
   dragCoefficient: z.number().optional().describe('Dimensionless drag coefficient (Cd) for the per-frame quadratic air-resistance model. Examples: 0.47 (sphere), 1.05 (cube broadside), 1.28 (flat plate), 1.5 (parachute / feather, high-drag). Set to 0 to opt this body out of air resistance entirely. Defaults to a shape-based value (sphere=0.47, rectangle=1.05, polygon=1.0). Active only when environment.airResistance.enabled is true.'),
   referenceArea: z.number().optional().describe('Drag reference area in m² for the per-frame quadratic air-resistance model. Defaults to the body\'s widest horizontal extent (treating the 2D world as a 1m-deep slice) — a stand-in for projected area perpendicular to vertical motion, the dominant case in secondary-curriculum drag problems. Override explicitly when the body travels horizontally (set to vertical extent instead) or when the body\'s shape implies a non-default frontal area. See the in-app "Design philosophy" doc for the linear-A scoping rationale.'),
@@ -52,8 +103,9 @@ export const ObjectConfigSchema = z.object({
   mass: z.number().optional().describe('Mass of the object in kg. Default: 1'),
   angularVelocity: z.number().optional().describe('Initial angular velocity in radians/second. Default: 0'),
   angle: z.number().optional().describe('Initial angle in radians. Default: 0'),
-  showForceArrows: z.boolean().optional().describe('If true, draw arrows on this object showing the net force from the physics engine. Default: false'),
-}).describe('A physics object in the simulation. Carries position, bounding-box size, an SVG manifest name (which drives both visual and collider), and optional physics properties.');
+  showVectors: z.array(VectorArrowEntrySchema).optional().describe('Vector arrows to draw on this object. Each entry is either a shorthand kind string ("velocity", "acceleration", "force-net", "force-applied", "force-friction", "force-drag", "force-gravity") for default styling, or a full {kind, color?, label?, labelPlacement?, labelFontSize?, pixelsPerUnit?} config for per-arrow overrides. Multiple kinds can be combined on one body (e.g., ["velocity", "acceleration"] for a projectile, ["force-applied", "force-friction", "force-net"] for a Newton\'s 2nd Law diorama). Default: no arrows. (Legacy `showForceArrows: true` is auto-translated to `showVectors: ["force-net"]`.)'),
+  }).describe('A physics object in the simulation. Carries position, bounding-box size, an SVG manifest name (which drives both visual and collider), and optional physics properties.')
+);
 
 export type ObjectConfig = z.infer<typeof ObjectConfigSchema>;
 
@@ -65,8 +117,8 @@ export const SliderConfigSchema = z.object({
   type: z.literal('slider'),
   label: z.string().describe('Display label shown to users (e.g., "Initial Velocity", "Box A Speed")'),
   targetObj: z.string().describe('ID of the object to control (must match an object\'s id)'),
-  property: z.string().describe('Property path to control. Options: "velocity.x", "velocity.y", "position.x", "position.y"'),
-  min: z.number().describe('Minimum slider value in configured units. Velocity: typically -30 to 30 m/s. Position X: 0 to canvas width. Position Y: 0 to canvas height.'),
+  property: z.string().describe('Property path to control. Options: "velocity.x", "velocity.y", "position.x", "position.y", "acceleration.x", "acceleration.y". Note: an "acceleration.*" slider drives an ADDITIONAL constant acceleration applied on top of environment gravity (rocket thrust, braking, conveyor push) — not a gravity override.'),
+  min: z.number().describe('Minimum slider value in configured units. Velocity: typically -30 to 30 m/s. Position X: 0 to canvas width. Position Y: 0 to canvas height. Acceleration: typically -20 to 20 m/s² for non-gravity effects.'),
   max: z.number().describe('Maximum slider value in configured units. With default settings: Position X max ~80m, Position Y max ~60m.'),
   step: z.number().describe('Slider increment in configured units. Use 0.01 for fine control, 0.1 for coarse control.'),
   defaultValue: z.number().describe('Initial value when simulation loads in configured units. Should match the object\'s initial property value.'),
@@ -143,7 +195,7 @@ export type GraphConfig = z.infer<typeof GraphConfigSchema>;
 // ============================================
 
 export const AirResistanceConfigSchema = z.object({
-  enabled: z.boolean().optional().default(false).describe('When true, dynamic objects experience quadratic, mass-dependent drag: F_drag = ½·ρ·Cd·A·|v|·v. Each body uses its dragCoefficient and referenceArea (or shape-based defaults). When false (or omitted), no air-resistance compute runs; bodies may still carry the legacy frictionAir damping. Default: false.'),
+  enabled: z.boolean().optional().default(false).describe('When true, dynamic objects experience quadratic, mass-dependent drag: F_drag = ½·ρ·Cd·A·|v|·v. Each body uses its dragCoefficient and referenceArea (or shape-based defaults). When false (or omitted), no air-resistance compute runs and bodies move undamped. Default: false.'),
   airDensity: z.number().optional().default(1.225).describe('Air density ρ in kg/m³. Default: 1.225 (Earth at sea level). Use 0 for vacuum, ~0.020 for Mars surface, ~67 for Venus surface, ~1.977 for cold/dense air. Applies uniformly to every body subject to drag.'),
 }).describe('Air-resistance settings, applied uniformly across the environment when enabled. Per-object drag intensity is set via the object\'s dragCoefficient and referenceArea (or their shape-based defaults). See the in-app "Design philosophy" doc for the diorama-scoped design rationale.');
 
@@ -162,7 +214,7 @@ export const EnvironmentConfigSchema = z.object({
     (v) => (v === 'matter' ? 'rapier' : v),
     z.enum(['rapier', 'planck']).optional().default('rapier'),
   ).describe('Which physics engine powers the simulation. "rapier" uses Rapier (WASM, SI-native, deterministic, default). "planck" uses Planck.js (pure JS port of Box2D, SI-native). Existing configs without this field use rapier.'),
-  airResistance: AirResistanceConfigSchema.optional().describe('Optional air-resistance configuration. When omitted or .enabled = false, no per-frame drag is applied; bodies may still feel the legacy frictionAir as constant damping. When .enabled = true, quadratic mass-dependent drag is computed per body each frame from its dragCoefficient · referenceArea and the environment\'s airDensity.'),
+  airResistance: AirResistanceConfigSchema.optional().describe('Optional air-resistance configuration. When omitted or .enabled = false, no per-frame drag is applied and bodies move undamped. When .enabled = true, quadratic mass-dependent drag is computed per body each frame from its dragCoefficient · referenceArea and the environment\'s airDensity.'),
 }).describe('Environment settings. Controls units, scale, boundaries, and gravity. Uses real-world physics coordinates: origin at bottom-left, Y increases upward.');
 
 export type AirResistanceConfig = z.infer<typeof AirResistanceConfigSchema>;
@@ -185,12 +237,19 @@ CANVAS:
 - The simulation canvas is 800 × 600 pixels.
 - SI canvas size is (800 / pixelsPerUnit) × (600 / pixelsPerUnit) in the configured unit.
 - With pixelsPerUnit=10 and unit="m" → 80m × 60m canvas.
-- Pick pixelsPerUnit so the LARGEST object is roughly 10–25% of the smaller (600 px) dimension.
+
+DIORAMA SCOPING (CRITICAL — read before authoring sizes):
+GIST sims are bounded teaching dioramas, not scale models of reality. Object widths/heights and scene scale are tuned so the action POPS on canvas, not so they match real-world spans. Physical constants (g, masses, velocities) stay realistic — only spatial scale is diorama-scoped. The qualitative claim ("the bowling ball looks bigger than the feather") is what students need; absolute size doesn't matter.
+
+SCENE SCALE:
+- Set by the action's time budget, NOT real-world span. Aim for the main event to resolve in 2–6 seconds. Working backward from a target time gives a scene size in the 10–80 unit range (most sims land 20–60).
+- Free fall from rest: scene_height ≈ ½·g·t² (t=3s → 44m). Vertical toss: scene_height ≈ v₀²/(2g). Horizontal projectile: scene_width ≈ v₀·t. Add ~20% padding.
 
 OBJECTS:
 - Each object is described by its center (x, y), bounding-box width and height, and an svg name from the public manifest.
 - The svg name drives BOTH the visual sprite AND the collider shape (rectangle / circle / convex hull). The collider is scaled to fit within width × height.
-- Width and height should reflect the typical real-world bounding box of the named object (e.g., a soccer_ball is ~0.22 m, a brick_block is ~0.5 m, a person is ~1.8 m tall).
+- Width/height are DIORAMA-SIZED, NOT real-world sizes. Rule: let D = the smaller scene dimension in configured units. Largest object ≈ 10% of D. Smallest object ≥ 4% of D. Preserve real-world ordering (bowling ball > feather) but compress extreme ratios (use ~2-3:1 visual ratio, not the real 5:1+).
+- Aspect ratio per object: match the svg's natural ratio (a boat is wider than tall, a person is taller than wide).
 - Always pass the same configured unit; do not mix.
 
 GUIDELINES:

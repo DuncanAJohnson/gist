@@ -40,7 +40,7 @@ import type { ObjectEditCommit } from '../lib/editGeometry';
 import {
   synthesizeWallRenderables,
   synthesizeBodyRenderable,
-  synthesizeVectorArrowRenderable,
+  synthesizeVectorArrowRenderables,
   synthesizeExperimentalRenderable,
   synthesizeGridRenderable,
   buildExperimentalDataResolver,
@@ -180,12 +180,10 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   const [canvasContainer, setCanvasContainer] = useState<HTMLDivElement | null>(null);
 
   // Compose renderables in SI — every object emits one SVG renderable from
-  // its `svg` field, plus walls, force arrows, and any experimental overlay.
+  // its `svg` field, plus walls, vector arrows, and any experimental overlay.
   const pixelRenderables = useMemo<PixelRenderable[]>(() => {
     const sprites = objects.map(synthesizeBodyRenderable);
-    const forceArrows = objects
-      .filter((obj) => obj.showForceArrows)
-      .map(synthesizeVectorArrowRenderable);
+    const vectorArrows = objects.flatMap(synthesizeVectorArrowRenderables);
     const walls = synthesizeWallRenderables(environment.walls ?? [], configPixelsPerMeter);
     const experimental = experimentalData
       ? [synthesizeExperimentalRenderable(experimentalData)]
@@ -195,7 +193,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
     const grid = showGrid
       ? [synthesizeGridRenderable(pixelsPerUnit, UNIT_ABBREV[environment.unit ?? 'm'], zoomFactor)]
       : [];
-    return [...grid, ...walls, ...sprites, ...forceArrows, ...experimental].sort(
+    return [...grid, ...walls, ...sprites, ...vectorArrows, ...experimental].sort(
       (a, b) => a.zIndex - b.zIndex
     );
   }, [objects, environment.walls, environment.unit, experimentalData, configPixelsPerMeter, pixelsPerUnit, showGrid, zoomFactor]);
@@ -269,8 +267,8 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   // Planck-only second knob; Rapier ignores it. 3 matches Planck's default.
   const [positionIterations, setPositionIterations] = useState<number>(3);
 
-  // Air-resistance debug toggle. 'off' leaves the engine's create-time damping
-  // in place (frictionAir); 'quadratic' drives `setLinearDamping((k/m)·|v|)`
+  // Air-resistance debug toggle. 'off' leaves bodies undamped
+  // (setLinearDamping(0)); 'quadratic' drives `setLinearDamping((k/m)·|v|)`
   // per frame to mimic mass-dependent quadratic drag, where
   // k = ½·airDensity·(Cd·A) per body. Seeded from environment.airResistance
   // at config load; user can override via the debug panel for A/B testing.
@@ -292,30 +290,6 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
   useEffect(() => {
     airDensityRef.current = environment.airResistance?.airDensity ?? 1.225;
   }, [environment.airResistance?.airDensity]);
-
-  // Conflict warning: frictionAir is silently ignored when air resistance is
-  // enabled — the per-frame compute writes setLinearDamping((k/m)·|v|), which
-  // clobbers the create-time frictionAir-driven damping for any body with
-  // non-zero dragCdA (i.e., any body that hasn't explicitly opted out via
-  // dragCoefficient: 0). This warning fires regardless of whether the body
-  // has explicit dragCoefficient/referenceArea overrides, because the default
-  // shape-based dragCdA is enough to cause the silent override. Saves a
-  // confusing-physics debug session later.
-  useEffect(() => {
-    if (!environment.airResistance?.enabled) return;
-    const conflicts = objects.filter((o) => (o.frictionAir ?? 0) > 0);
-    if (conflicts.length > 0) {
-      console.warn(
-        `[air-resistance] ${conflicts.length} object(s) have frictionAir > 0 with ` +
-        `environment.airResistance.enabled = true. frictionAir is the legacy damping ` +
-        `model and is IGNORED whenever the per-frame quadratic drag model runs (which ` +
-        `is whenever a body has dragCdA > 0 — i.e., any body that hasn't set ` +
-        `dragCoefficient: 0 to opt out). Set dragCoefficient and/or referenceArea to ` +
-        `tune drag, or set dragCoefficient: 0 to opt out entirely. ` +
-        `IDs: ${conflicts.map((o) => o.id).join(', ')}`,
-      );
-    }
-  }, [environment.airResistance?.enabled, objects]);
 
   const [maxDuration, setMaxDuration] = useState<number>(10);
 
@@ -502,8 +476,8 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
         // refactor's `force-drag` kind (read at render time; populates
         // automatically when this loop runs).
         //
-        // When mode = 'off', restore the body's original frictionAir so
-        // flipping active → inactive doesn't strand it in its last computed
+        // When mode = 'off', clear damping (setLinearDamping(0)) so flipping
+        // active → inactive doesn't strand the body in its last computed
         // damping value.
         if (!body.isStatic) {
           if (airMode === 'quadratic') {
@@ -522,8 +496,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
               body.userData.dragForce = { x: 0, y: 0 };
             }
           } else {
-            const original = (body.userData.originalFrictionAir as number | undefined) ?? 0;
-            body.setLinearDamping(original);
+            body.setLinearDamping(0);
             body.userData.dragForce = { x: 0, y: 0 };
           }
         }
@@ -1235,6 +1208,7 @@ function JsonSimulation({ config, simulationId }: JsonSimulationProps) {
           objRefs={objRefs}
           pixelsPerMeter={pixelsPerMeter}
           unitScale={unitScale}
+          zoomFactor={zoomFactor}
         />
       </BaseSimulation>
       {resetPromptAt && (

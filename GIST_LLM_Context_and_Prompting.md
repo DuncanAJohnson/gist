@@ -69,9 +69,8 @@ Resolved: `Vector2DSchema.y` now reads "Positive = upward, negative = downward (
 ### 3.2 🟢 `frictionStatic` was advertised but unwired — REMOVED (2026-05-11)
 Resolved: the field was removed from `BodyDef`, the schema, the `ObjectRenderer` pipeline, and the prompt. Saved configs that still carry `frictionStatic` continue to load — Zod silently strips unknown keys at parse time. The principled `μs ≠ μk` story will return as an opt-in `frictionDemo` mode in the [applied-forces refactor](Notes_on_Applied_Forces_Refactor.md).
 
-### 3.3 🔴 `frictionAir` numeric ranges are calibrated to Matter, but Rapier is the default
-Schema description: "0.01–0.05 = light damping, 0.1 = high drag" — those numbers are right for Matter's `v *= 1 − f` per-step decay, **wrong** for Planck/Rapier's `linearDamping` (`v / (1 + d·dt)`). Same number, different physics. With Rapier as the default engine, LLM-generated `frictionAir` values are effectively no-ops.
-- **Fix:** the [air-resistance refactor](Notes_on_Air_Resistance_Refactor.md) deprecates `frictionAir` and replaces it with mass-dependent quadratic drag. The interim fix is updating the schema description to call out the engine-dependence and de-emphasize specific numeric ranges.
+### 3.3 🟢 `frictionAir` was calibrated to Matter, but Rapier is the default — REMOVED (2026-06-17)
+Schema description used to say "0.01–0.05 = light damping, 0.1 = high drag" — those numbers were right for Matter's `v *= 1 − f` per-step decay, **wrong** for Planck/Rapier's `linearDamping` (`v / (1 + d·dt)`). Same number, different physics, so with Rapier as the default engine LLM-generated `frictionAir` values were effectively no-ops. Resolved by the [air-resistance refactor](Notes_on_Air_Resistance_Refactor.md) Phase 3, which **removed `frictionAir` end-to-end** in favor of the mass-dependent quadratic drag model (`environment.airResistance` + per-object `dragCoefficient` / `referenceArea`). Saved configs that still carry the field continue to load — Zod silently strips unknown keys.
 
 ### 3.4 🟡 Examples are static and global
 Both example sims (`tossBall`, `twoBoxes`) are inlined into every generation, regardless of what the user asked for. For "build a pendulum" or "two-body collision," neither example is particularly relevant — they eat prompt budget without informing the output.
@@ -82,7 +81,7 @@ Both example sims (`tossBall`, `twoBoxes`) are inlined into every generation, re
 - **Fix:** per-stage context tailoring (see §5.2).
 
 ### 3.6 🟡 No engine-specific guidance in the prompt
-The schema lists three engines but says nothing about which fields/ranges work well under each. A sim with `physicsEngine: 'planck'` and Matter-calibrated `frictionAir` values will silently behave wrong. Same for whatever engine-specific quirks come with the upcoming joints/sensors features.
+The schema lists three engines but says nothing about which fields/ranges work well under each. Engine-specific quirks (e.g. per-fixture vs per-body restitution, and whatever comes with the upcoming joints/sensors features) can make the same config behave differently across engines with no warning in the prompt.
 - **Fix:** add an engine-conditional section to the preamble, or have the skeleton stage pick the engine based on the physics concept (springs → Rapier; pulleys → Planck; default → Rapier).
 
 ### 3.7 📋 Schema description prose is the prompt
@@ -125,7 +124,7 @@ A small block in the preamble:
 
 ```
 Engine notes:
-- "rapier" (default): SI-native; restitution and friction are per-fixture; use linearDamping for drag (NOT frictionAir).
+- "rapier" (default): SI-native; restitution and friction are per-fixture; for drag, enable environment.airResistance and set per-object dragCoefficient / referenceArea.
 - "planck": same Box2D model as rapier; supports pulley/mouse joints when those land.
 - "matter": legacy; new sims should not select this unless the user explicitly asks for it.
 ```

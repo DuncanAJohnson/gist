@@ -120,20 +120,37 @@ export function synthesizeGridRenderable(
 }
 
 /**
- * Net-force vector-arrow renderable for a physics object with showForceArrows
- * enabled. Phase 1 of the vector-arrow refactor: a one-kind synthesizer that
- * preserves legacy behavior — same color, same scale, same source — plus the
- * standardized F_net subscripted label. Phase 2+ will replace this with a
- * showVectors-driven synthesizer that accepts multiple kinds per body.
+ * Vector-arrow renderables for a physics object with one or more `showVectors`
+ * entries. Each entry is either a shorthand kind string ("velocity",
+ * "force-net", …) or a full {kind, color?, label?, …} config. Returns one
+ * renderable per entry. Objects with no `showVectors` (or an empty array) emit
+ * nothing.
+ *
+ * The renderable `id` is namespaced by kind and array index so that multiple
+ * arrows of the same kind on one body (rare but valid — e.g. two F_app pulls
+ * at different anchors) don't collide.
  */
-export function synthesizeVectorArrowRenderable(obj: ObjectConfig): PixelRenderable {
-  return {
-    id: `__vector_arrow_${obj.id}__force-net`,
-    source: { type: 'body', bodyId: obj.id, followAngle: false },
-    visual: { type: 'vector-arrow', kind: 'force-net' },
-    opacity: 0.9,
-    zIndex: 20,
-  };
+export function synthesizeVectorArrowRenderables(obj: ObjectConfig): PixelRenderable[] {
+  // Back-compat for sims loaded outside the Zod parse path (Supabase JSON,
+  // raw paste). The schema's `z.preprocess` shim translates legacy
+  // `showForceArrows: true` → `showVectors: ["force-net"]`, but only when the
+  // object actually flows through ObjectConfigSchema.parse. Saved sims read
+  // from Supabase by `DynamicSimulation` skip that step, so we honor the
+  // legacy field here as a runtime fallback. New authoring should use
+  // `showVectors` directly.
+  const legacy = (obj as ObjectConfig & { showForceArrows?: boolean }).showForceArrows;
+  const showVectors = obj.showVectors ?? (legacy === true ? ['force-net' as const] : undefined);
+  if (!showVectors || showVectors.length === 0) return [];
+  return showVectors.map((entry, i) => {
+    const cfg = typeof entry === 'string' ? { kind: entry } : entry;
+    return {
+      id: `__vector_arrow_${obj.id}__${cfg.kind}__${i}`,
+      source: { type: 'body', bodyId: obj.id, followAngle: false },
+      visual: { type: 'vector-arrow', ...cfg },
+      opacity: 0.9,
+      zIndex: 20,
+    };
+  });
 }
 
 /**

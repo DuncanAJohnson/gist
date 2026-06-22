@@ -141,7 +141,7 @@ function BaseSimulation({
     let adapter: PhysicsAdapter | null = null;
     let animationFrameId: number | undefined;
 
-    sceneRef.current.style.backgroundColor = '#fafafa';
+    sceneRef.current.style.backgroundColor = '#e2e8f0';
 
     if (onCanvasContainerReadyRef.current) {
       onCanvasContainerReadyRef.current(sceneRef.current);

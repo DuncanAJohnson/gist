@@ -317,8 +317,6 @@ export class RapierAdapter implements PhysicsAdapter {
     if (def.angle !== undefined) bd.setRotation(def.angle);
     if (def.velocity) bd.setLinvel(def.velocity.x, def.velocity.y);
     if (def.angularVelocity !== undefined) bd.setAngvel(def.angularVelocity);
-    // Matter's frictionAir ≈ linearDamping in Rapier.
-    if (def.frictionAir !== undefined) bd.setLinearDamping(def.frictionAir);
 
     const world = this.requireWorld();
     const rigid = world.createRigidBody(bd);

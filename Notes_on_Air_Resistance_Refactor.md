@@ -1,6 +1,6 @@
 # Notes on Air Resistance Refactor
 
-Status: design notes for review (not yet implemented).
+Status: ALL THREE PHASES SHIPPED — the quadratic, mass-dependent drag model is live end-to-end (schema fields `dragCoefficient` / `referenceArea` + `environment.airResistance` block, the per-frame runtime compute in `JsonSimulation.tsx`, the regenerated `modal_functions/simulation_schema.json`, and the LLM prompt in `gist_instructions.py`). Phase 3 (2026-06-17) removed the legacy `frictionAir` field end-to-end — out of `simulation.ts`, `BodyDef` (`types.ts`), both adapters, `ObjectRenderer`, `JsonSimulation` (incl. the conflict warning), the example sims, and `gist_instructions.py`. The quadratic model is now the only damping path; the debug "Off" mode clears damping via `setLinearDamping(0)` rather than restoring a saved `frictionAir`. Saved configs that still carry `frictionAir` load fine (Zod strips unknown keys). The design notes below are the original proposal; the "Design rationale: diorama scoping" section remains the canonical reference for the linear-A choice.
 Scope: Planck and Rapier adapters.
 
 > **Note (2026-05-11):** these notes were written while Matter was still in-tree. Matter has since been removed; references to `MatterAdapter.ts` below are historical. The plan itself is unaffected — it always targeted Planck/Rapier.
@@ -40,9 +40,11 @@ Both engines **clear accumulated forces after `world.step()`**. The precompute l
 
 ---
 
-## JSON schema additions (two flavors — pick one)
+## JSON schema additions (DECISION: Flavor A shipped)
 
-### Flavor A — physics-textbook (split)
+> **Decision (Phase 2, shipped):** **Flavor A (physics-textbook, split) was chosen and is live.** The shipped schema matches it exactly — `environment.airResistance.{enabled, airDensity}` plus per-object `dragCoefficient` and `referenceArea`, with `k = ½·airDensity·Cd·referenceArea`. Verified in `src/schemas/simulation.ts` (`AirResistanceConfigSchema`, object fields) and `modal_functions/simulation_schema.json`. **Flavor B (lumped) was rejected** — its rationale is kept below so the trade-off stays on record (the split form is more pedagogical: students manipulate Cd and area independently, which is the lesson). One addition beyond the original Flavor-A sketch: per-object **shape-based defaults** for `dragCoefficient` (sphere 0.47 / rectangle 1.05 / polygon 1.0) and `referenceArea` (widest horizontal extent), so authors get visible drag without specifying either field.
+
+### Flavor A — physics-textbook (split) · ✅ CHOSEN / SHIPPED
 
 ```json
 "environment": {
@@ -60,7 +62,7 @@ Both engines **clear accumulated forces after `world.step()`**. The precompute l
 
 Then `k = ½ · airDensity · Cd · referenceArea`.
 
-### Flavor B — lumped (simpler, less pedagogical)
+### Flavor B — lumped (simpler, less pedagogical) · ❌ REJECTED (rationale kept)
 
 ```json
 "environment": {
@@ -153,9 +155,9 @@ It exercises every part of the runtime pipeline (per-body setter on the adapter,
 
 ### Lifecycle
 
-- **Phase 1 (this refactor):** debug-only switch, defaults compute `k`, no schema changes.
-- **Phase 2 (follow-on):** schema additions (Flavor A or B), LLM prompt updates, examples updated. JSON values override the debug defaults; the debug switch becomes a developer override that defaults to whatever the JSON said.
-- **Phase 3:** once stable, decide whether the debug switch stays as a permanent override or gets removed.
+- **Phase 1 (this refactor):** ✅ SHIPPED — debug-only switch, defaults compute `k`, no schema changes.
+- **Phase 2 (follow-on):** ✅ SHIPPED — schema additions (Flavor A, above), LLM prompt updates, examples updated. JSON values override the debug defaults; the debug switch becomes a developer override that defaults to whatever the JSON said (`airResistanceMode` seeds from `environment.airResistance.enabled` in `JsonSimulation.tsx`).
+- **Phase 3:** ✅ SHIPPED (2026-06-17) — removed the legacy `frictionAir` field end-to-end (`types.ts` `BodyDef`, both adapters, `ObjectRenderer`, `JsonSimulation`, the schema + regenerated JSON schema, the example sim JSONs, and `gist_instructions.py`). The quadratic model is now the only damping path. The debug switch **stays** as a permanent developer A/B override; its "Off" mode now means `setLinearDamping(0)` (undamped) instead of restoring a saved `frictionAir`. The per-frame conflict warning was deleted along with the field.
 
 ---
 
@@ -217,22 +219,23 @@ Ratio of ~45× between the two — dramatic and visible within a 60-meter canvas
 
 ## Open questions for Duncan
 
-1. **Per-environment toggle vs per-body opt-in.** With this plan, `environment.airResistance.enabled = true` means "drag is computed for every dynamic body that has a `dragCoefficient` (or `drag`) field; objects without one feel no drag." Sound right, or do you want a global default Cd that applies to all bodies?
+1. ✅ **RESOLVED (Phase 2) — Per-environment toggle + automatic per-body shape default.** `environment.airResistance.enabled = true` computes drag for *every* dynamic body; bodies don't need to declare a field because `dragCoefficient` and `referenceArea` fall back to shape-based defaults. A body opts out explicitly with `dragCoefficient: 0`. (Original question below.) ~~Per-environment toggle vs per-body opt-in. With this plan, `environment.airResistance.enabled = true` means "drag is computed for every dynamic body that has a `dragCoefficient` (or `drag`) field; objects without one feel no drag." Sound right, or do you want a global default Cd that applies to all bodies?~~
 
-2. **Flavor A or B?** A is pedagogically richer (students can change `airDensity`, see Cd values for shapes), B is simpler and less for the LLM to get wrong. Lean: **A**, falling back to sensible defaults — `airDensity = 1.225`, and per-shape default `referenceArea` (πr² for circles, w·h for rectangles — accepting that the rectangle case is wrong-when-rotated, which is the bit we said is out of scope).
+2. ✅ **RESOLVED (Phase 2) — Flavor A.** Shipped the physics-textbook split form (`airDensity` + per-body `dragCoefficient` + `referenceArea`); see the Decision callout under "JSON schema additions." Flavor B rejected (rationale retained). ~~Flavor A or B? A is pedagogically richer (students can change `airDensity`, see Cd values for shapes), B is simpler and less for the LLM to get wrong. Lean: **A**, falling back to sensible defaults.~~
 
-3. **What happens to `frictionAir` when air resistance is on?** Three options: (a) ignore it; (b) add it on top of the computed damping; (c) deprecate and remove. Lean: **(a) ignore it when on, with a console warning if both are set on the same object**. Long-term, deprecate it once examples and the LLM prompt are migrated.
+3. ✅ **RESOLVED (Phase 2) — option (a): ignore `frictionAir` when air resistance is on, with a console warning.** Verified in `JsonSimulation.tsx` (conflict warning) and the `frictionAir` schema describe. Long-term removal is Phase 3. ~~What happens to `frictionAir` when air resistance is on? Three options: (a) ignore it; (b) add it on top; (c) deprecate and remove. Lean: (a) ignore it when on, with a console warning.~~
 
-4. **Angular damping?** A spinning soccer ball with no rotational drag will spin forever — looks weird in long sims. Out of scope per the original direction, but worth deciding whether to add a single `environment.airResistance.angularDamping: 0.1` knob (constant, not coupled to ω²) so it's at least *visible* without doing the orientation work.
+4. **Angular damping?** *(still OPEN)* A spinning soccer ball with no rotational drag will spin forever — looks weird in long sims. Out of scope per the original direction, but worth deciding whether to add a single `environment.airResistance.angularDamping: 0.1` knob (constant, not coupled to ω²) so it's at least *visible* without doing the orientation work.
 
-5. **Default for `referenceArea` on rectangles** — pick `width·height`? The "facing area" issue we flagged out of scope means whatever we pick is wrong-when-rotated, but `width·height` at least gives the right order of magnitude and stays constant under rotation, so the simulation behaves predictably.
+5. ✅ **RESOLVED (Phase 2) — `referenceArea` defaults to the body's widest horizontal extent (linear-A), not `width·height`.** Chosen per the diorama-scoping rationale (treat the 2D world as a 1m-deep slice) so drag is visible at canvas scale; see "Design rationale: diorama scoping." ~~Default for `referenceArea` on rectangles — pick `width·height`?~~
 
 ---
 
 ## Follow-on (not in this refactor)
 
 - Update LLM prompt examples and `gist_instructions.py` so the model populates the new fields with reasonable values. Without this, the feature exists but no AI-generated sim uses it.
-- Once the new model is the canonical one, deprecate and remove `frictionAir` end-to-end.
+- ✅ DONE (Phase 3, 2026-06-17) — `frictionAir` removed end-to-end now that the quadratic model is canonical.
+- Still open (from Q4): an optional constant `environment.airResistance.angularDamping` knob so spinning bodies visibly slow down without doing the orientation work.
 
 ---
 

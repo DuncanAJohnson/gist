@@ -32,7 +32,6 @@ export interface BodyDef {
   inertia?: number;
   restitution?: number;
   friction?: number;
-  frictionAir?: number;
   isStatic?: boolean;
   shape: ShapeDescriptor;
 }

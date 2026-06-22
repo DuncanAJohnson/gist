@@ -84,7 +84,7 @@ flowchart LR
     direction TB
     B1["🟢 Vector2DSchema.y description<br/>positive = upward (FIXED 2026-05-11)<br/>simulation.ts:27"]
     B2["🟢 frictionStatic removed from<br/>schema + prompt (FIXED 2026-05-11);<br/>μs/μk story moves to frictionDemo"]
-    B3["🔴 frictionAir ranges in<br/>prompts predate Rapier/Planck<br/>(calibrate against current engines)"]
+    B3["🟢 frictionAir removed end-to-end<br/>(FIXED 2026-06-17); quadratic drag<br/>via airResistance is the only path"]
   end
 
   subgraph IMPROVES["Top-5 priorities (LLM doc §8)"]
@@ -99,8 +99,7 @@ flowchart LR
   classDef bug fill:#fee2e2,stroke:#dc2626,color:#991b1b;
   classDef done fill:#dcfce7,stroke:#16a34a,color:#166534;
   classDef priority fill:#dbeafe,stroke:#2563eb,color:#1e40af;
-  class B1,B2 done;
-  class B3 bug;
+  class B1,B2,B3 done;
   class I1,I2,I3,I4,I5 priority;
 `;
 
@@ -143,7 +142,7 @@ function LLMPipeline() {
         <code>GIST_LLM_Context_and_Prompting.md</code> §3 for full detail.
       </p>
 
-      <MermaidDiagram chart={issuesChart} caption="Bugs to fix and the top-5 prioritized improvements." />
+      <MermaidDiagram chart={issuesChart} caption="The three code-review bugs (all now fixed) and the top-5 prioritized improvements." />
 
       <h2>Source files</h2>
       <ul>

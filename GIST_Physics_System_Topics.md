@@ -22,9 +22,8 @@ Field was advertised in the schema + prompt but no engine mapped it. **Removed 2
 - **Next step:** the principled `μs ≠ μk` story will return as an opt-in `frictionDemo` mode in the applied-forces refactor.
 - See [Notes_on_Applied_Forces_Refactor.md](Notes_on_Applied_Forces_Refactor.md) "Static friction caveat".
 
-### 🟡 `frictionAir` schema-prose calibration
-With Matter gone, both remaining engines map `frictionAir` to `linearDamping` → `v / (1 + d·dt)`, so the cross-engine drift is resolved. The remaining concern is that the LLM-prompt prose around `frictionAir` ranges was historically calibrated against Matter's per-step formula; the ranges may need re-tuning for the substep-correct integrators.
-- **Plan:** subsumed by the quadratic-drag model in the air-resistance refactor; `frictionAir` will eventually be deprecated end-to-end.
+### 🟢 `frictionAir` field — removed
+The legacy constant-linear-damping field. With Matter gone, both remaining engines mapped it to `linearDamping` → `v / (1 + d·dt)`, but the LLM-prompt prose around its ranges was calibrated against Matter's per-step `v *= 1 − f` formula, so AI-generated values were effectively no-ops under the default engine. **Removed 2026-06-17** (air-resistance refactor Phase 3) from `simulation.ts`, `BodyDef`, both adapters, `ObjectRenderer`, `JsonSimulation`, the example sims, and `gist_instructions.py`. The quadratic, mass-dependent drag model (`environment.airResistance` + per-object `dragCoefficient` / `referenceArea`) is now the only damping path. Saved configs that still carry `frictionAir` continue to load — Zod silently strips unknown keys.
 - See [Notes_on_Air_Resistance_Refactor.md](Notes_on_Air_Resistance_Refactor.md).
 
 ---

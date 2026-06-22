@@ -44,6 +44,16 @@ interface EditOverlayProps {
   objRefs: RefObject<Record<string, PhysicsBody>>;
   pixelsPerMeter: number;
   unitScale: number;
+  /**
+   * Render-side zoom factor (live pixelsPerUnit / configPixelsPerUnit). The
+   * overlay's bitmap and CSS dimensions scale by this so it stays pixel-aligned
+   * with the main RenderLayer canvas — without it, the overlay bitmap stays at
+   * the unzoomed size, the browser stretches it via CSS to fill the zoomed
+   * container, and the AABB math (which uses the zoomed `pixelsPerMeter`)
+   * lands handles outside the visible area and breaks hit-tests when zoomed.
+   * Defaults to 1.
+   */
+  zoomFactor?: number;
 }
 
 const HANDLE_SIZE = 8;
@@ -67,6 +77,7 @@ function EditOverlay({
   objRefs,
   pixelsPerMeter,
   unitScale,
+  zoomFactor = 1,
 }: EditOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const dragStateRef = useRef<DragState>({ kind: 'idle' });
@@ -82,6 +93,7 @@ function EditOverlay({
   const onResetPromptRequestedRef = useRef(onResetPromptRequested);
   const pixelsPerMeterRef = useRef(pixelsPerMeter);
   const unitScaleRef = useRef(unitScale);
+  const zoomFactorRef = useRef(zoomFactor);
   editModeActiveRef.current = editModeActive;
   clickShowsResetPromptRef.current = clickShowsResetPrompt;
   editedObjectsRef.current = editedObjects;
@@ -91,18 +103,22 @@ function EditOverlay({
   onResetPromptRequestedRef.current = onResetPromptRequested;
   pixelsPerMeterRef.current = pixelsPerMeter;
   unitScaleRef.current = unitScale;
+  zoomFactorRef.current = zoomFactor;
 
-  // Mount the overlay canvas on top of RenderLayer's canvas.
+  // Mount the overlay canvas on top of RenderLayer's canvas. Initial bitmap
+  // and CSS dimensions read from the zoom ref so a remount mid-zoom doesn't
+  // briefly snap back to the unzoomed size.
   useEffect(() => {
     if (!canvasContainer) return;
+    const z = zoomFactorRef.current;
     const canvas = document.createElement('canvas');
-    canvas.width = CANVAS_WIDTH;
-    canvas.height = CANVAS_HEIGHT;
+    canvas.width = CANVAS_WIDTH * z;
+    canvas.height = CANVAS_HEIGHT * z;
     canvas.style.position = 'absolute';
     canvas.style.top = '0';
     canvas.style.left = '0';
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
+    canvas.style.width = `${z * 100}%`;
+    canvas.style.height = `${z * 100}%`;
     canvas.style.display = 'block';
     canvas.style.zIndex = '2';
     canvas.style.pointerEvents = 'none';
@@ -114,6 +130,17 @@ function EditOverlay({
       canvasRef.current = null;
     };
   }, [canvasContainer]);
+
+  // Resize the overlay buffer when the zoom slider moves. Mirrors the same
+  // pattern in RenderLayer so the two canvases stay pixel-aligned.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.width = CANVAS_WIDTH * zoomFactor;
+    canvas.height = CANVAS_HEIGHT * zoomFactor;
+    canvas.style.width = `${zoomFactor * 100}%`;
+    canvas.style.height = `${zoomFactor * 100}%`;
+  }, [zoomFactor]);
 
   // Toggle pointer-events: capture clicks both for edit mode and for the
   // "click while running/dirty → show reset prompt" affordance.
@@ -145,8 +172,18 @@ function EditOverlay({
       };
     };
 
-    const buildW2C = () =>
-      new WorldToCanvas(pixelsPerMeterRef.current, CANVAS_HEIGHT, WALL_THICKNESS);
+    // pixelsPerMeter is already zoom-scaled by JsonSimulation; canvasHeight
+    // and wallOffset are scaled here so the three inputs to WorldToCanvas
+    // form a consistent coordinate system. Matches the construction in
+    // RenderLayer.tsx's draw loop.
+    const buildW2C = () => {
+      const z = zoomFactorRef.current;
+      return new WorldToCanvas(
+        pixelsPerMeterRef.current,
+        CANVAS_HEIGHT * z,
+        WALL_THICKNESS * z,
+      );
+    };
 
     const findObject = (id: string): ObjectConfig | undefined =>
       editedObjectsRef.current.find((o) => o.id === id);
@@ -393,13 +430,16 @@ function EditOverlay({
       if (canvas) {
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+          // Clear using the bitmap's actual size (already zoom-scaled by the
+          // zoomFactor effect above), not the unzoomed constants.
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
 
           if (editModeActiveRef.current) {
+            const z = zoomFactorRef.current;
             const w2c = new WorldToCanvas(
               pixelsPerMeterRef.current,
-              CANVAS_HEIGHT,
-              WALL_THICKNESS,
+              CANVAS_HEIGHT * z,
+              WALL_THICKNESS * z,
             );
             const unit = unitScaleRef.current;
             const selId = selectedObjectIdRef.current;

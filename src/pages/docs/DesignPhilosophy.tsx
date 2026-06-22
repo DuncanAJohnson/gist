@@ -169,6 +169,121 @@ function DesignPhilosophy() {
         </li>
       </ul>
 
+      <h2>The second concrete scoping: diorama composition (stage and actors)</h2>
+      <p>
+        The second affordance we've articulated in writing. <em>Landed
+        2026-05-21.</em> Same pattern as air resistance — qualitative claim
+        preserved, absolute physical fidelity traded for visibility.
+      </p>
+      <p>
+        <strong>The pathology.</strong> Before this landed, the LLM picked
+        scene dimensions by reasoning about real-world spans ("a runway is
+        1000 m wide; a tabletop scene is 5 m wide") and object widths/heights
+        from real bounding boxes ("a soccer ball is 0.22 m"). The two
+        together routinely produced sims where a real-sized soccer ball
+        occupied 0.4% of a 60 m canvas — a barely-visible dot in a stage
+        too big for the action it contained. Hand-authored sims that read
+        well (e.g., <code>tossBall</code>) had quietly broken the
+        real-world rule: the ball was 6 m wide on a 60 m canvas, ~10% of
+        the smaller dimension. Inspecting the sample showed the implicit
+        "good" composition was 10× the absolute size of the realistic one.
+      </p>
+      <p>
+        <strong>The principle.</strong> A GIST diorama is a stage
+        composition, not a scale model. Like theatre: actors aren't built
+        to scale with the set. The set is sized so the play resolves at a
+        readable pace; the actors are sized so the audience can see them
+        from the back row. The qualitative claims —{' '}
+        <em>which object is bigger, what direction motion goes, how long
+        the event takes</em> — are preserved. Absolute spatial scale is
+        not.
+      </p>
+      <p>
+        <strong>The two formulas.</strong> The LLM now picks scene scale
+        from the action's time budget and object sizes from a fraction of
+        the resulting scene dimension:
+      </p>
+      <ul>
+        <li>
+          <strong>Scene scale</strong> ← target action time <code>t</code>{' '}
+          in 2–6 seconds. Then <code>span = </code>(dominant motion
+          equation):
+          <ul>
+            <li>Free fall from rest: <code>span ≈ ½·g·t²</code>.</li>
+            <li>Vertical toss: <code>span ≈ v₀²/(2·g)</code>.</li>
+            <li>Horizontal projectile: <code>span ≈ v₀·t</code>.</li>
+            <li>Collision / push: <code>span ≈ 2·v_avg·t</code>.</li>
+          </ul>
+          Add 20% padding. Clamp to [10, 80] configured-units. Most
+          well-tuned dioramas land in 20–60.
+        </li>
+        <li>
+          <strong>Object size</strong> ← <code>D = min(scene_width, scene_height)</code>{' '}
+          in configured units.
+          <ul>
+            <li>Largest object: <code>width ≈ 0.10 · D</code>.</li>
+            <li>Smallest object: <code>width ≥ 0.04 · D</code>.</li>
+            <li>
+              Relative ratio: preserve ordering (heavy &gt; light), compress
+              range to ~2–3:1 even when reality demands 5:1+.
+            </li>
+            <li>
+              Aspect ratio: match the svg's natural shape (boat wider than
+              tall, person taller than wide).
+            </li>
+          </ul>
+        </li>
+      </ul>
+      <p>
+        <strong>What stays real.</strong> Gravity (9.8 m/s²), masses,
+        restitution coefficients, drag coefficients, velocities — all
+        textbook. The only diorama-scoped quantities are{' '}
+        <code>scene_dimension.size</code> and per-object{' '}
+        <code>width</code> / <code>height</code>. Physics integration is
+        unaffected: a 5-meter "feather" with mass 0.05 kg still falls
+        through air resistance at the right qualitative pace because the
+        non-spatial inputs (mass, Cd, density) are honest. The visual is
+        what changed, not the physics.
+      </p>
+      <p>
+        <strong>What breaks.</strong> Anything that would have read the
+        bounding-box width as if it were a real physical size. In practice,
+        this affects only one current field:{' '}
+        <code>referenceArea</code> for drag (the air-resistance refactor
+        already noted this and gave authors an explicit override). Mass,
+        inertia, restitution, and friction are all independent fields, so
+        scaling visual sizes leaves them untouched. The override path
+        absorbs the trade.
+      </p>
+      <p>
+        <strong>Where the scoping lives</strong> (per the three-places
+        rule):
+      </p>
+      <ul>
+        <li>
+          <strong>Schema describe</strong>: <code>ObjectConfig.width</code>
+          {' '}/ <code>.height</code> describe text now reads
+          "DIORAMA-SIZED, not real-world." Top-level{' '}
+          <code>SimulationConfig</code> docstring gained a "DIORAMA
+          SCOPING" section that states the principle plus the scene-scale
+          and object-size formulas.
+        </li>
+        <li>
+          <strong>LLM prompt</strong>:{' '}
+          <code>shared_preamble</code> dropped its "use real-world
+          bounding-box sizes" line.{' '}
+          <code>skeleton_fragment</code>'s scene-scale section was
+          replaced with action-time-first reasoning (target <code>t</code>{' '}
+          → motion equation → span × 1.2 → clamp).{' '}
+          <code>objects_fill_fragment</code> step 1 swapped the
+          real-world reference list (soccer ball 0.22 m, person 1.8 m) for
+          the 10%-of-D rule plus a worked example.
+        </li>
+        <li>
+          <strong>Design philosophy doc</strong>: this section.
+        </li>
+      </ul>
+
       <h2>Future scoping decisions</h2>
       <p>
         Air resistance is the first one, not the last. Other affordances will

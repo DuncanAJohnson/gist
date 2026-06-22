@@ -427,7 +427,7 @@ flowchart LR
   P1A["Phase 1a:<br/>rename + kind field<br/>+ theme module<br/><b>SHIPPED</b>"]
   P1B["Phase 1b:<br/>drop gravity<br/>double-count in F_net<br/><b>SHIPPED</b>"]
   P1C["Phase 1c-rev:<br/>store kinematics<br/>in Frame schema<br/><b>SHIPPED</b>"]
-  P2["Phase 2:<br/>velocity + acceleration<br/>(free-fall, projectile)"]
+  P2["Phase 2:<br/>velocity + acceleration<br/>+ showVectors schema<br/><b>SHIPPED</b>"]
   P3["Phase 3:<br/>applied / friction /<br/>drag / gravity kinds"]
   P4["Phase 4:<br/>legend overlay<br/>+ diorama presets"]
   P5["Phase 5:<br/>auto-scale<br/>calibration (opt.)"]
@@ -436,8 +436,8 @@ flowchart LR
   classDef done fill:#dcfce7,stroke:#16a34a,color:#166534;
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#92400e;
   classDef pending fill:#dbeafe,stroke:#2563eb,color:#1e40af;
-  class P1A,P1B,P1C done;
-  class P2,P3,P4,P5 pending;
+  class P1A,P1B,P1C,P2 done;
+  class P3,P4,P5 pending;
 `;
 
 const precomputeReplayChart = `
@@ -941,11 +941,47 @@ function VectorArrows() {
           <code>Notes_on_Vector_Representation_Refactor.md</code> for the full writeup.
         </li>
         <li>
-          <strong>Phase 2 — velocity + acceleration kinds.</strong> Source resolver reads{' '}
-          <code>body.velocity</code> and <code>userData.derivedAcceleration</code> directly. No
-          new physics work. Schema accepts <code>showVectors: ["velocity", "acceleration"]</code>.
-          Acceptance: a free-fall sim shows a green-growing velocity arrow and a constant purple
-          acceleration arrow.
+          <strong>Phase 2 — velocity + acceleration kinds + <code>showVectors</code> schema.{' '}
+          <em>SHIPPED 2026-05-20.</em></strong> The source resolver in{' '}
+          <code>VectorArrow.ts</code> now lights up <code>kind: 'velocity'</code> (reads{' '}
+          <code>body.velocity</code>) and <code>kind: 'acceleration'</code> (reads{' '}
+          <code>body.userData.derivedAcceleration</code> with a <code>{`{0,0}`}</code> fallback
+          for the very first live tick before <code>handleUpdate</code> runs once).
+          No physics or Frame-schema work needed — Phase 1c-rev had already recorded the
+          kinematics, so the visual layer is mode-agnostic across live and replay on both
+          engines (Rapier and Planck verified). The per-object{' '}
+          <code>showForceArrows: boolean</code> field is replaced by{' '}
+          <code>showVectors: Array&lt;VectorKind | VectorArrowConfig&gt;</code> — a discriminated
+          form that accepts both kind-string shorthand (<code>["velocity", "acceleration"]</code>)
+          and full per-arrow override configs (<code>{`{ kind, color?, label?, labelPlacement?, labelFontSize?, pixelsPerUnit? }`}</code>).
+          Legacy <code>showForceArrows: true</code> is auto-translated to{' '}
+          <code>showVectors: ["force-net"]</code> via a <code>z.preprocess</code> shim on parse
+          plus a runtime fallback in the synthesize step (the latter catches Supabase-loaded
+          sims that bypass schema validation — see{' '}
+          <code>parking_lot.md</code> for the broader load-path gap this surfaced).
+          The LLM prompt was updated and re-deployed to Modal so generated sims author{' '}
+          <code>showVectors</code> natively. Acceptance test confirmed end-to-end with a
+          projectile sim showing green velocity, purple acceleration, and red F<sub>net</sub>{' '}
+          simultaneously on one body.
+        </li>
+        <li>
+          <strong>Phase 2.5 — acceleration sliders unlocked (LLM-authoring).{' '}
+          <em>SHIPPED 2026-05-20.</em></strong> Adjacent to Phase 2 but a controls-system change,
+          not a vector-arrow one. The runtime stack was already wired end-to-end —
+          <code>ObjectRenderer</code> initializes{' '}
+          <code>userData.configuredAcceleration</code> from the object's <code>acceleration</code>{' '}
+          field at body creation, <code>JsonSimulation.handleUpdate</code> integrates it via{' '}
+          <code>v += a·dt</code> each frame, and <code>setNestedValue</code> routes slider
+          writes to <code>acceleration.x</code> / <code>acceleration.y</code> through the same
+          path. The only gap was that <code>SliderConfigSchema.property</code>'s describe text
+          (the LLM-facing one) omitted the acceleration options that{' '}
+          <code>OutputConfig</code> and <code>GraphConfig</code> already listed, so the LLM
+          never authored acceleration sliders. Fixed by updating the slider's property describe,
+          the object's <code>acceleration</code> describe (clarifying it's an{' '}
+          <em>additional</em> constant acceleration on top of environment gravity — rocket
+          thrust, braking, conveyor push — not a gravity override), and the FILL CONTROLS
+          fragment of the LLM prompt. Composes naturally with Phase 2's acceleration arrow:
+          students can now drag a slider and watch the purple acceleration arrow respond.
         </li>
         <li>
           <strong>Phase 3 — applied / friction / drag / gravity kinds.</strong> Reads{' '}

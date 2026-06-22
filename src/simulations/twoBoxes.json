@@ -17,8 +17,7 @@
       "height": 6,
       "svg": "box",
       "velocity": { "x": 5, "y": 0 },
-      "restitution": 0.8,
-      "frictionAir": 0
+      "restitution": 0.8
     },
     {
       "id": "boxB",
@@ -28,8 +27,7 @@
       "height": 6,
       "svg": "box",
       "velocity": { "x": -5, "y": 0 },
-      "restitution": 0.8,
-      "frictionAir": 0
+      "restitution": 0.8
     }
   ],
   "controls": [
