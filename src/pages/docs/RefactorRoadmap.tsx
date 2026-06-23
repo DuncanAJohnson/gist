@@ -123,7 +123,7 @@ flowchart LR
 
   subgraph VECPHASES["3. Vector representation (magnitude / angle)"]
     direction TB
-    VECP1["Phase 1: path-resolver<br/>.magnitude / .angle"]
+    VECP1["Phase 1: path-resolver<br/>.magnitude / .angle<br/>+ angleUnit family<br/><b>SHIPPED</b>"]
     VECP2["Phase 2: polar input form<br/>magnitude + angle init"]
     VECP3["Phase 3: polarSlider variant<br/>+ shared VectorArrow"]
     VECP1 --> VECP2 --> VECP3
@@ -163,8 +163,8 @@ flowchart LR
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#92400e;
   classDef pending fill:#dbeafe,stroke:#2563eb,color:#1e40af;
 
-  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,CCP0,RP0 done;
-  class APPP1,APPP2,APPP25,APPP3,APPP4,VECP1,VECP2,VECP3,VAP3,VAP4,VAP5,CCP1,CCP2,CCP3,CCP4,RP1,RP2,RP3,RP4,RP5,RP6 pending;
+  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,CCP0,RP0,VECP1 done;
+  class APPP1,APPP2,APPP25,APPP3,APPP4,VECP2,VECP3,VAP3,VAP4,VAP5,CCP1,CCP2,CCP3,CCP4,RP1,RP2,RP3,RP4,RP5,RP6 pending;
 `;
 
 const cameraChart = `
@@ -243,8 +243,17 @@ function RefactorRoadmap() {
         <li>
           <strong>Vector representation (magnitude / angle)</strong> — the polar
           binding layer. Composes with Applied Forces and with the camera system.
-          Cleanest to land after VA Phase 2 so the rendered output for polar
-          bindings is the new <code>VectorArrow</code> component.
+          <b>Phase 1 implemented (2026-06-22, pending visual verify + commit)</b>:
+          the path-resolver reads/writes <code>.magnitude</code> /{' '}
+          <code>.angle</code> as a derived projection over canonical{' '}
+          <code>{'{x,y}'}</code>, with held-angle state keyed per vector. A new{' '}
+          <strong>angle-unit family</strong> (<code>environment.angleUnit</code>:{' '}
+          deg / rad / rot, canonical radians) parallels the length-unit family and
+          dissolves a latent bug that silently mis-scaled <code>velocity.angle</code>{' '}
+          by the length factor on non-meter sims. Landed across all three places
+          (schema + prompt + doc). Phase 2 (polar initial conditions) is next; the
+          paired <code>polarSlider</code> + shared <code>VectorArrow</code> stay
+          Phase 3.
         </li>
         <li>
           <strong>Applied forces</strong> — the most invasive physics refactor;{' '}
@@ -266,8 +275,12 @@ function RefactorRoadmap() {
           both adapters); Phase 0 <b>SHIPPED</b> proved a dynamic compound both
           catches and tips. Remaining work is content, CCD robustness, catch
           detection, and the three-places landing (schema + prompt) so the LLM can
-          author concave shapes. See{' '}
-          <code>Notes_on_Concave_Colliders_Refactor.md</code>.
+          author concave shapes. <b>Agent-side dev is paused (2026-06-22)</b>:
+          both Phase 1/4 prereqs are resolved, so the next driver is curriculum —
+          the author is hand-building sims to define the Tier 1 priority shape list
+          that will unblock the resumed dev. See{' '}
+          <code>Notes_on_Concave_Colliders_Refactor.md</code> and{' '}
+          <code>Local_Sim_Workflow.md</code>.
         </li>
       </ol>
       <p>

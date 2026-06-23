@@ -11,6 +11,85 @@ Status legend:
 
 ---
 
+## Physics engine requirements & development notes
+
+The charter for how GIST relates to physics engines, plus a running log of what
+we've learned running real dev efforts across the two engines. Everything else in
+this doc (mapping hazards, feature gaps, perf) is the *specifics*; this section is
+the *stance* those specifics serve.
+
+### 📋 Requirement — stay maximally abstracted; the adapter is the compatibility layer
+GIST moves forward **above the `PhysicsAdapter` boundary**. All physics-touching
+code — sims, renderers, controls, recording, the LLM contract — is
+**engine-agnostic** and speaks only the SI, Y-up interface in
+[src/physics/types.ts](src/physics/types.ts). A physics engine is a *plugin*: a new
+or future engine is adopted by implementing `PhysicsAdapter` (as Rapier and Planck
+do today), with **zero changes above the boundary**. The adapter — not the caller
+— owns the job of making current and future engines behave compatibly (unit
+normalization, Y-axis flip, setter idempotency, feature mapping). When an engine
+cannot satisfy a need, that gap is recorded as an *Adapter feature gap* (below),
+never patched into a caller. Active engines: **Rapier** (WASM, SI-native,
+deterministic — the default) and **Planck** (pure-JS Box2D port). Matter was an
+early exploration, removed 2026-05-11.
+
+### 📋 Requirement — the physics curriculum LEADS (diorama-scoped model)
+Engines are chosen and tuned to serve the **teaching diorama**, never the reverse.
+GIST sims are scoped didactic dioramas, not physical oracles
+(`/docs/design-philosophy` /
+[DesignPhilosophy.tsx](src/pages/docs/DesignPhilosophy.tsx)). So the order of
+operations is always: **(1)** the curriculum states what a sim must demonstrate
+(a catch, a tumble, drag, a force balance); **(2)** the default engine must make
+that point land cleanly; **(3)** cross-engine portability is *desirable but not
+guaranteed* — when engines diverge, the curriculum decides which engine makes the
+teaching point land, and that choice is recorded in the sim's refactor note. We do
+not chase pixel-identical cross-engine behavior for its own sake.
+
+### 📋 Development notes — per-engine experience & suitability
+A consolidated log of where the two engines *perform differently* (distinct from
+the outright *mapping-hazard bugs* tracked under "Cross-engine inconsistencies").
+Use this to decide which engine a given sim type should run on.
+
+- **Solver parameters / substeps — not engine-tuned.** Default iteration counts
+  and substep sizes are the engines' own defaults, not calibrated per-engine (see
+  *Performance & tuning* below). The precompute path substeps at ~480 Hz, which
+  doubles as a de-facto CCD substitute on both engines — a key reason tunneling
+  has been a non-issue even with thin colliders.
+- **Air resistance — portable.** The quadratic, mass-dependent drag model maps to
+  per-frame `setLinearDamping` → the substep-correct `v / (1 + d·dt)` on **both**
+  engines, so damping behaves the same across them. (Matter's per-step `v *= 1−f`
+  formula *diverged* and was one reason Matter was dropped — a cautionary data
+  point: an engine whose integrator can't express the model uniformly is a poor
+  fit.) See [Notes_on_Air_Resistance_Refactor.md](Notes_on_Air_Resistance_Refactor.md).
+- **Concave colliders + rotational momentum — partially portable; Rapier favored
+  for tumble. (2026-06-22)** Headless parity test of the Phase-0 compound cup
+  (decompose → both adapters, stepped at dt=1/480): **portable** — the structural
+  build (3 CCW ≤8-vert parts), mass/inertia/COM (~13%), straight-drop **catch**,
+  and a **genuine topple** (load carried past the support edge) all match. **Not
+  portable** — a within-base *impact* tips the cup in Rapier (peak ω 3→12 over a
+  velocity sweep) but **never** in Planck (ω≈0, stays planted); and Planck is
+  consistently **more energetic** (slides the cup 2–3× farther, ball retains far
+  more post-collision speed). Root cause is solver/contact response, not inertia.
+  **Suitability:** for sims whose pedagogy hinges on impact-induced tip/tumble or
+  precise post-collision energy, **prefer Rapier**; do not assume a tumble tuned
+  on Rapier reproduces on Planck. See
+  [Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md)
+  "Planck parity — TESTED".
+
+**Quick engine-suitability guide (living):**
+- **Rapier (default)** — deterministic, SI-native, WASM. Favor for: collision-
+  response fidelity, impact-induced tip/tumble, post-collision energy accuracy,
+  anything where reproducibility matters. Cost: ~2 MB WASM bundle; a single
+  process-wide world (the adapter leases it; do not free/recreate mid-process).
+- **Planck** — pure-JS Box2D port, no WASM, owns its own world (no singleton
+  constraint). Fine for: simple rigid-body scenes, and the eventual friction-demo
+  path. **Do not rely on it for** impact-induced rotation parity or matching
+  Rapier's collision energy. Carries the per-contact friction-cache hazard (below).
+- **General rule:** if a sim type shows up here as engine-sensitive, pick the
+  engine that makes the teaching point land and pin `physicsEngine` in the config;
+  note *why* in the relevant refactor doc so the choice isn't silently re-litigated.
+
+---
+
 ## Legacy & deprecation
 
 ### 🟢 Matter removed (was an early exploration)

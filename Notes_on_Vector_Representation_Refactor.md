@@ -298,10 +298,10 @@ Surfaced during vector-arrows Phase 1c-rev. Noted here because vector quantities
 
 ## Open questions for Duncan
 
-1. **Two separate sliders vs paired `polarSlider` for projectile UX.** Two separate sliders is a Phase 1 freebie (no new control variant). The paired control is nicer but a Phase 3 lift. Worth shipping Phase 1 alone first, or do you want the paired UX bundled?
+1. ~~**Two separate sliders vs paired `polarSlider` for projectile UX.**~~ **RESOLVED in Phase 1 (2026-06-23):** shipped two separate sliders (a Phase 1 freebie); the paired `polarSlider` stays Phase 3. The held-state is keyed by vector (`${targetObj}.${base}`) precisely so the future paired control composes for free. See Findings.
 2. **Should authored initial conditions ever be polar?** Phase 2 adds it. Useful for LLM-authored projectile sims; some risk that the LLM mixes the two forms inconsistently within one config. Lean: ship it but require pure-component **or** pure-polar within a single vector authored value (no mixing `x` with `angle`).
-3. **Default angle slider range.** `(-180°, 180°]` is mathematically natural, but `[0°, 360°)` matches compass conventions and is sometimes more intuitive for students. Lean: match what the authored sim says, default to `(-180°, 180°]` if unspecified.
-4. **Should `.magnitude` writes clamp at zero?** Velocity magnitude can't be negative, but a slider with `min: -10, max: 10` mistakenly bound to `.magnitude` would silently clamp. Lean: warn at parse time if `min < 0` for a `.magnitude` binding.
+3. ~~**Default angle slider range.**~~ **RESOLVED in Phase 1 (2026-06-23):** `.angle` reads return `atan2`, i.e. `(-180°, 180°]` CCW from +X natively; per-binding slider `min`/`max` are authored as needed (the acceptance sim uses `0–90`). `[0°, 360°)` was not adopted (would need extra wrapping). See Findings.
+4. **PARTIALLY resolved (2026-06-23).** `.magnitude` writes now clamp negatives to zero (`Math.max(0, value)` in `writeVectorPolar`). STILL OPEN: the parse-time warning when a `.magnitude` slider is authored with `min < 0` — no validator yet (ties to the deferred Phase-2 parse-time checks).
 
 ---
 
