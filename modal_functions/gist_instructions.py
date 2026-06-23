@@ -163,7 +163,8 @@ You are producing the full `controls` array. The skeleton listed each control's 
 For each control:
 - Pick `type`: "slider" for continuous numeric values (velocity, mass, gravity, restitution), "toggle" for on/off booleans (isStatic).
 - For sliders: include `label`, `targetObj`, `property`, `min`, `max`, `step`, `defaultValue` (all required by the schema). For toggles: `label`, `targetObj`, `property`, `defaultValue` (boolean).
-- `property` MUST be a scalar dot-path — always include the axis suffix on vector quantities. Valid: `"velocity.x"`, `"velocity.y"`, `"position.x"`, `"position.y"`, `"acceleration.x"`, `"acceleration.y"`, `"mass"`, `"restitution"`, `"angle"`, `"isStatic"`. Invalid: `"velocity"`, `"position"`, `"acceleration"` (these are 2D vectors and a slider can only drive one number at a time). The `targetObj` must equal the skeleton's `target_id`.
+- `property` MUST be a scalar dot-path — always include the axis suffix on vector quantities. Valid Cartesian: `"velocity.x"`, `"velocity.y"`, `"position.x"`, `"position.y"`, `"acceleration.x"`, `"acceleration.y"`, `"mass"`, `"restitution"`, `"angle"`, `"isStatic"`. Valid POLAR projections: `"velocity.magnitude"` / `"velocity.angle"` (and the same for `acceleration`). A `.magnitude` slider changes speed while preserving direction; an `.angle` slider rotates the vector while preserving magnitude. Invalid: `"velocity"`, `"position"`, `"acceleration"` alone (these are 2D vectors and a slider can only drive one number at a time). The `targetObj` must equal the skeleton's `target_id`.
+- **Projectile launch — prefer polar.** For "launch at a speed and angle" sims, emit a Speed slider (`"velocity.magnitude"`, e.g. min 0 / max 50 / unit "m/s") AND a Launch-angle slider (`"velocity.angle"`, e.g. min 0 / max 90). Angles are in the environment's `angleUnit` (default `"deg"`, degrees), measured counter-clockwise from +X. The two sliders share direction/speed automatically, so a student can set angle without losing speed and vice-versa. The object's `velocity` in FILL OBJECTS still uses `{x, y}`; the polar sliders project onto it.
 - **Acceleration sliders are additional-acceleration knobs, NOT gravity overrides.** Environment gravity always acts on every non-static body via the physics engine; a slider bound to `"acceleration.x"` or `"acceleration.y"` adds a *second* constant acceleration on top. Use them when the lesson involves a non-gravity constant force: rocket thrust (`"acceleration.y"`, default ~15 m/s² upward), braking deceleration on a moving body (`"acceleration.x"` with sign opposite to velocity), constant horizontal wind, magnetic-field push on a uniform-field body. Do NOT use an `"acceleration.y"` slider as a way to set or change gravity — that would double-count. For free-fall and projectile sims, leave acceleration unset (gravity alone) and let students see the kinematics emerge from gravity.
 - Choose realistic ranges: velocities -30 to 30, masses 0.1 to 100, non-gravity acceleration -20 to 20 m/s². The `defaultValue` should match the object's current state from the objects stage (so an `"acceleration.y"` slider with default 15 needs the same object to declare `"acceleration": {"x": 0, "y": 15}` in FILL OBJECTS).
 - Use clear, educational `label`s with units.
@@ -189,7 +190,7 @@ You are producing the full `graphs` array. The skeleton listed each graph's name
 For each graph:
 - Set `type` to "line" (the only currently supported variant).
 - Build the `lines` array from the skeleton's `tracks`: each line has `label`, `color` (hex, match the corresponding object's color when reasonable), `targetObj`, and `property` (dot-path).
-- `property` MUST resolve to a scalar number — always include the axis suffix on vector quantities (e.g. `"velocity.y"`, NOT `"velocity"`). To plot a 2D quantity, emit two separate lines.
+- `property` MUST resolve to a scalar number — always include the axis suffix on vector quantities (e.g. `"velocity.y"`, NOT `"velocity"`). To plot a 2D quantity, emit two separate lines. Polar projections work too: `"velocity.magnitude"` (speed) and `"velocity.angle"` (direction, in the environment `angleUnit`). Overlaying `["velocity.x", "velocity.y", "velocity.magnitude"]` is a useful components-vs-resultant view.
 - Choose `yAxisRange.min` and `yAxisRange.max` to fit the expected value range with headroom.
 - Provide a clear `title` and `yAxisLabel` with units. The X-axis is always time in seconds and is not configurable.
 
@@ -222,9 +223,10 @@ For each group:
 - Build the `values` array with one OutputValueConfig per (target_id, property): set `label` (e.g. "Vertical velocity"), `targetObj` (object id), `property` (dot-path), and optionally `unit` (e.g. "m/s") — omit `unit` to let the runtime auto-derive it from the environment unit.
 
 CRITICAL: `property` MUST resolve to a single scalar number, never to a vector. Always include the axis suffix:
-- ✅ `"velocity.x"`, `"velocity.y"`, `"position.x"`, `"position.y"`, `"acceleration.x"`, `"acceleration.y"`
+- ✅ Cartesian: `"velocity.x"`, `"velocity.y"`, `"position.x"`, `"position.y"`, `"acceleration.x"`, `"acceleration.y"`
+- ✅ Polar projections: `"velocity.magnitude"` (speed, |v|), `"velocity.angle"` (direction), and the same for `acceleration`. Use `"velocity.magnitude"` directly for a speed readout — set its `unit` to "m/s". Angle is in the environment `angleUnit` (default degrees), counter-clockwise from +X — set its `unit` to "°" (or "rad"/"rev" to match).
 - ✅ scalars: `"mass"`, `"angle"`, `"angularVelocity"`, `"restitution"`
-- ❌ NEVER `"velocity"`, `"position"`, or `"acceleration"` alone — these are 2D vectors and the UI will crash trying to render them. If you want to show speed magnitude, emit two separate OutputValueConfigs (one per axis) instead.
+- ❌ NEVER `"velocity"`, `"position"`, or `"acceleration"` alone — these are 2D vectors and the UI will crash trying to render them. (To show speed, use `"velocity.magnitude"`, NOT two separate axis readouts.)
 
 Output JSON with this exact shape:
 ```json

@@ -12,8 +12,8 @@ import AdvancedDebugPanel from './simulation_components/AdvancedDebugPanel';
 import type { PhysicsEngineKind } from '../physics';
 import { resolveEngine } from '../config/engines';
 import { createSimulation, updateChangesMade } from '../lib/simulationService';
-import type { UnitType } from '../lib/unitConversion';
-import { UNIT_ABBREV, unitToMeters, scaleObjectToSI, isDimensionalProperty } from '../lib/unitConversion';
+import type { UnitType, AngleUnit } from '../lib/unitConversion';
+import { UNIT_ABBREV, unitToMeters, scaleObjectToSI, unitScaleFor, angleUnitToRadians } from '../lib/unitConversion';
 import { WorldToCanvas } from '../lib/worldToCanvas';
 // Controls
 import ControlRenderer from './simulation_components/controls/ControlRenderer';
@@ -54,6 +54,7 @@ interface SimulationConfig {
     walls: string[];
     gravity?: number;
     unit?: UnitType;
+    angleUnit?: AngleUnit;
     pixelsPerUnit?: number;
     physicsEngine?: 'rapier' | 'planck';
     airResistance?: {
@@ -150,6 +151,10 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   // uses `pixelsPerMeter` so user-set `pixelsPerUnit` still behaves as
   // "pixels per user unit" for the scale slider, the grid, and overlays.
   const unitScale = useMemo(() => unitToMeters(environment.unit ?? 'm'), [environment.unit]);
+  // Angle-family display scale (radians per env.angleUnit), the angular
+  // counterpart of `unitScale`. Used by `unitScaleFor` so polar ".angle"
+  // bindings convert with the angle unit, never the length unit.
+  const angleScale = useMemo(() => angleUnitToRadians(environment.angleUnit ?? 'deg'), [environment.angleUnit]);
   const pixelsPerMeter = pixelsPerUnit / unitScale;
   // Physics walls and the visual wall renderables are anchored to the JSON-
   // declared scale, NOT the slider. Otherwise zooming would silently move
@@ -370,7 +375,37 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     }
   }, [graphs]);
 
+  // Per-vector "held" polar state (angle in radians, magnitude in SI), keyed by
+  // `${targetObj}.${base}` (e.g. "ball.velocity"). Lets a magnitude slider keep
+  // direction when dialed to zero, and lets a paired magnitude+angle slider on
+  // the same vector share one direction. UI-state, not physics-state.
+  const heldVectorStateRef = useRef<Record<string, { angle: number; magnitude: number }>>({});
+  // Below this magnitude a vector has no usable direction (atan2(0,0) is
+  // undefined), so we fall back to held state instead of reading it.
+  const POLAR_EPS = 1e-9;
+
+  // Resolve the {x, y} of a vector base path for reading. Acceleration is the
+  // finite-difference on userData, not a body field.
+  const getVectorComponents = (obj: any, base: string): { x: number; y: number } | undefined => {
+    const v = base === 'acceleration'
+      ? obj?.userData?.derivedAcceleration
+      : base.split('.').reduce((current: any, key) => current?.[key], obj);
+    return v && typeof v.x === 'number' && typeof v.y === 'number' ? { x: v.x, y: v.y } : undefined;
+  };
+
   const getNestedValue = (obj: any, path: string): any => {
+    // Polar projections of any vector base: "<base>.magnitude" / "<base>.angle".
+    // Magnitude is SI (e.g. m/s); angle is returned in RADIANS (SI), measured
+    // counter-clockwise from +X. The display boundary (readDisplayValue) then
+    // converts angle to the env angleUnit — no degree math lives here.
+    if (path.endsWith('.magnitude') || path.endsWith('.angle')) {
+      const base = path.slice(0, path.lastIndexOf('.'));
+      const vec = getVectorComponents(obj, base);
+      if (!vec) return undefined;
+      return path.endsWith('.magnitude')
+        ? Math.hypot(vec.x, vec.y)
+        : Math.atan2(vec.y, vec.x);
+    }
     // Redirect acceleration.* to the finite-difference stored on userData.
     if (path.startsWith('acceleration.')) {
       const axis = path.slice('acceleration.'.length);
@@ -400,7 +435,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
       }
       return NaN;
     }
-    return isDimensionalProperty(path) ? raw / unitScale : raw;
+    return raw / unitScaleFor(path, unitScale, angleScale);
   };
 
   const setNestedValue = (obj: any, path: string, value: any): void => {
@@ -423,6 +458,53 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     target[lastKey] = value;
   };
 
+  // Write a polar component (SI: magnitude in m/s, angle in radians) to a vector
+  // field, preserving the orthogonal component via the per-vector held state
+  // keyed by `key` (`${targetObj}.${base}`).
+  const writeVectorPolar = (
+    obj: any,
+    key: string,
+    base: string,
+    kind: 'magnitude' | 'angle',
+    value: number,
+  ): void => {
+    // Resolve the writable {x, y} target. Acceleration routes to the configured-
+    // acceleration userData (same redirect as setNestedValue); other bases are
+    // the body's Vec2Accessor, whose x/y setters route through the adapter.
+    let target: { x: number; y: number } | undefined;
+    if (base === 'acceleration') {
+      if (!obj?.userData) return;
+      if (!obj.userData.configuredAcceleration) {
+        obj.userData.configuredAcceleration = { x: 0, y: 0 };
+      }
+      target = obj.userData.configuredAcceleration;
+    } else {
+      target = base.split('.').reduce((current: any, k) => current?.[k], obj);
+    }
+    if (!target) return;
+
+    const curMag = Math.hypot(target.x, target.y);
+    const held = heldVectorStateRef.current[key] ?? { angle: 0, magnitude: 0 };
+    // Refresh held direction/magnitude from the live vector whenever it's
+    // non-degenerate, so dialing magnitude to 0 and back is lossless and a
+    // paired angle slider rotates the current speed.
+    if (curMag > POLAR_EPS) {
+      held.angle = Math.atan2(target.y, target.x);
+      held.magnitude = curMag;
+    }
+    if (kind === 'magnitude') {
+      const m = Math.max(0, value);
+      target.x = m * Math.cos(held.angle);
+      target.y = m * Math.sin(held.angle);
+      held.magnitude = m;
+    } else {
+      target.x = held.magnitude * Math.cos(value);
+      target.y = held.magnitude * Math.sin(value);
+      held.angle = value;
+    }
+    heldVectorStateRef.current[key] = held;
+  };
+
   const clampToZero = (value: number): number => {
     return Math.abs(value) < 0.01 ? 0 : value;
   };
@@ -437,10 +519,16 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
 
     const obj = objRefs.current[control.targetObj];
     if (obj && control.property) {
-      const siValue = isDimensionalProperty(control.property) ? value * unitScale : value;
-      setNestedValue(obj, control.property, siValue);
+      const siValue = value * unitScaleFor(control.property, unitScale, angleScale);
+      if (control.property.endsWith('.magnitude') || control.property.endsWith('.angle')) {
+        const base = control.property.slice(0, control.property.lastIndexOf('.'));
+        const kind = control.property.endsWith('.angle') ? 'angle' : 'magnitude';
+        writeVectorPolar(obj, `${control.targetObj}.${base}`, base, kind, siValue);
+      } else {
+        setNestedValue(obj, control.property, siValue);
+      }
     }
-  }, [unitScale]);
+  }, [unitScale, angleScale]);
 
   // Update loop: compute finite-difference acceleration, collect outputs, graphs.
   const handleUpdate = useCallback((_adapter: PhysicsAdapter, time: number) => {

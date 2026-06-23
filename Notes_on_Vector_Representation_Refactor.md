@@ -1,8 +1,73 @@
 # Notes on Vector Representation Refactor
 
-Status: design notes for review (not yet implemented).
+Status: **Phase 1 DONE — implemented + verified 2026-06-23** (path-resolver +
+held-state + angle-unit family + three-places: schema describe-strings,
+`gist_instructions.py` prompt, this note; JSON schema regenerated). Verified
+headlessly (cm+rot risk-#4 case) AND visually via the `projectile-launch-polar`
+acceptance sim (held-state on both sliders, read-back |v|=√(vx²+vy²) & θ=atan2,
+live graphs correct). **Phase 2 (polar initial conditions) NOT yet implemented.**
+Phases 3–4 design-only.
 Scope: controls, outputs, and graphs. No physics-engine changes.
 Goal: any vector quantity (velocity, acceleration, force, gravity) can be authored, controlled via slider, and displayed as **either** Cartesian components (`x`, `y`) **or** polar form (magnitude, angle) — with the same fluency.
+
+---
+
+## Design update (2026-06-22) — angle is its own display-unit family
+
+**Decision.** Angle is a **display-unit family parallel to length**, not a
+dimensionless special case. The UI boundary has two SI bases: **meters** (length)
+and **radians** (angle). A new global **`environment.angleUnit: 'deg' | 'rad' |
+'rot'`** (default `'deg'`) picks the angle display unit, exactly mirroring
+`environment.unit` for length ([simulation.ts:209](src/schemas/simulation.ts#L209)).
+Canonical internal storage is **radians** — matches `atan2`, the engines, and the
+existing `angle` / `angularVelocity` rad fields ([simulation.ts:104-105](src/schemas/simulation.ts#L104-L105))
+— including the held-angle UI state.
+
+**Supersedes** the original *Conventions → "Angle unit at the user surface:
+degrees … internal storage of any held-angle is degrees too."* Degrees stay the
+**default**, but `rad` / `rot` are selectable and internal storage is radians (not
+degrees). Rationale: degrees / radians / rotations are the three representations
+physics curricula actually use — projectile launch in °, rotational kinematics in
+rad, RPM / turns in rev — so hardcoding degrees blocks the rotational-mechanics
+units.
+
+**Why it matters beyond convenience — it dissolves a latent unit bug.** The
+display boundary in `JsonSimulation.tsx` ([:403](src/components/JsonSimulation.tsx#L403)
+read, [:440](src/components/JsonSimulation.tsx#L440) write) gates unit scaling on
+`isDimensionalProperty(path)` ([unitConversion.ts:47](src/lib/unitConversion.ts#L47)),
+which matches by **prefix** — so `velocity.angle` matches `startsWith('velocity.')`
+and an angle would be scaled by the **length** factor `unitToMeters(unit)`. Silent
+on meter sims (factor = 1); wrong on every cm/ft/in/km sim (a 45° launch on a `cm`
+sim writes 0.45°, i.e. nearly horizontal). The fix is **not** to exclude `.angle`
+from scaling — it is to scale it by **its own family**: replace the boolean
+`isDimensionalProperty` with `unitScaleFor(path, env)` returning the angle factor
+(`ANGLE_TO_RADIANS[env.angleUnit]`) for `.angle`, the length factor for length
+paths (including `.magnitude` of a length vector), else `1`. The polar resolver
+then returns **raw radians** for `.angle` (pure SI); the existing boundary converts
+to the display unit — no special degree math in the resolver.
+
+**Conversions** (radians per display unit; mirrors `UNIT_TO_METERS`):
+`deg = π/180`, `rad = 1`, `rot = 2π`.
+
+**Related prep decisions (same session):**
+- Held angle / magnitude keyed by **vector** — `${targetObj}.${base}` (e.g.
+  `ball.velocity`), **not** per-control — so a paired magnitude+angle slider
+  (Phase 3 `polarSlider`) shares one direction state. (Supersedes the note's
+  "per-binding held angle" wording below.)
+- Default angle range **`(-180°, 180°]`** CCW from +X (= `atan2` native).
+- Scope: implement **Phase 1 + Phase 2 together**; Phase 2's polar→cartesian
+  normalization must also run at the runtime apply point (before
+  `scaleObjectToSI`) because saved DB sims bypass `.parse()`.
+
+**Three-places status (NOT landed):** design decision recorded in this note only.
+It lands when implemented — `environment.angleUnit` + polar describe-strings in
+`src/schemas/simulation.ts`, the matching prompt prose in
+`modal_functions/gist_instructions.py`, and this note move together.
+
+**Out of scope (flagged):** RPM (angle-per-*minute* — compounds the angle family
+with an unmodeled time unit); per-binding angle unit (global only, symmetric with
+length; revisit only if a sim must mix ° and rad); the `rev` / `rot` / `turn`
+symbol spelling.
 
 ---
 
@@ -66,12 +131,30 @@ property: z.string().describe(
   'Property path. Cartesian: "velocity.x", "velocity.y", "acceleration.x", ' +
   '"acceleration.y", "position.x", "position.y". Polar: "velocity.magnitude", ' +
   '"velocity.angle", "acceleration.magnitude", "acceleration.angle". ' +
-  'Magnitude is in the same units as components; angle is in degrees, measured ' +
-  'counter-clockwise from +X.'
+  'Magnitude is in the same units as components; angle is in the environment ' +
+  'angleUnit (default degrees), measured counter-clockwise from +X.'
 )
 ```
 
 Add the same `.magnitude` / `.angle` projections for `appliedForce` (once the applied-forces refactor lands), `gravity` (environment-level), and any future vector field.
+
+### Environment-level angle unit (added 2026-06-22 — see *Design update* at top)
+
+```ts
+// EnvironmentConfigSchema, alongside `unit` (simulation.ts:209)
+angleUnit: z.enum(['deg', 'rad', 'rot']).optional().default('deg').describe(
+  'Display unit for angle properties such as "velocity.angle". "deg" (default), ' +
+  '"rad", or "rot" (rotations / revolutions). Physics runs in radians internally; ' +
+  'this only changes how angles are displayed and authored.'
+)
+```
+
+In `src/lib/unitConversion.ts`, add `ANGLE_TO_RADIANS = { deg: Math.PI/180, rad: 1,
+rot: 2*Math.PI }` (mirrors `UNIT_TO_METERS`) and replace the boolean
+`isDimensionalProperty(path)` with `unitScaleFor(path, env): number` — angle factor
+for `.angle`, length factor for length paths (incl. `.magnitude` of a length
+vector), else `1`. Read = `raw / unitScaleFor(...)`, write = `value *
+unitScaleFor(...)`, so both families share one boundary.
 
 ### Optional: a paired polar control
 
@@ -142,7 +225,7 @@ The one display improvement worth bundling: a small **vector arrow visual** over
 
 ## Conventions
 
-- **Angle unit at the user surface: degrees.** Educational sims don't traffic in radians. Internal storage of any held-angle is degrees too — stays consistent with the slider min/max range. (The engines' angle conventions are unaffected because we're not touching body angle, just computing polar projections of velocity/force vectors.)
+- **Angle unit: degrees by default, `rad` / `rot` selectable.** (SUPERSEDED 2026-06-22 — see *Design update — angle is its own display-unit family* at top.) A global `environment.angleUnit` picks the display unit; canonical internal storage, **including held-angle**, is **radians**. Original wording was "degrees only; held-angle stored in degrees" — revised so rotational-mechanics sims can use radians / rotations. (The engines' angle conventions are unaffected — we compute polar projections of velocity/force vectors, not body angle.)
 - **Angle direction: counter-clockwise from +X.** Matches the project's existing convention ([physics/types.ts:7](src/physics/types.ts#L7) — "counter-clockwise from +X").
 - **Angle range: `(-180°, 180°]`** for outputs (matches `atan2`). Slider `min`/`max` is per-binding (e.g., `-90` to `90` for projectile launch).
 - **Magnitude range: `≥ 0`.** The slider min for a `.magnitude` binding should default to 0 if not specified.
@@ -228,3 +311,69 @@ Surfaced during vector-arrows Phase 1c-rev. Noted here because vector quantities
 - 3D vectors.
 - Vector visualization beyond the simple `VectorArrow` renderable shared with applied-forces (no parallelogram-rule "add these two arrows" widget — that's a separate teaching aid).
 - Polar coordinate system for *positions* (i.e., orbital `r`, `θ` controls). Same machinery would work, but no current sim needs it.
+
+---
+
+## Findings
+
+### 2026-06-22 — Phase 1 implemented (path-resolver + angle-unit family)
+
+Phase 1 is built and unit-verified; **not yet visually acceptance-tested or
+committed**. Phase 2 (polar initial conditions) is untouched.
+
+**Angle-unit family (the foundation).** [unitConversion.ts](src/lib/unitConversion.ts):
+added `AngleUnit` type, `ANGLE_TO_RADIANS` (`deg: π/180, rad: 1, rot: 2π`),
+`angleUnitToRadians`, and **replaced the boolean `isDimensionalProperty` with
+`unitScaleFor(path, lengthScale, angleScale)`** — the `.angle`-first check returns
+the angle factor (not the length prefix it shares), which is what fixes the
+silent-mis-scale bug. Verified headlessly on the cm+rot case:
+`unitScaleFor('velocity.angle', 0.01, 2π) → 2π`, not `0.01`.
+
+**Resolver + writer.** [JsonSimulation.tsx](src/components/JsonSimulation.tsx):
+- `getNestedValue` resolves `<base>.magnitude` (`hypot`) and `<base>.angle`
+  (`atan2`, **raw radians** — SI) for any vector base; feeds outputs and graphs
+  through one site.
+- `writeVectorPolar` handles slider writes, preserving the orthogonal component
+  via per-vector held state in `heldVectorStateRef`, **keyed by
+  `${targetObj}.${base}`** (vector-keyed, so a paired magnitude+angle slider
+  shares one direction — Phase 3 `polarSlider` composes for free).
+- Read/write boundary (`readDisplayValue`, `handleControlChange`) now uses
+  `unitScaleFor` with a new `angleScale = angleUnitToRadians(environment.angleUnit)`
+  memo. Angle math stays in the resolver; conversion stays at the boundary.
+
+**Three-places landing — DONE (first fully-landed decision this session):**
+1. Schema — `AngleUnitSchema`, `environment.angleUnit` (default `deg`,
+   [simulation.ts:213](src/schemas/simulation.ts#L213)), polar paths in all three
+   `property` describe-strings; **`simulation_schema.json` regenerated**.
+2. Prompt — [gist_instructions.py](modal_functions/gist_instructions.py) controls
+   (valid polar paths + a projectile Speed/Launch-angle recipe), outputs (replaced
+   the now-obsolete "emit two readouts for speed" line with `velocity.magnitude`),
+   and graphs prose.
+3. Doc — this note (Design update + this Findings entry; Status updated).
+
+**Open questions / deferred decisions this resolved:**
+- *Open Q #3 (default angle range)* → `(-180°, 180°]`, CCW from +X — falls out of
+  `atan2` natively; no extra wrapping.
+- *Open Q #1 (two sliders vs paired control)* → Phase 1 ships **two separate
+  sliders**; the paired `polarSlider` stays Phase 3.
+- *Deferred #4 (.magnitude clamp at zero)* → magnitude writes clamp negative to 0
+  (`Math.max(0, value)` in `writeVectorPolar`). The "warn at parse time if a
+  `.magnitude` slider has `min < 0`" half is **not** done (no parse-time validator
+  yet) — still open.
+
+**Verification.** `tsc` clean on all changed files (one pre-existing unrelated
+error remains at JsonSimulation `dataSources`); `gist_instructions.py` parses; a
+throwaway tsx harness proved `unitScaleFor` on cm+rot and the polar read/write
+round-trips, then was deleted (re-creatable from this entry). **Visual acceptance
+PASSED 2026-06-23** via `src/simulations/projectileLaunchPolar.json` (route
+`/simulation/projectile-launch-polar`, m+deg so `angleScale=π/180≠1` is exercised
+end-to-end): dragging Launch Speed preserved direction and Launch Angle preserved
+magnitude (held-state); the four read-back outputs satisfied |v|=√(vx²+vy²) and
+θ=atan2(vy,vx); the speed-vs-components and direction graphs tracked correctly
+through flight. The acceptance sim is committed as a worked example.
+
+**Note — JsonSimulation has its own local `SimulationConfig` interface** (not the
+Zod-inferred type), so `environment.angleUnit` had to be added there too; and the
+two imported example JSONs (`tossBall.json`, `twoBoxes.json`) needed
+`"angleUnit": "deg"` because the `.default('deg')` makes it required in the
+inferred output type used by their `as SimulationConfig` casts.

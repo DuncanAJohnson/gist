@@ -1,0 +1,81 @@
+{
+  "title": "Projectile Launch (polar) — Vector-Rep Phase 1 acceptance test",
+  "description": "Acceptance test for the magnitude/angle path-resolver. The Launch Speed slider binds velocity.magnitude and the Launch Angle slider binds velocity.angle: dialing speed preserves direction and dialing angle preserves speed (held-state). The read-back outputs let you confirm |v| = hypot(vx, vy) and angle = atan2(vy, vx); the graph overlays speed against its components. Units are m + deg on purpose — degrees gives a non-identity angle scale (pi/180), so this exercises the angle conversion end-to-end, not just the resolver math.",
+  "environment": {
+    "walls": ["bottom"],
+    "gravity": 9.8,
+    "unit": "m",
+    "angleUnit": "deg",
+    "pixelsPerUnit": 12,
+    "physicsEngine": "rapier"
+  },
+  "objects": [
+    {
+      "id": "ball",
+      "x": 5,
+      "y": 5,
+      "width": 3,
+      "height": 3,
+      "svg": "baseball",
+      "velocity": { "x": 10, "y": 17.3205 },
+      "mass": 1,
+      "restitution": 0.4,
+      "showVectors": ["velocity"]
+    }
+  ],
+  "controls": [
+    {
+      "type": "slider",
+      "label": "Launch Speed (m/s)",
+      "targetObj": "ball",
+      "property": "velocity.magnitude",
+      "min": 0,
+      "max": 40,
+      "step": 1,
+      "defaultValue": 20
+    },
+    {
+      "type": "slider",
+      "label": "Launch Angle (°)",
+      "targetObj": "ball",
+      "property": "velocity.angle",
+      "min": 0,
+      "max": 90,
+      "step": 1,
+      "defaultValue": 60
+    }
+  ],
+  "outputs": [
+    {
+      "title": "Velocity read-back (|v| should equal √(vx²+vy²))",
+      "values": [
+        { "label": "Speed |v|", "targetObj": "ball", "property": "velocity.magnitude", "unit": "m/s" },
+        { "label": "Direction θ", "targetObj": "ball", "property": "velocity.angle", "unit": "°" },
+        { "label": "Vx", "targetObj": "ball", "property": "velocity.x", "unit": "m/s" },
+        { "label": "Vy", "targetObj": "ball", "property": "velocity.y", "unit": "m/s" }
+      ]
+    }
+  ],
+  "graphs": [
+    {
+      "type": "line",
+      "title": "Speed vs components over time",
+      "yAxisRange": { "min": -25, "max": 30 },
+      "yAxisLabel": "Velocity (m/s)",
+      "lines": [
+        { "label": "Speed |v|", "color": "#16a34a", "targetObj": "ball", "property": "velocity.magnitude" },
+        { "label": "Vx", "color": "#2563eb", "targetObj": "ball", "property": "velocity.x" },
+        { "label": "Vy", "color": "#db2777", "targetObj": "ball", "property": "velocity.y" }
+      ]
+    },
+    {
+      "type": "line",
+      "title": "Launch direction (velocity.angle) over time",
+      "yAxisRange": { "min": -90, "max": 90 },
+      "yAxisLabel": "Angle (°)",
+      "lines": [
+        { "label": "Direction θ", "color": "#d97706", "targetObj": "ball", "property": "velocity.angle" }
+      ]
+    }
+  ]
+}

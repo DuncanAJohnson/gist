@@ -5,6 +5,7 @@
     "walls": [],
     "gravity": 9.8,
     "unit": "m",
+    "angleUnit": "deg",
     "pixelsPerUnit": 10,
     "physicsEngine": "rapier"
   },

@@ -6,6 +6,15 @@ import type { ObjectConfig } from '../schemas/simulation';
  */
 export type UnitType = 'm' | 'cm' | 'km' | 'ft' | 'in';
 
+/**
+ * Display units for ANGLE quantities (e.g. "velocity.angle"). Angle is its own
+ * display-unit family, parallel to length: physics runs in radians internally
+ * (matches atan2 and the engines), and these are the surface representations a
+ * physics curriculum reaches for. See Notes_on_Vector_Representation_Refactor.md
+ * → "Design update — angle is its own display-unit family".
+ */
+export type AngleUnit = 'deg' | 'rad' | 'rot';
+
 export const UNIT_LABELS: Record<UnitType, string> = {
   m: 'meters',
   cm: 'centimeters',
@@ -40,16 +49,51 @@ export function unitToMeters(unit: UnitType): number {
 }
 
 /**
- * Property paths whose numeric values carry a length dimension and therefore
- * need unit scaling at the config/UI boundary. Velocity and acceleration are
- * length-per-time, but time doesn't change, so the same scale applies.
+ * Radians per one of the given display unit. Mirrors UNIT_TO_METERS for the
+ * angle family (config value × factor = SI radians; SI radians ÷ factor =
+ * display value). 1 rotation = 1 full turn = 2π rad.
  */
-export function isDimensionalProperty(path: string): boolean {
-  return (
+export const ANGLE_TO_RADIANS: Record<AngleUnit, number> = {
+  deg: Math.PI / 180,
+  rad: 1,
+  rot: 2 * Math.PI,
+};
+
+export function angleUnitToRadians(unit: AngleUnit): number {
+  return ANGLE_TO_RADIANS[unit];
+}
+
+/**
+ * The scale factor for a bound property path at the config/UI boundary, i.e.
+ * the number such that `siValue = displayValue × scale` and
+ * `displayValue = siValue ÷ scale`. There are two SI bases:
+ *
+ *   - ANGLE family (paths ending in `.angle`) → radians; scale = `angleScale`.
+ *   - LENGTH family (position / velocity / acceleration components and their
+ *     `.magnitude`, which are length or length-per-time) → meters; scale =
+ *     `lengthScale`.
+ *   - everything else is dimensionless → scale = 1.
+ *
+ * The `.angle` check comes first so `velocity.angle` is scaled by the angle
+ * family, not the length prefix it happens to share. This is what prevents an
+ * angle from being silently multiplied by the length unit factor on cm/ft/in/km
+ * sims. Pass `lengthScale = unitToMeters(env.unit)` and
+ * `angleScale = angleUnitToRadians(env.angleUnit)`.
+ */
+export function unitScaleFor(
+  path: string,
+  lengthScale: number,
+  angleScale: number,
+): number {
+  if (path.endsWith('.angle')) return angleScale;
+  if (
     path.startsWith('position.') ||
     path.startsWith('velocity.') ||
     path.startsWith('acceleration.')
-  );
+  ) {
+    return lengthScale;
+  }
+  return 1;
 }
 
 export function scaleObjectToSI(obj: ObjectConfig, scale: number): ObjectConfig {

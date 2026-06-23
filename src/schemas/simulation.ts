@@ -19,6 +19,9 @@ export const exampleTwoBoxes = twoBoxesJson as SimulationConfig;
 export const UnitTypeSchema = z.enum(['m', 'cm', 'km', 'ft', 'in']).describe('Unit of measurement. Options: "m" (meters), "cm" (centimeters), "km" (kilometers), "ft" (feet), "in" (inches).');
 export type UnitType = z.infer<typeof UnitTypeSchema>;
 
+export const AngleUnitSchema = z.enum(['deg', 'rad', 'rot']).describe('Display unit for angle quantities (e.g. "velocity.angle"). Options: "deg" (degrees, default), "rad" (radians), "rot" (rotations/revolutions). Physics runs in radians internally; this only affects how angles are shown and authored.');
+export type AngleUnit = z.infer<typeof AngleUnitSchema>;
+
 // ============================================
 // Vector Schemas
 // ============================================
@@ -117,7 +120,7 @@ export const SliderConfigSchema = z.object({
   type: z.literal('slider'),
   label: z.string().describe('Display label shown to users (e.g., "Initial Velocity", "Box A Speed")'),
   targetObj: z.string().describe('ID of the object to control (must match an object\'s id)'),
-  property: z.string().describe('Property path to control. Options: "velocity.x", "velocity.y", "position.x", "position.y", "acceleration.x", "acceleration.y". Note: an "acceleration.*" slider drives an ADDITIONAL constant acceleration applied on top of environment gravity (rocket thrust, braking, conveyor push) — not a gravity override.'),
+  property: z.string().describe('Property path to control. Cartesian components: "velocity.x", "velocity.y", "position.x", "position.y", "acceleration.x", "acceleration.y". Polar projections: "velocity.magnitude" / "velocity.angle" (and the same for acceleration). A ".magnitude" slider changes speed while preserving direction; an ".angle" slider rotates the vector while preserving magnitude — ideal for projectile launch (a Speed slider + a Launch-angle slider). Angle is in the environment\'s angleUnit (default degrees), measured counter-clockwise from +X. Note: an "acceleration.*" slider drives an ADDITIONAL constant acceleration on top of environment gravity (rocket thrust, braking, conveyor push) — not a gravity override.'),
   min: z.number().describe('Minimum slider value in configured units. Velocity: typically -30 to 30 m/s. Position X: 0 to canvas width. Position Y: 0 to canvas height. Acceleration: typically -20 to 20 m/s² for non-gravity effects.'),
   max: z.number().describe('Maximum slider value in configured units. With default settings: Position X max ~80m, Position Y max ~60m.'),
   step: z.number().describe('Slider increment in configured units. Use 0.01 for fine control, 0.1 for coarse control.'),
@@ -148,7 +151,7 @@ export type ControlConfig = z.infer<typeof ControlConfigSchema>;
 export const OutputValueConfigSchema = z.object({
   label: z.string().describe('Display label (e.g., "Velocity", "Position X", "Acceleration")'),
   targetObj: z.string().describe('ID of the object to read from (must match an object\'s id)'),
-  property: z.string().describe('Property path to display. Options: "velocity.x", "velocity.y", "acceleration.x", "acceleration.y", "position.x", "position.y"'),
+  property: z.string().describe('Property path to display. Cartesian components: "velocity.x", "velocity.y", "acceleration.x", "acceleration.y", "position.x", "position.y". Polar projections: "velocity.magnitude" (speed, |v|), "velocity.angle" (direction), and the same for acceleration. Magnitude is in the configured length unit; angle is in the environment angleUnit (default degrees), counter-clockwise from +X.'),
   unit: z.string().optional().describe('Unit label for display (e.g., "m/s", "m/s²", "m"). Will use the configured unit type. Leave blank to auto-generate based on property and environment unit.'),
 }).describe('A single value to display in real-time. Values are automatically converted to real-world units.');
 
@@ -168,7 +171,7 @@ export const LineConfigSchema = z.object({
   label: z.string().describe('Line label for the legend (e.g., "Velocity Y", "Box A Position")'),
   color: z.string().describe('Line color as hex (e.g., "#ff6bff").'),
   targetObj: z.string().describe('ID of the object to track (must match an object\'s id)'),
-  property: z.string().describe('Property path to plot. Options: "velocity.x", "velocity.y", "acceleration.x", "acceleration.y", "position.x", "position.y"'),
+  property: z.string().describe('Property path to plot. Cartesian components: "velocity.x", "velocity.y", "acceleration.x", "acceleration.y", "position.x", "position.y". Polar projections: "velocity.magnitude" (speed), "velocity.angle" (direction), and the same for acceleration. Overlaying e.g. ["velocity.x", "velocity.y", "velocity.magnitude"] is a useful component-vs-resultant view. Magnitude is in the configured length unit; angle is in the environment angleUnit (default degrees), counter-clockwise from +X.'),
 }).describe('Configuration for a single line on a graph. Values are automatically converted to real-world units.');
 
 export const LineGraphConfigSchema = z.object({
@@ -207,6 +210,7 @@ export const EnvironmentConfigSchema = z.object({
   walls: z.array(z.enum(['left', 'right', 'top', 'bottom'])).describe('Array of walls to include. Options: "left", "right", "top", "bottom". Empty array [] = no walls (objects can exit canvas). Use walls to contain objects or create bounce surfaces.'),
   gravity: z.number().optional().default(9.8).describe('Gravity acceleration in units/s² (downward). Default: 9.8 for Earth gravity in m/s². Set to 0 for zero-gravity. For cm/s² use 980.'),
   unit: UnitTypeSchema.optional().default('m').describe('Unit of measurement for all positions, velocities, and sizes. Default: "m" (meters). Options: "m", "cm", "km", "ft", "in".'),
+  angleUnit: AngleUnitSchema.optional().default('deg').describe('Display unit for angle quantities such as "velocity.angle" / "acceleration.angle". Default: "deg". Options: "deg", "rad", "rot". Mirrors `unit` for the angle family; physics is radians internally.'),
   pixelsPerUnit: z.number().optional().default(10).describe('Scale factor: how many pixels equal one unit. The simulation canvas is 800×600 pixels, so the SI canvas size is (800/pixelsPerUnit) × (600/pixelsPerUnit). Pick this value so the largest object is roughly 10–25% of the smaller canvas dimension.'),
   // Legacy "matter" values (early exploration, removed 2026-05-11) are coerced
   // to "rapier" so older saved configs don't fail validation on load.
