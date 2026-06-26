@@ -22,22 +22,33 @@ export function decomposePolygonShape(vertices: Vec2[]): ShapeDescriptor {
 }
 
 /**
- * Map a manifest collider (defined in a 64×64 viewBox with Y down, matching
- * the SVG sprite) into a SI ShapeDescriptor centered at the origin and
- * sized to fit `width × height`. Y is flipped so the resulting collider
- * sits in physics-Y-up coordinates.
+ * Map a manifest collider (defined in the SVG sprite's own viewBox, with Y
+ * down) into a SI ShapeDescriptor centered at the origin and sized to fit
+ * `width × height`. Y is flipped so the resulting collider sits in
+ * physics-Y-up coordinates.
+ *
+ * `srcW` / `srcH` are the sprite's authoring viewBox dimensions. They MUST be
+ * per-axis: rescaled sprites are non-square (e.g. `dynamics_cart` is 64×27.43,
+ * `frisbee` 64×18.29), and assuming a square 64×64 source compresses and
+ * mis-centers the collider on the off-64 axis — leaving the sprite's lower
+ * extent (wheels, rim) with no collider so the body sinks into surfaces it
+ * lands on. Defaulting both to `MANIFEST_VIEWBOX` keeps genuine 64×64 sprites
+ * byte-identical to the old behavior.
  */
 export function scaleManifestColliderToShape(
   collider: ManifestCollider,
   width: number,
   height: number,
+  srcW: number = MANIFEST_VIEWBOX,
+  srcH: number = MANIFEST_VIEWBOX,
 ): ShapeDescriptor {
-  const sx = width / MANIFEST_VIEWBOX;
-  const sy = height / MANIFEST_VIEWBOX;
-  const half = MANIFEST_VIEWBOX / 2;
+  const sx = width / srcW;
+  const sy = height / srcH;
+  const halfX = srcW / 2;
+  const halfY = srcH / 2;
   const mapV = (vx: number, vy: number): Vec2 => ({
-    x: (vx - half) * sx,
-    y: (half - vy) * sy,
+    x: (vx - halfX) * sx,
+    y: (halfY - vy) * sy,
   });
 
   switch (collider.type) {

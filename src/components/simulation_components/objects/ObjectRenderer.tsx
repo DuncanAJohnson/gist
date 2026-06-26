@@ -60,7 +60,16 @@ const ObjectRenderer = forwardRef<PhysicsBody, ObjectConfig>(function ObjectRend
     const item = getManifestItem(svg);
     let shape: ShapeDescriptor;
     if (item && item.physical_properties.collider) {
-      shape = scaleManifestColliderToShape(item.physical_properties.collider, width, height);
+      // Map using the sprite's true authoring viewBox so non-square (rescaled)
+      // sprites don't sink — see scaleManifestColliderToShape. `viewBox` is
+      // attached by loadManifest; absent → defaults to 64×64 inside the mapper.
+      shape = scaleManifestColliderToShape(
+        item.physical_properties.collider,
+        width,
+        height,
+        item.viewBox?.width,
+        item.viewBox?.height,
+      );
     } else {
       if (!item) {
         console.warn(

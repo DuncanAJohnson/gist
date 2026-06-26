@@ -1,1 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 40"><g transform="translate(0.0003 -11.9997) scale(1)"><g transform="translate(-10.6667 -12) scale(1.3333)"><rect x="8" y="18" width="48" height="30" rx="8" ry="8" fill="#fde68a"/><rect x="8" y="18" width="48" height="30" rx="8" ry="8" fill="none" stroke="#f59e0b" stroke-width="2"/><line x1="8" y1="28" x2="56" y2="28" stroke="#f59e0b" stroke-width="2"/><line x1="8" y1="33" x2="56" y2="33" stroke="#fbbf24" stroke-width="1"/><line x1="8" y1="38" x2="56" y2="38" stroke="#f59e0b" stroke-width="2"/><line x1="8" y1="43" x2="56" y2="43" stroke="#fbbf24" stroke-width="1"/><line x1="22" y1="18" x2="22" y2="48" stroke="#f59e0b" stroke-width="2.5"/><line x1="42" y1="18" x2="42" y2="48" stroke="#f59e0b" stroke-width="2.5"/></g></g></svg>
+<svg viewBox="0 0 64 40" version="1.1" id="svg8" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs8"></defs>
+  
+  <g transform="matrix(1.3333,0,0,1.3333,-10.6664,-23.9997)" id="g7">
+    <rect x="8" y="18" width="48" height="30" rx="8" ry="8" fill="#fde68a" id="rect1"></rect>
+    <rect x="8" y="18" width="48" height="30" rx="8" ry="8" fill="none" stroke="#f59e0b" stroke-width="2" id="rect2" style="stroke:none"></rect>
+    <line x1="8" y1="28" x2="56" y2="28" stroke="#f59e0b" stroke-width="2" id="line2" style="stroke:#84b5fa;stroke-opacity:1;fill:#f59e0b;fill-opacity:1;stroke-width:0.99501002;stroke-dasharray:none"></line>
+    <line x1="8.0017805" y1="38.699677" x2="56.001778" y2="38.699677" stroke="#f59e0b" stroke-width="2" id="line2-9" style="fill:#f59e0b;fill-opacity:1;stroke:#84b5fa;stroke-width:0.99501;stroke-dasharray:none;stroke-opacity:1"></line>
+  </g>
+</svg>

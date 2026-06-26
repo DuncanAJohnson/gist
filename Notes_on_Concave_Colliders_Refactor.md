@@ -195,6 +195,12 @@ AI-authored sims can't use concave shapes.
    — but this is unresolved until a real sim forces it. Fallback if it doesn't:
    per-use collider variants via the manifest `parent`/variant mechanism. Not
    resolving now; logged so the tension isn't lost.
+5. **(four-option generator, 2026-06-25)** Should "pill" be a true capsule
+   primitive, or emitted by the generator as a **2-circle + rectangle
+   `compound`**? Leaning: compound — it rides the existing `compound` path with
+   zero adapter change, and Planck/Box2D has no native capsule anyway (only Rapier
+   does). Revisit only if a sim needs true capsule-rounding contact behavior the
+   compound can't fake. See the 2026-06-25 Findings entry.
 
 ---
 
@@ -274,6 +280,157 @@ one-line `JsonSimulation` wrapper → a route in `App.tsx`; `npm run dev`;
 `?simdebug=1`; and the manifest collider conventions (64×64 viewBox, the
 `type:"convex"`-accepts-concave misnomer, CCW winding, wall thickness). **Do not
 resume agent-side dev until Bill brings the Tier 1 list back and signals go.**
+
+### 2026-06-25 — upstream "four-option collider" generator plan (box / circle / pill / polygon)
+
+Bill is getting ahead on the **external SVG generator** (`../physics_sim_icon_dev`)
+while the Tier 1 list firms up: the goal is a **four-option collider per SVG —
+box, circle, pill, and closed-polygon outline** (he initially called the fourth
+"polyline"). Walked the plan against the *consuming* side in this repo; verdicts:
+
+**The polygon-outline option is engine-ready — but for different reasons than
+assumed.** Two corrections to the working mental model:
+- **Decomposition is engine-agnostic and lives in gist, not Rapier.**
+  `decomposePolygonShape` ([shapeHelpers.ts:13-22](src/physics/shapeHelpers.ts#L13-L22))
+  runs `poly-decomp`'s `makeCCW` + `quickDecomp` at load and feeds *convex parts*
+  to **both** adapters (Rapier re-hulls each part,
+  [RapierAdapter.ts:128](src/physics/rapier/RapierAdapter.ts#L128); Planck builds
+  one `planck.Polygon` per part, [PlanckAdapter.ts:84](src/physics/planck/PlanckAdapter.ts#L84)).
+  We do **not** use Rapier's VHACD. Upshot: concave-by-decomposition already works
+  on *both* engines (matches the Planck-parity test above), not just Rapier.
+- **CCW winding is normalized for you** by `decomp.makeCCW`
+  ([shapeHelpers.ts:15](src/physics/shapeHelpers.ts#L15)) — the generator does
+  **not** need to pre-guarantee winding. The real upstream requirement is an
+  **ordered, simple (non-self-intersecting) CLOSED ring**, not a point cloud —
+  i.e. exactly the `extractFilledVertices`-returns-unordered-points blocker
+  already flagged in *Pipeline & engine-parity checks* below.
+
+**Naming trap — emit a closed *polygon*, not a "polyline".** An open polyline =
+edge/chain shape in both engines: one-sided, no interior volume, invalid on
+dynamic bodies (the very "never trimesh on dynamic bodies" failure this whole
+refactor avoids). We want a closed ring that decomposes to a compound. Recommend
+naming the option `polygon` (aligns with Open Question #1's lean) and, more
+importantly, making the generator emit a closed traversal.
+
+**Planck's ≤8-vertex cap is per-part-AFTER-decomposition, not per-outline.**
+`quickDecomp` does not guarantee ≤8 verts per part for a complex silhouette, so a
+decomposed part with >8 verts builds fine in Rapier (re-hulled) but **fails in
+Planck** (`b2_maxPolygonVertices` = 8). Add a post-decomp part-vertex check or an
+outline-complexity cap. (Refines change-set item #2 below, which only addressed
+the raw-outline `validateConvex` cap.)
+
+**"Pill" / capsule is the odd one out — NOT a free primitive.** The
+`ShapeDescriptor` union ([types.ts:18-22](src/physics/types.ts#L18-L22)) is only
+`circle | rectangle | polygon | compound` — **no capsule**. Rapier has a native
+capsule; **Planck/Box2D has none**. Cheapest correct route: have the generator
+emit a pill as a **2-circle + rectangle `compound`**, which rides the
+already-supported compound path with **zero adapter change** (collapsing the four
+options to three engine primitives + compound). A true capsule primitive would
+mean new code in `types.ts` + both adapters + the three places. See Open
+Question #5.
+
+**Today's concrete Phase-0 test decision (keeps it content-only):** Bill will
+test-generate closed polygon colliders but **label them `type:"convex"` in the
+manifest** (the accepted-concave misnomer), ≤8 ordered vertices, 64×64 viewBox
+Y-down — the exact Phase 0 cup recipe, **zero gist code change**. Rationale:
+gist's loader has **no `polygon` manifest type** — `ManifestCollider` is
+`convex | box | circle` ([renderableManifest.ts:13-16](src/lib/renderableManifest.ts#L13-L16))
+and `scaleManifestColliderToShape`'s switch has no `polygon` case and no default
+([shapeHelpers.ts:43-74](src/physics/shapeHelpers.ts#L43-L74)), so a
+`type:"polygon"` entry returns `undefined` and the body silently builds with **no
+collider** (reads as a generator bug). Meanwhile a `convex` outline ALREADY
+resolves to an internal `{type:'polygon'}` ShapeDescriptor for a single convex
+piece — so the `convex`-named manifest *is* the polygon path under test. Plan:
+generate one **convex** outline (→ single `polygon`) and one **concave** outline
+(→ `compound`) to exercise both branches; verify with `?simdebug=1`.
+
+**The `convex`→`polygon` manifest rename stays Phase 4.** It's a landing, not
+content: `ManifestCollider` union + a `case 'polygon'` in
+`scaleManifestColliderToShape` (aliased to `decomposePolygonShape`, keep `convex`
+for back-compat) + the schema/prompt "convex hull" wording (the three places).
+Doing it now would be a deliberate Phase-4 down-payment to *log*, not a
+content-only test tweak. Until then, the Phase-0 tests stay on `convex`.
+
+### 2026-06-25 — manifest collider viewBox mis-scaling FIXED (Option A); library-wide
+
+**Filed here** because it's the gist (downstream) half of the *same* non-square-
+viewBox problem the Collider Lab fixed upstream — the collider-pipeline story
+already lives in this note. Not concave-specific: it hit **every** non-square
+sprite.
+
+**Symptom.** `dynamics_cart` and `frisbee` **sank into the surface** they landed
+on instead of resting on their wheels/rim — even after Bill re-authored their
+colliders correctly in the Collider Lab.
+
+**Root cause.** gist's `scaleManifestColliderToShape`
+([shapeHelpers.ts:30](src/physics/shapeHelpers.ts#L30)) hardcoded a **64×64**
+source viewBox (`MANIFEST_VIEWBOX` for `sx`, `sy`, and the centering `half`). But
+rescaled sprites are **non-square** — `dynamics_cart.svg` is `64×27.4286`,
+`frisbee.svg` `64×18.2857`. Dividing Y by 64 instead of the true height baked in
+an extra vertical squish (`27.43/64 ≈ 0.43`) and mis-centered the collider,
+cramming it into the **top ~43%** of the sprite and leaving the lower extent
+(wheels/rim) with no collider. X was right only by luck (these sprites are
+genuinely 64 wide; a tall sprite would have broken on X instead).
+
+**Two halves of one bug, split across repos.** The Collider Lab fixed its
+*editing / ground-truth* view to be non-square-aware (`ColliderGroundTruth`,
+sidestepping the `ColliderEditor` 64×64-hardcode) — so re-authored colliders look
+right **upstream**. gist still assumed 64×64 **downstream** and re-broke them. The
+cart proved it: collider authored correctly in `64×27.43`, sank in gist.
+
+**Fix — Option A (SHIPPED + visually verified 2026-06-25).** Map using the
+sprite's **true authoring viewBox**, per-axis:
+- [shapeHelpers.ts:30](src/physics/shapeHelpers.ts#L30) —
+  `scaleManifestColliderToShape` takes `srcW`/`srcH` (default `MANIFEST_VIEWBOX`
+  each → genuine 64×64 sprites are **byte-identical** to the old behavior);
+  per-axis `sx/sy` and `halfX/halfY`.
+- [renderableManifest.ts:37](src/lib/renderableManifest.ts#L37) — `loadManifest`
+  now fetches each sprite and parses its `viewBox` (regex, no DOMParser),
+  attaching `{width,height}` to the `ManifestItem`; the cache is published only
+  **after** so the invariant "item present ⟹ viewBox known" holds. Best-effort:
+  a failed parse leaves `viewBox` undefined → square fallback.
+- [ObjectRenderer.tsx:63](src/components/simulation_components/objects/ObjectRenderer.tsx#L63)
+  — passes `item.viewBox?.width/height` through.
+
+**Verification.** Math: cart collider bottom `+0.08H → −0.48H` (at the wheels);
+frisbee `+0.22H → −0.47H` (at the rim); baseball (`64×64`) unchanged. `tsc` clean
+on all three files. **Visual spot-check PASSED** — cart + frisbee collide as
+expected.
+
+**Blast radius — LIBRARY-WIDE, not two assets.** **172 of 208 sprites are
+non-square** and were all mis-scaled on the off-64 axis: mild for near-square
+(`pumpkin` 64×56 ≈ 12% squish), severe for the flat ones (`sled` 64×12,
+`skateboard` 64×16.6, `frisbee`, `cart`). So existing sims using non-square
+assets now collide **correctly** — a behavioral change worth knowing.
+
+**Audit — fix is uniformly correct.** All 206 approved colliders were authored in
+**true-viewBox space** (their coordinates track each sprite's actual viewBox dims,
+not 64), so none mis-map the other way. The 54 entries that exceed their viewBox
+do so by only **1–5 units** (benign silhouette overshoot, e.g. `drum` +3.7,
+`hamburger` +5) — pre-existing authoring imprecision the Collider Lab's
+out-of-bounds reveal already surfaces; the new mapping just shows it at true
+proportion.
+
+**Cross-repo division of labor (workflow decision, 2026-06-25).** Now that gist's
+viewBox mapping is correct, the **Collider Lab (`../physics_sim_icon_dev`) is the
+place to spot-check and rebuild colliders** against ground truth. gist *consumes*;
+the Lab *authors/corrects*. ("Who fixes what" for the items below is still open —
+Bill to decide.)
+
+**Deferred — Option B (the durable contract).** Option A has gist **infer** the
+coordinate space by fetching+parsing each SVG at load. Option B makes the manifest
+**self-describing**: the Collider Lab emits each entry's authoring viewBox (e.g. a
+per-entry `viewBox` / `collider_space`), gist reads it — robust even if
+collider-space and SVG-viewBox ever diverge, and it drops the startup SVG-fetch
+pass. **Cross-repo, three-places-style coupling:** Collider-Lab export +
+manifest-schema + gist loader move together. This is the manifest counterpart of
+the `convex → polygon` rename also pending downstream.
+
+**Latent race noted** (separate, pre-existing): `ObjectRenderer` builds bodies
+without awaiting manifest readiness → see `parking_lot.md` (2026-06-25 entry). The
+Option A load is slightly heavier now (parses every SVG viewBox before publishing
+the cache), nudging that window wider, though it still resolves long before any
+user-driven sim mount.
 
 ---
 

@@ -60,6 +60,56 @@ The "shift right and back" pattern (rather than "shift right and stay") points s
 
 ---
 
+## ObjectRenderer builds bodies before the renderable manifest is ready (2026-06-25)
+
+**Symptom.** An object whose physics body is created *before* the renderable
+manifest finishes loading silently falls back to a plain rectangle collider (and,
+since the viewBox fix, also misses its sprite's viewBox dims). Intermittent —
+depends on manifest-fetch timing vs. when the sim mounts. In practice rarely
+observed, because the manifest is eager-fetched on module import and almost always
+wins the race before any user-driven sim mount.
+
+**Cause.** `ObjectRenderer`'s body-build `useEffect` reads `getManifestItem(svg)`
+**synchronously** ([ObjectRenderer.tsx:60](src/components/simulation_components/objects/ObjectRenderer.tsx#L60)).
+If `manifestCache` isn't populated yet it returns `null` → the rectangle fallback
+fires ([ObjectRenderer.tsx:85](src/components/simulation_components/objects/ObjectRenderer.tsx#L85)).
+Manifest readiness is **not** in the effect's dependency array
+([ObjectRenderer.tsx:141](src/components/simulation_components/objects/ObjectRenderer.tsx#L141)),
+so the body is **not** rebuilt when the manifest later resolves — the wrong
+collider sticks for that mount. The eager `loadManifest()` on import
+([renderableManifest.ts:74](src/lib/renderableManifest.ts#L74)) is what keeps this
+from biting day-to-day.
+
+**Why parked.** Pre-existing and rarely-hit; orthogonal to the viewBox fix that
+surfaced it. A clean fix means gating object body-build on a manifest-ready signal,
+which touches render/mount sequencing (and interacts with precompute) — not
+blocking, and bigger scope than the bug fix it rode in on. The Option A viewBox
+work widened the readiness window slightly (it now fetches every SVG's viewBox
+before publishing the cache), so this is worth closing if the window ever grows
+enough to bite.
+
+**Suggested fix paths**, ranked by scope:
+
+1. **Gate sim object rendering on `loadManifest()`.** Hold a `manifestReady` state
+   in `JsonSimulation`/`BaseSimulation` and mount `ObjectRenderer`s only once it
+   resolves. Closes the race at the mount boundary; one gating flag; no per-body
+   teardown.
+2. **Add manifest-readiness to the body-build effect deps.** More surgical, but a
+   late manifest load then tears down and rebuilds an already-created body
+   (physics re-init) mid-mount — needs care around precompute/replay.
+3. **Bake `viewBox` + collider into the object config at author time** (converges
+   with Option B, "manifest declares its coordinate space"). ObjectRenderer needs
+   no async manifest at all. Biggest scope; resolves this race *and* the Option A→B
+   contract in one move.
+
+**Diagnostic to confirm before fixing.** Throttle the network (DevTools) or delay
+the manifest fetch, mount a sim immediately, and watch for the
+`ObjectRenderer: svg "…" not found in manifest; falling back to a plain rectangle`
+console warning. If it fires (and objects render as boxes), the race is real and
+fix #1 closes it.
+
+---
+
 ## Vector-arrow decay for sub-perceptual spikes (2026-05-15)
 
 **Symptom.** One-frame-wide vector-arrow events — collision F<sub>net</sub> spikes most prominently, but also any future single-frame impulse, manual angle-slider snap, or polar-projection direction flip — are borderline-perceivable for humans even when they paint correctly. At 60 fps a single-frame spike is ~16 ms on screen, around the visual-detection threshold. Students viewing a sim may miss the moment of a collision's net-force reversal even though the arrow physically renders.
