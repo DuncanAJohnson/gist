@@ -44,6 +44,26 @@ guaranteed* — when engines diverge, the curriculum decides which engine makes 
 teaching point land, and that choice is recorded in the sim's refactor note. We do
 not chase pixel-identical cross-engine behavior for its own sake.
 
+**Concrete instantiation (2026-07-02): the four-doc curriculum-and-benchmark
+roadmap.** "The curriculum LEADS" is now written down as a set of cross-referenced
+root docs that drive dev from *physics topics* rather than engine-capability
+checklists — each archetype names the physics it teaches, the collider/joint
+technique it needs, the analytical solution that anchors the analytical↔numerical↔
+experimental triangle, and the graph where that overlay happens on screen:
+- **[PHYSICS_SHAPES.md](PHYSICS_SHAPES.md)** — collider archetypes (S-IDs), five
+  rungs of climbing concavity; concave-collider refactor is Rung 2+.
+- **[PHYSICS_JOINTS_CONSTRAINTS.md](PHYSICS_JOINTS_CONSTRAINTS.md)** — joint
+  archetypes (J-IDs); addresses the 🔴 Joints gap below.
+- **[PHYSICS_GRAPHS.md](PHYSICS_GRAPHS.md)** — canonical graph observables (G-IDs)
+  + the five reading moves (slope / area / intercept / flatness / linearization).
+- **[BENCHMARK_SIMS.md](BENCHMARK_SIMS.md)** — external acceptance suite (B-IDs)
+  with frozen NL prompts and an A–E rubric; meta-metric = time-to-working-sim.
+
+All four say they **"Feed CLAUDE.md"** — the repo still has no `CLAUDE.md`; the
+intent is to synthesize these into one. Treat these as the *topics/curriculum* layer
+above the per-refactor notes: they say *what to build and why*; the refactor notes
+say *how it lands* (schema + prompt + adapter, the three-places rule).
+
 ### 📋 Development notes — per-engine experience & suitability
 A consolidated log of where the two engines *perform differently* (distinct from
 the outright *mapping-hazard bugs* tracked under "Cross-engine inconsistencies").
@@ -74,6 +94,15 @@ Use this to decide which engine a given sim type should run on.
   on Rapier reproduces on Planck. See
   [Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md)
   "Planck parity — TESTED".
+  - **Correction (2026-07-02): Planck's polygon cap in our pinned build is 12, not
+    the Box2D-classic 8** that the parity finding assumed. `PolygonShape._set` silently
+    **truncates** to the first `maxPolygonVertices` (12) and convex-hulls them — a quiet
+    wrong-collider on a decomposed part >12, no throw. `≤8` is a *portability* target,
+    not this build's limit. Since gist's `decomposePolygonShape` has **no per-part cap**,
+    a part >12 mis-builds silently in Planck (Rapier re-hulls, safe). The scoped collider
+    observation overlay + a gist-side post-decompose dev-warn are the mitigations; the
+    8-vs-12 decision is deferred pending observation data. See the note's Findings
+    2026-07-02.
 
 **Quick engine-suitability guide (living):**
 - **Rapier (default)** — deterministic, SI-native, WASM. Favor for: collision-
@@ -168,6 +197,7 @@ No `applyForce` or `applyImpulse` on `PhysicsBody` today. Blocks PhET-Forces-and
 ### 🔴 Joints (spring, revolute, prismatic, rope, pulley)
 Biggest content gap after applied forces. Needed for Hooke's law, pendulums, Atwood machines, springs/oscillators.
 - Rapier has `JointData.spring(restLength, k, c)` natively (clean Hooke mapping); Planck has `DistanceJoint` + `PulleyJoint` + `MouseJoint` (the Planck-only joints).
+- **Now scoped (2026-07-02): [PHYSICS_JOINTS_CONSTRAINTS.md](PHYSICS_JOINTS_CONSTRAINTS.md)** — a topics-driven roadmap of joint archetypes J1–J9 (pendulum, physical pendulum, spring-mass, lever, prismatic rail, ball-on-string, path-constraint, Atwood, double pendulum) with per-archetype definition-of-done and graph observables. Status stays 🔴 (adapter still exposes no joints; this is a *curriculum roadmap*, not a phased implementation refactor yet — no schema/prompt landing). **Engine asymmetries the roadmap flags to budget:** Rapier has **no native `PulleyJoint`** (Atwood needs a composed shim); Rapier rope/spring joints arrived ~0.12 — **verify availability in our pinned version** before committing to J1/J3/J6/J8. Schema should expose physics units (k, L, m) and hide per-engine parametrization in the adapter (Planck springs use `frequencyHz`, `k = m(2πf)²`).
 
 ### 🔴 Sensors (non-colliding trigger fixtures)
 Needed for goal regions, lap timers, "ball reaches X" detection without affecting physics.
@@ -187,6 +217,23 @@ Needed for fast projectiles or thin walls (high-velocity falls in free-fall sims
 ### 🟡 Per-body friction setter
 Adapter doesn't expose `setFriction(μ)`. Needed for the `frictionDemo` mode (Phase 2.5 of applied forces).
 - See cross-engine inconsistency note above re: Planck contact-cache.
+
+### 🔴 Mass-property override (custom angular inertia) — confirmed gap 2026-07-02
+The adapter exposes a **mass** override (`setMass`/`setAdditionalMass`, added in the
+air-resistance refactor — Rapier [RapierAdapter.ts:226](src/physics/rapier/RapierAdapter.ts#L226), Planck `setMassData`) but **no angular-inertia override**. Code-read
+2026-07-02: Rapier has no `setAdditionalMassProperties` call anywhere, and Planck's
+`setMassData` I-term isn't plumbed. Needed for `PHYSICS_SHAPES.md` v2's **mass-property
+override** technique — the rolling race (S0.2) collides all three bodies as convex
+circles but must carry a *different* inertia each (`I = mr²` hoop / `½mr²` disk /
+`⅖mr²` sphere) so `a = g sinθ / (1 + I/mr²)` comes out right **without any concave
+annulus collider**. It's the cheapest correct route to the hoop and resolves that old
+concave open question.
+- **Plan:** add an idempotent inertia/mass-properties setter to `PhysicsBody` (Rapier
+  `RigidBodyDesc.setAdditionalMassProperties` or explicit collider mass-props; Planck
+  `body.setMassData({ mass, center, I })`). Idempotency required (see principle above).
+  Gated with the shapes rolling-race / joints work. Tracked in
+  [Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md)
+  (Findings 2026-07-02) as scope item #4.
 
 ---
 
@@ -234,6 +281,24 @@ For ordinary sims this is plenty; for stiff systems (high-stiffness spring, very
 
 ## Tooling & developer experience
 
+### 🔵 Collider debug / observation overlay — SCOPED 2026-07-02, not built
+A dev-only visualization of the **actual collider geometry** each object gets, to
+confirm SVGs + manifest data from the SVG generator are good *before* making dev
+decisions here or upstream. **Foundation already exists:**
+[BodyOutline.ts](src/components/simulation_components/renderables/visuals/BodyOutline.ts)
+draws any `ShapeDescriptor` (incl. every `compound` part) via the visuals registry — it
+is registered but currently **unwired** (nothing emits a `body-outline`). Because
+`body.shape` for a concave `type:"convex"` collider *is* the decomposed compound, drawing
+it renders the poly-decomp split directly (the "render the decomposed collider" switch the
+generator repo's `Dev_Tasks.md` Task 13 logs as Bill's gist TODO). Scope: a `?colliders=1`
+dev flag, per-part vertex-count readout flagging parts **> this Planck build's cap of 12**
+(see engine-notes correction below), and an optional engine-actual-fixture overlay
+(Planck `fixture.getShape().m_vertices` / Rapier collider verts) to expose truncation/hull
+discrepancies. **Framed as an observation instrument** — gather data on real objects first,
+defer threshold/heuristic decisions. Full spec:
+[Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md) →
+"Collider debug / observation mode".
+
 ### 🔴 No automated test for setter idempotency / cross-engine parity
 The Rapier mass-setter bug was caught by hand. A small test harness that pumps each public `PhysicsBody` setter twice with the same value and diffs the resulting state across both engines would catch a whole class of regressions. Same for "after restore, every setter returns to a documented baseline."
 
@@ -262,6 +327,14 @@ A way to exercise a sim entirely from the repo, with no DB round-trip and no pro
 - [Notes_on_Applied_Forces_Refactor.md](Notes_on_Applied_Forces_Refactor.md) — PhET Forces and Motion analogue, includes the static-friction demo mode
 - [Notes_on_Vector_Representation_Refactor.md](Notes_on_Vector_Representation_Refactor.md) — magnitude/angle as first-class polar representation for any vector field
 - [Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md) — concave containers via convex decomposition (cup/wagon); Phase 0 shipped
+
+### Curriculum & benchmark roadmap (topics-driven; added 2026-07-02)
+The *what-to-build-and-why* layer above the per-refactor notes. See the "curriculum
+LEADS" section above for how they relate.
+- [PHYSICS_SHAPES.md](PHYSICS_SHAPES.md) — collider archetypes (S-IDs), five concavity rungs
+- [PHYSICS_JOINTS_CONSTRAINTS.md](PHYSICS_JOINTS_CONSTRAINTS.md) — joint archetypes (J-IDs); the new joints workstream
+- [PHYSICS_GRAPHS.md](PHYSICS_GRAPHS.md) — canonical graph observables (G-IDs) + five reading moves
+- [BENCHMARK_SIMS.md](BENCHMARK_SIMS.md) — external acceptance suite (B-IDs), frozen prompts, A–E rubric
 
 ---
 

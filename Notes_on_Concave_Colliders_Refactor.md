@@ -3,6 +3,10 @@
 Status: Phase 0 SHIPPED (capability proven). Phases 1–4 proposed —
 **agent-side dev PAUSED 2026-06-22** (Bill driving the manual hand-authoring loop;
 see Findings → "Dev paused"). Phase 1/4 prereq checks both done.
+**Tier 1 gate RESOLVED 2026-07-02** — the priority shape list arrived as the
+topics-driven curriculum roadmap (`PHYSICS_SHAPES.md` and siblings); the concave
+Tier 1 is now the **Rung 2 open-container factory** (cup/box/wagon). See Findings
+→ 2026-07-02. Resume still awaits Bill's explicit go.
 Scope: collider content + authoring + robustness. The engine path already exists.
 Goal: support genuinely concave collider shapes — open containers (cups, buckets)
 and open-top vehicles (wagons, carts) — so the physics curriculum can express
@@ -157,6 +161,51 @@ LLM picks SVGs by name, so the asset library must actually contain correct
 concave colliders, generated not hand-authored, for this to scale. **This is the
 phase that "lands" the capability under the three-places rule** — until it runs,
 AI-authored sims can't use concave shapes.
+
+---
+
+## Collider debug / observation mode — SCOPED 2026-07-02 (Bill request)
+
+A dev-only visualization of the **actual collider geometry each object receives**,
+so we can confirm the SVGs + manifest data coming from the SVG generator are good —
+*before* making dev decisions here or upstream. Framed deliberately as an
+**observation instrument**: gather data on real objects first; do not pre-bake
+thresholds or heuristics (Bill 2026-07-02: "we need observation data on real objects
+before we can make dev decisions here and upstream with svg gen").
+
+**Foundation already exists — the drawing primitive is built and unwired.**
+[src/components/simulation_components/renderables/visuals/BodyOutline.ts](src/components/simulation_components/renderables/visuals/BodyOutline.ts)
+already renders any `ShapeDescriptor` — circle, rectangle, polygon, **and each
+`compound` part** — to canvas via the same visuals registry the vector arrows use. It
+is registered but nothing currently *emits* a `body-outline` visual. Key point: for a
+concave `type:"convex"` manifest collider, `body.shape` **is** the decomposed
+compound (via `scaleManifestColliderToShape` → `decomposePolygonShape`), so drawing it
+renders the **poly-decomp split directly**. That makes this mode the "render the
+decomposed collider" debug switch the SVG generator's `Dev_Tasks.md` **Task 13** logs
+as *Bill's TODO in gist* — the sanctioned way to ground-truth decomposition downstream
+without importing `poly-decomp` into the generator repo.
+
+**Scope (not built — documented only):**
+- **Toggle:** dev-only — a `?colliders=1` URL flag (mirroring `?simdebug=1`) and/or an
+  AdvancedDebugPanel switch. Never production.
+- **Draw** a `body-outline` per object; color `compound` parts distinctly so the
+  decomposition is visible at a glance.
+- **Per-body readout:** part count + per-part vertex counts, flagging any part that
+  exceeds **this Planck build's real cap of 12** (`planck.Settings.maxPolygonVertices`;
+  see Findings 2026-07-02) — the point at which Planck silently truncates + hulls. The
+  Box2D-classic 8 / portability threshold is an **OPEN decision deferred pending
+  observation data**, not enforced here.
+- **Optional "engine-actual" layer:** read the real fixture polygons back from the
+  engine (Planck `fixture.getShape().m_vertices`; Rapier collider verts) and overlay
+  them, so any discrepancy between the intended `ShapeDescriptor` and what the engine
+  actually built (Planck truncation, hull convexification) is visible. This is the only
+  layer that truly confirms *Planck is colliding with what we think it is*.
+- **Pairs with** the gist-owned post-decompose dev-warn (generator `Dev_Tasks.md`
+  **Task 15**): after `quickDecomp`, a dev-build `console.warn` on any part > cap. The
+  overlay is the visual complement to that log.
+
+**Not gated on the concave-dev "go."** This is tooling to confirm manifest data (e.g.
+the runner) and is useful independent of the open-container-factory build.
 
 ---
 
@@ -431,6 +480,85 @@ without awaiting manifest readiness → see `parking_lot.md` (2026-06-25 entry).
 Option A load is slightly heavier now (parses every SVG viewBox before publishing
 the cache), nudging that window wider, though it still resolves long before any
 user-driven sim mount.
+
+### 2026-07-02 — Tier 1 gate RESOLVED: the curriculum roadmap arrived
+
+The "Tier 1 priority shape list pending Bill" item (Dev-paused finding, above) is
+**answered**. Bill delivered it not as a bare list but as a four-doc **topics-driven
+curriculum-and-benchmark roadmap** at repo root, cross-referenced by stable IDs:
+
+- **`PHYSICS_SHAPES.md` (v2)** — collider archetypes (S-IDs) in five rungs of
+  climbing concavity. **This note's whole subject is now Rung 2+ of that file.**
+- **`PHYSICS_JOINTS_CONSTRAINTS.md` (v1)** — joint archetypes (J-IDs); a *sibling*
+  workstream, not concave (pendulums/springs/levers/pulleys).
+- **`PHYSICS_GRAPHS.md` (v1)** — canonical graph observables (G-IDs); every
+  archetype's definition-of-done names one.
+- **`BENCHMARK_SIMS.md` (v1)** — external eval suite (B-IDs) with frozen prompts.
+
+**What it settles for this refactor:**
+
+1. **The concave Tier 1 is concrete: the Rung 2 "open-container factory."** Cup
+   (S2.1), open-box / ballistic pendulum (S2.2), and wagon (S2.3) are recognized as
+   *the same build* — 3–4 convex boxes seated into one rigid body — behind one
+   constructor: `makeOpenContainer({ innerWidth, wallHeight, wallThickness,
+   floorThickness, mode: free|grounded|prismatic })`. Named the single highest-ROI
+   task in `PHYSICS_SHAPES.md`. This is the direct production-ready successor to the
+   Phase-0 hand-authored cup — Phase 1 content earns its keep here first.
+2. **The hoop/annulus open question (this note, Recommended-approach era) is
+   dissolved** — but *not* by decomposition. `PHYSICS_SHAPES.md` v2's second
+   organizing fact is **mass-property override**: keep a convex *contact* shape and
+   assign a *different* shape's inertia (Planck `setMassData`, Rapier
+   `setAdditionalMassProperties`). The rolling hoop (S0.2) collides as a circle,
+   renders as a ring, and sets `I = mr²` — **no concave annulus collider, ever.**
+   (Adapter status, code-read 2026-07-02: the *mass* half exists — `setMass`/
+   `setAdditionalMass`, `RapierAdapter.ts:159-167`/`:226` from the air-resistance
+   refactor — but the *angular-inertia* half is **CONFIRMED ABSENT** (no Rapier
+   `setAdditionalMassProperties`, no plumbed Planck `setMassData` I-term). New adapter
+   work, scope item #4; tracked as an Adapter feature gap in
+   [GIST_Physics_System_Topics.md](GIST_Physics_System_Topics.md).)
+3. **Wagon "rolling" open question gains a third option.** `PHYSICS_SHAPES.md` S2.3
+   and the joints file (J5 PrismaticJoint) frame the wagon as a `mode` flag —
+   `free | grounded | prismatic` — rather than the old sliding-vs-real-wheels binary.
+
+**Three-places status unchanged.** This is still content/roadmap; schema `.describe()`
+and `gist_instructions.py` remain on "rectangle, circle, or convex hull" — Phase 4
+(the landing) has NOT run. Nothing here is authorable by the LLM yet.
+
+**Resume gate.** "The list is in" ≠ "go." Per the Dev-paused finding, do not restart
+the generator change set / open-container-factory build until Bill signals go.
+
+### 2026-07-02 — Planck's real cap is 12 with SILENT TRUNCATION (corrects the ≤8 assumption); the runner is safe
+
+Code-read of gist's pinned Planck ([node_modules/planck/dist/planck.js](node_modules/planck/dist/planck.js)):
+- `Settings.maxPolygonVertices = 12` (line 686) — **NOT** the Box2D-classic **8** that
+  the earlier "Planck parity — TESTED 2026-06-22" finding (below) and the generator's
+  `Dev_Tasks.md` Task 15 both assumed.
+- `PolygonShape._set` (line 7070): `n = min(vertices.length, 12)`, dedup near-duplicates,
+  then **convex-hull the kept points**. So a part with **>12 verts is silently truncated**
+  (first 12 kept — order-dependent — the rest dropped) and hulled → a wrong collider with
+  **no throw**. And Planck *always* hulls its polygon input, so it can never hold a concave
+  part (fine — decomposition feeds convex parts — but a numerically-non-convex part is
+  silently convexified too).
+
+**Correction to the earlier parity finding + the generator's ≤8 framing:** the actual
+silent-break threshold is **>12 per decomposed part in this build**, not >8. `≤8` is a
+*portability* target (Box2D-classic, or a future stricter engine), not this build's limit.
+
+**Observation — the runner (Bill updated its manifest to a 34-vertex concave outline).**
+Ran gist's real `poly-decomp` on it: it decomposes to **12 convex parts, max 7 verts each
+→ safe** even at the strict 8. Lesson: **outline vertex count does NOT predict
+Planck-safety** — `quickDecomp` shatters a complex concave outline into small convex
+parts. You have to *see* the decomposition — which is exactly why the observation mode
+above earns its place. (Side data point: 34-vert runner → **12 fixtures on one body**; a
+compound-complexity/perf signal the observation mode's part-count readout also surfaces.)
+
+**Decision (Bill 2026-07-02):** the debug mode **flags against this Planck's real cap
+(12)**; the 8-vs-12 portability question stays **OPEN** — *observe real objects first,
+then decide here and upstream.* The observation mode is the instrument that produces that
+data. No threshold is enforced as a dev rule until then.
+
+**Status:** scope DOCUMENTED, not built (Bill: "document scope only"). See the
+"Collider debug / observation mode" section above.
 
 ---
 

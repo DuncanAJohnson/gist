@@ -149,14 +149,25 @@ flowchart LR
     AIRP1 --> AIRP2 --> AIRP3
   end
 
-  subgraph CONCAVEPHASES["6. Concave colliders"]
+  subgraph CONCAVEPHASES["6. Concave colliders + collider tooling"]
     direction TB
-    CCP0["Phase 0: prove dynamic compound<br/>(cup catch + tip-over)<br/><b>SHIPPED</b>"]
-    CCP1["Phase 1: concave content<br/>cup / bucket / open-top wagon"]
-    CCP2["Phase 2: CCD robustness"]
-    CCP3["Phase 3: catch detection"]
-    CCP4["Phase 4: schema + LLM prompt<br/>(three-places landing)"]
-    CCP0 --> CCP1 --> CCP2 --> CCP3 --> CCP4
+    CCP0["Phase 0 — dynamic compound proven<br/>cup catch + tip · <b>SHIPPED</b>"]
+    subgraph CCNOW["actionable now — not gated"]
+      direction TB
+      CC1["1 · collider debug / observation overlay<br/>BodyOutline; shows decomposition + Planck-12"]
+      CC2["2 · post-decompose Planck guard<br/>dev-warn on any part over 12 verts"]
+      CC6["6 · Option B — manifest declares<br/>its collider coord-space"]
+      CC7["7 · decomposition sanity<br/>part-count cap + winding / self-intersect"]
+    end
+    subgraph CCGATED["gated on Bill's go"]
+      direction TB
+      CC3["3 · open-container factory ⭐<br/>cup / box / wagon (makeOpenContainer)"]
+      CC4["4 · inertia override — hoop<br/>collide circle, set I = mr²"]
+      CC5["5 · convex → polygon rename<br/>Phase-4 three-places landing"]
+      CC8["8 · CCD + catch detection<br/>sensors / events · lower priority"]
+    end
+    CCP0 --> CC1
+    CCP0 --> CC3
   end
 
   classDef done fill:#dcfce7,stroke:#16a34a,color:#166534;
@@ -164,7 +175,8 @@ flowchart LR
   classDef pending fill:#dbeafe,stroke:#2563eb,color:#1e40af;
 
   class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,CCP0,RP0,VECP1 done;
-  class APPP1,APPP2,APPP25,APPP3,APPP4,VECP2,VECP3,VAP3,VAP4,VAP5,CCP1,CCP2,CCP3,CCP4,RP1,RP2,RP3,RP4,RP5,RP6 pending;
+  class APPP1,APPP2,APPP25,APPP3,APPP4,VECP2,VECP3,VAP3,VAP4,VAP5,CC3,CC4,CC5,CC8,RP1,RP2,RP3,RP4,RP5,RP6 pending;
+  class CC1,CC2,CC6,CC7 proposed;
 `;
 
 const cameraChart = `
@@ -187,7 +199,7 @@ function RefactorRoadmap() {
   return (
     <DocsLayout
       title="5. Refactor roadmap"
-      subtitle="A docs map: how five in-flight refactors relate to each other, which slice of the codebase each touches, and what's shipped vs proposed."
+      subtitle="A docs map: how the in-flight refactors relate to each other, which slice of the codebase each touches, and what's shipped vs proposed."
     >
       <p>
         Four kinds of doc on this map: <strong>research</strong> (engine
@@ -278,9 +290,21 @@ function RefactorRoadmap() {
           author concave shapes. <b>Agent-side dev is paused (2026-06-22)</b>:
           both Phase 1/4 prereqs are resolved, so the next driver is curriculum —
           the author is hand-building sims to define the Tier 1 priority shape list
-          that will unblock the resumed dev. See{' '}
-          <code>Notes_on_Concave_Colliders_Refactor.md</code> and{' '}
-          <code>Local_Sim_Workflow.md</code>.
+          that will unblock the resumed dev. <b>Tier 1 gate resolved (2026-07-02)</b>{' '}
+          — the priority list arrived as the topics-driven curriculum roadmap (see
+          below); the concave Tier 1 is now the <b>Rung 2 open-container factory</b>{' '}
+          (cup / box / wagon as one <code>makeOpenContainer</code> build). The scope also broadened beyond content: a{' '}
+          <b>collider debug / observation overlay</b> (renders the actual decomposed
+          geometry + a per-part Planck-vertex readout — the pinned Planck silently
+          truncates polygons over 12 verts, so a decomposed part that big builds a wrong
+          collider with no error) is scoped as an <em>observation instrument</em>,
+          alongside a post-decompose guard, the <code>convex → polygon</code> rename, an
+          inertia-override path for the rolling hoop, and the manifest self-describing
+          its coordinate space. The phase chart above renumbers these <b>1–8</b> and
+          colors which are actionable now (amber) vs gated on the go (blue). Resume
+          still awaits an explicit go. See{' '}
+          <code>Notes_on_Concave_Colliders_Refactor.md</code>,{' '}
+          <code>PHYSICS_SHAPES.md</code>, and <code>Local_Sim_Workflow.md</code>.
         </li>
       </ol>
       <p>
@@ -291,7 +315,7 @@ function RefactorRoadmap() {
         code change unblocked both tracks.
       </p>
 
-      <MermaidDiagram chart={phaseChart} caption="Per-refactor phase rollout, ordered by chronological priority. Green = shipped, blue = pending. VA 1c-rev and REC R0 were the same work — one landing unblocked both." />
+      <MermaidDiagram chart={phaseChart} caption="Per-refactor phase rollout, ordered by chronological priority. Green = shipped, blue = pending/gated, amber = actionable now (concave column's not-gated tooling). VA 1c-rev and REC R0 were the same work — one landing unblocked both." />
 
       <h3>Camera track — separate, future, depends on R0</h3>
       <p>
@@ -376,7 +400,68 @@ function RefactorRoadmap() {
         </li>
       </ul>
 
+      <h2>Topics-driven curriculum roadmap (new layer, 2026-07-02)</h2>
+      <p>
+        A new family of docs sits <em>above</em> the per-refactor notes on this
+        map. Where the refactor notes are organized by <strong>capability</strong>{' '}
+        (air resistance, applied forces, colliders…), the curriculum roadmap is
+        organized by <strong>what to teach</strong>: each archetype names the
+        physics, the collider/joint technique it needs, the closed-form solution
+        that anchors the analytical↔numerical↔experimental triangle, and the graph
+        where that overlay happens on screen. Four cross-referenced files, keyed by
+        stable IDs:
+      </p>
+      <ul>
+        <li>
+          <strong>PHYSICS_SHAPES.md (v2)</strong> — collider archetypes{' '}
+          (<code>S0.1…S4.1</code>) in five rungs of climbing concavity. The{' '}
+          <strong>concave-colliders</strong> refactor above is Rung 2+ of this file;
+          its Tier 1 is the <strong>open-container factory</strong> (cup/box/wagon).
+          v2 also resolves the rolling hoop via <em>mass-property override</em>{' '}
+          (convex contact shape, overridden inertia) — no concave annulus collider.
+        </li>
+        <li>
+          <strong>PHYSICS_JOINTS_CONSTRAINTS.md (v1)</strong> — joint archetypes{' '}
+          (<code>J1…J9</code>): pendulum, spring-mass, lever, prismatic rail,
+          ball-on-string, path-constraint, Atwood, double pendulum. This is a{' '}
+          <strong>new workstream</strong> — previously only a wishlist/feature-gap
+          line — that buys large curriculum coverage at low contact risk, since both
+          engines ship joints natively. <strong>To verify first:</strong> Rapier has
+          no native pulley (Atwood needs a shim) and rope/spring joints are version-
+          gated. Not yet a phased refactor; no schema/prompt landing.
+        </li>
+        <li>
+          <strong>PHYSICS_GRAPHS.md (v1)</strong> — the canonical graph observables{' '}
+          (<code>G1…G11</code>) every archetype's definition-of-done points at, built
+          on five reading moves (slope / area / intercept / flatness / linearization)
+          and two harness modes (time-series + parameter-sweep).
+        </li>
+        <li>
+          <strong>BENCHMARK_SIMS.md (v1)</strong> — the acceptance suite{' '}
+          (<code>B1…B17</code>): external reference sims (PhET, Physics Classroom,
+          Algodoo…) each with a <em>frozen natural-language prompt</em> and an A–E
+          rubric. Meta-metric: time-to-working-sim from the teacher prompt.
+        </li>
+      </ul>
+      <p>
+        All four state they <strong>&ldquo;Feed CLAUDE.md&rdquo;</strong> — which
+        the repo still lacks; the intent is to synthesize them into one. These are
+        the <em>what &amp; why</em> layer; the refactor notes remain the{' '}
+        <em>how it lands</em> layer (schema + prompt + adapter — the three-places
+        rule). Nothing in the roadmap is LLM-authorable yet. <em>This map does not
+        yet render these as Mermaid tracks — a follow-up once a joints phase plan and
+        the first benchmark runs exist.</em>
+      </p>
+
       <h2>Source documents</h2>
+
+      <h3>Curriculum &amp; benchmark roadmap (.md, repo root — topics-driven)</h3>
+      <ul>
+        <li><code>PHYSICS_SHAPES.md</code> — collider archetypes (S-IDs), 5 concavity rungs</li>
+        <li><code>PHYSICS_JOINTS_CONSTRAINTS.md</code> — joint archetypes (J-IDs), the new joints workstream</li>
+        <li><code>PHYSICS_GRAPHS.md</code> — canonical graph observables (G-IDs) + 5 reading moves</li>
+        <li><code>BENCHMARK_SIMS.md</code> — external acceptance suite (B-IDs), frozen prompts, A–E rubric</li>
+      </ul>
 
       <h3>Physics refactor proposals (.md, repo root)</h3>
       <ul>

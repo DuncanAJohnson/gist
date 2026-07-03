@@ -163,10 +163,15 @@ These overlap with the feature-gaps section in the [topics doc](GIST_Physics_Sys
 Already in the topics doc as a feature gap. Pairs with trigger-based events above.
 - **Unlocks:** goal regions, lap timers, "ball reaches X" detection, sensor → event chains.
 
-### ⭐⭐⭐ 🧱 Joints (spring, revolute, prismatic, rope, pulley)
-The single biggest content gap.
+### ⭐⭐⭐ 🧱 Joints (spring, revolute, prismatic, rope, pulley) — SCOPED 2026-07-02 → PHYSICS_JOINTS_CONSTRAINTS.md
+The single biggest content gap. **This brainstorm item has graduated into a
+topics-driven roadmap: [PHYSICS_JOINTS_CONSTRAINTS.md](PHYSICS_JOINTS_CONSTRAINTS.md)**
+(archetypes J1–J9, definition-of-done, engine-asymmetry budget). The wishlist entry
+stays here as the origin note; the roadmap is now the doc of record. It remains 🔴 in
+[GIST_Physics_System_Topics.md](GIST_Physics_System_Topics.md) (no adapter support /
+no phased refactor yet).
 - **Unlocks:** Hooke's law, pendulums, Atwood machines, springs, harmonic oscillators, rotating platforms, hinged doors, soft constraints. Half of intro mechanics is gated behind this.
-- **Note:** Rapier's `JointData.spring(restLength, k, c)` is the cleanest mapping for textbook Hooke. Planck-only joints (pulley, mouse, gear, friction) are a tier-2 nice-to-have.
+- **Note:** Rapier's `JointData.spring(restLength, k, c)` is the cleanest mapping for textbook Hooke. Planck-only joints (pulley, mouse, gear, friction) are a tier-2 nice-to-have. Roadmap flags Rapier's **missing native PulleyJoint** (Atwood shim) and rope/spring-joint **version availability** as the things to verify first.
 
 ### ⭐⭐ 🧱 Contact-impulse readout
 Adapter exposes per-contact impulse magnitudes from `postSolve` (Planck) / `ContactForceEvent` (Rapier).
