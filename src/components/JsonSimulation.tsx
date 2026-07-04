@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import BaseSimulation, { type SimulationControls as BaseSimulationControls, CANVAS_HEIGHT, WALL_THICKNESS } from './BaseSimulation';
+import BaseSimulation, { type SimulationControls as BaseSimulationControls, CANVAS_HEIGHT, WALL_THICKNESS, SIMULATION_WIDTH, SIMULATION_HEIGHT } from './BaseSimulation';
 import type { PhysicsAdapter, PhysicsBody, Vec2 } from '../physics/types';
 import SimulationControls, { type PrecomputeState, type PrecomputeProgress } from './simulation_components/SimulationControls';
 import Environment from './simulation_components/Environment';
@@ -31,6 +31,9 @@ import type { OutputGroupConfig } from '../schemas/simulation';
 import DataDownload from './simulation_components/DataDownload';
 // Experimental Data
 import ExperimentalDataModal, { type ExperimentalDataConfig, type ModalFormState, DEFAULT_MODAL_FORM_STATE } from './simulation_components/ExperimentalDataModal';
+// Debug "Import Object" (test SVG-generator exports in a live sim)
+import ImportObjectModal, { type ImportCandidate, type ImportControlPreset } from './simulation_components/ImportObjectModal';
+import { registerImportedRenderable, MANIFEST_VIEWBOX } from '../lib/renderableManifest';
 // Render Layer
 import RenderLayer from './simulation_components/renderables/RenderLayer';
 // Edit overlay + unsaved-changes indicator
@@ -40,12 +43,24 @@ import type { ObjectEditCommit } from '../lib/editGeometry';
 import {
   synthesizeWallRenderables,
   synthesizeBodyRenderable,
+  synthesizeColliderDebugRenderable,
   synthesizeVectorArrowRenderables,
   synthesizeExperimentalRenderable,
   synthesizeGridRenderable,
   buildExperimentalDataResolver,
 } from './simulation_components/renderables/synthesize';
 import type { PixelRenderable, DataPositionResolver } from './simulation_components/renderables/types';
+
+// Collider observation overlay: draws every body's engine-truth collider
+// geometry — the decomposed compound, for concave manifest colliders — with
+// per-part colors and vertex counts, so SVG + manifest data from the generator
+// can be vetted by eye before dev decisions. Scoped in
+// Notes_on_Concave_Colliders_Refactor.md (2026-07-02). Toggled live via the
+// debug-panel checkbox; `?colliders=1` (same pattern as `?simdebug=1`) sets
+// the initial state so a link can open straight into observation mode.
+const COLLIDER_DEBUG_INITIAL =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).has('colliders');
 
 interface SimulationConfig {
   title?: string;
@@ -182,6 +197,13 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   // default. Doesn't affect the bake cache, so toggling mid-replay is safe.
   const [showGrid, setShowGrid] = useState<boolean>(true);
 
+  // Debug "Import Object" modal (SVG-generator export testing)
+  const [showImportObjectModal, setShowImportObjectModal] = useState(false);
+
+  // Collider observation overlay. Session-local like showGrid; doesn't affect
+  // the bake cache, so toggling mid-replay is safe.
+  const [showColliders, setShowColliders] = useState<boolean>(COLLIDER_DEBUG_INITIAL);
+
   // Experimental data overlay state
   const [showExperimentalModal, setShowExperimentalModal] = useState(false);
   const [experimentalData, setExperimentalData] = useState<ExperimentalDataConfig | null>(null);
@@ -205,10 +227,13 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     const grid = showGrid
       ? [synthesizeGridRenderable(pixelsPerUnit, UNIT_ABBREV[environment.unit ?? 'm'], zoomFactor)]
       : [];
-    return [...grid, ...walls, ...sprites, ...vectorArrows, ...experimental].sort(
+    const colliderOutlines = showColliders
+      ? objects.map(synthesizeColliderDebugRenderable)
+      : [];
+    return [...grid, ...walls, ...sprites, ...vectorArrows, ...experimental, ...colliderOutlines].sort(
       (a, b) => a.zIndex - b.zIndex
     );
-  }, [objects, environment.walls, environment.unit, experimentalData, configPixelsPerMeter, pixelsPerUnit, showGrid, zoomFactor]);
+  }, [objects, environment.walls, environment.unit, experimentalData, configPixelsPerMeter, pixelsPerUnit, showGrid, showColliders, zoomFactor]);
 
   const dataSources = useMemo<Record<string, DataPositionResolver>>(() => {
     if (!experimentalData) return {};
@@ -917,6 +942,102 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     [unitScale, controls],
   );
 
+  // Deferred initial-snapshot recapture for object add/remove. Mirrors
+  // commitObjectEdit's cache invalidation — but the recapture must be DEFERRED
+  // one commit: an added body only exists after the new ObjectRenderer's mount
+  // effect runs, and a removed body is only destroyed after the old one's
+  // cleanup runs (both happen before this parent effect on the same commit).
+  const pendingRecaptureRef = useRef(false);
+  useEffect(() => {
+    if (!pendingRecaptureRef.current) return;
+    pendingRecaptureRef.current = false;
+    simulationControlsRef.current?.recaptureInitialSnapshot();
+  }, [siObjects]);
+
+  // Debug "Import Object": inject an SVG-generator export as a new object at
+  // the center of the play area, sized to ~20% of the smaller scene dimension
+  // so it lands clearly grabbable (EditOverlay drag/resize) at any sim scale.
+  const handleImportObject = useCallback(
+    (
+      { item, svgText }: ImportCandidate,
+      { isStatic, presets }: { isStatic: boolean; presets: ImportControlPreset[] },
+    ) => {
+      const registered = registerImportedRenderable(item, svgText);
+      const vb = registered.viewBox ?? {
+        width: MANIFEST_VIEWBOX,
+        height: MANIFEST_VIEWBOX,
+      };
+      // JSON-declared scale (not the zoom slider), in user units — same frame
+      // object x/y/width/height are authored in.
+      const worldW = SIMULATION_WIDTH / configPixelsPerUnit;
+      const worldH = SIMULATION_HEIGHT / configPixelsPerUnit;
+      const target = 0.2 * Math.min(worldW, worldH);
+      const aspect = vb.width / vb.height;
+      const width = aspect >= 1 ? target : target * aspect;
+      const height = aspect >= 1 ? target / aspect : target;
+
+      // Unique id computed from the current objects (not inside the state
+      // updater) because the preset control labels below need the final id.
+      const ids = new Set(objects.map((o) => o.id));
+      let id = registered.name;
+      for (let n = 2; ids.has(id); n++) id = `${registered.name}_${n}`;
+      const newObject: ObjectConfig = {
+        id,
+        x: worldW / 2,
+        y: worldH / 2,
+        width,
+        height,
+        svg: registered.name,
+        isStatic,
+        mass: 1,
+      };
+
+      // Preset sliders bound to the new object. Ranges are auto-derived; the
+      // angle range follows env.angleUnit, and defaults match the object's
+      // initial (zero) velocity/acceleration so attaching a control doesn't
+      // move anything until the user drags it.
+      const angleUnit = environment.angleUnit ?? 'deg';
+      const angleMax = angleUnit === 'deg' ? 360 : angleUnit === 'rad' ? 6.28 : 1;
+      const angleStep = angleUnit === 'deg' ? 1 : 0.01;
+      const presetSliders: Record<ImportControlPreset, Omit<SliderConfig, 'type' | 'targetObj'>> = {
+        speed: { label: `${id} speed`, property: 'velocity.magnitude', min: 0, max: 30, step: 0.1, defaultValue: 0 },
+        'launch-angle': { label: `${id} launch angle`, property: 'velocity.angle', min: 0, max: angleMax, step: angleStep, defaultValue: 0 },
+        'accel-x': { label: `${id} accel X`, property: 'acceleration.x', min: -20, max: 20, step: 0.1, defaultValue: 0 },
+        'accel-y': { label: `${id} accel Y`, property: 'acceleration.y', min: -20, max: 20, step: 0.1, defaultValue: 0 },
+      };
+      const newControls: ControlConfig[] = presets.map((p) => ({
+        type: 'slider',
+        targetObj: id,
+        ...presetSliders[p],
+      }));
+
+      setEditedConfig((prev) => ({
+        ...prev,
+        objects: [...(prev.objects ?? []), newObject],
+        controls: newControls.length > 0 ? [...(prev.controls ?? []), ...newControls] : prev.controls,
+      }));
+      if (newControls.length > 0) {
+        // Seed live values so the new sliders render controlled from frame one.
+        setControlValues((cv) => {
+          const next = { ...cv };
+          newControls.forEach((c) => {
+            if (c.type === 'slider') next[c.label] = c.defaultValue;
+          });
+          return next;
+        });
+      }
+      setShowImportObjectModal(false);
+      setHasUnsavedChanges(true);
+      frameCacheRef.current = null;
+      recordingBufferRef.current = null;
+      prevVelocitiesRef.current = {};
+      prevAngularVelocitiesRef.current = {};
+      prevTimeRef.current = 0;
+      pendingRecaptureRef.current = true;
+    },
+    [configPixelsPerUnit, objects, environment.angleUnit],
+  );
+
   const handleSaveEdits = useCallback(async () => {
     if (simulationId === undefined && !localJsonEdit) return;
     setIsSaving(true);
@@ -950,6 +1071,65 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
       setSelectedObjectId(null);
     }
   }, [selectedObjectId, objects]);
+
+  // Select + Delete: remove an object and every control/output/graph binding
+  // that references it (commitObjectEdit's re-sync concerns in reverse —
+  // orphaned bindings would silently read a missing body). Draft-only like
+  // all click-edits: Save persists the removal, reload discards it.
+  const removeObject = useCallback(
+    (id: string) => {
+      const droppedLabels = controls
+        .filter((c) => c.targetObj === id)
+        .map((c) => c.label);
+      setEditedConfig((prev) => ({
+        ...prev,
+        objects: (prev.objects ?? []).filter((o) => o.id !== id),
+        controls: (prev.controls ?? []).filter((c) => c.targetObj !== id),
+        outputs: (prev.outputs ?? [])
+          .map((g) => ({ ...g, values: g.values.filter((v) => v.targetObj !== id) }))
+          .filter((g) => g.values.length > 0),
+        graphs: (prev.graphs ?? [])
+          .map((g) => ({ ...g, lines: g.lines.filter((l) => l.targetObj !== id) }))
+          .filter((g) => g.lines.length > 0),
+      }));
+      if (droppedLabels.length > 0) {
+        setControlValues((cv) => {
+          const next = { ...cv };
+          droppedLabels.forEach((label) => delete next[label]);
+          return next;
+        });
+      }
+      setSelectedObjectId(null);
+      setHasUnsavedChanges(true);
+      frameCacheRef.current = null;
+      recordingBufferRef.current = null;
+      prevVelocitiesRef.current = {};
+      prevAngularVelocitiesRef.current = {};
+      prevTimeRef.current = 0;
+      pendingRecaptureRef.current = true;
+    },
+    [controls],
+  );
+
+  // Delete/Backspace removes the selected object while editing. Skipped when
+  // focus is in a form field so typing in inputs never deletes bodies.
+  useEffect(() => {
+    if (!editModeActive || !selectedObjectId) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      const t = e.target;
+      if (
+        t instanceof HTMLElement &&
+        (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)
+      ) {
+        return;
+      }
+      e.preventDefault();
+      removeObject(selectedObjectId);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [editModeActive, selectedObjectId, removeObject]);
 
   // Dismiss the "reset to edit" prompt automatically once editing is allowed
   // again (e.g. user reset the sim from the header controls).
@@ -1097,6 +1277,12 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
           graphs={graphs}
         />
       )}
+      {showImportObjectModal && (
+        <ImportObjectModal
+          onClose={() => setShowImportObjectModal(false)}
+          onImport={handleImportObject}
+        />
+      )}
       {pickingPosition && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg text-sm font-medium">
           Click on the simulation to set the starting position
@@ -1181,7 +1367,10 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
             onAirResistanceModeChange={setAirResistanceMode}
             showGrid={showGrid}
             onShowGridChange={setShowGrid}
+            showColliders={showColliders}
+            onShowCollidersChange={setShowColliders}
             onTweakJSON={canPersist ? handleTweakJSON : undefined}
+            onImportObject={() => setShowImportObjectModal(true)}
           />
           <button
             onClick={() => setShowExperimentalModal(true)}

@@ -302,7 +302,17 @@ function RefactorRoadmap() {
           inertia-override path for the rolling hoop, and the manifest self-describing
           its coordinate space. The phase chart above renumbers these <b>1–8</b> and
           colors which are actionable now (amber) vs gated on the go (blue). Resume
-          still awaits an explicit go. See{' '}
+          still awaits an explicit go. <b>Debug-tool set completed (2026-07-03)</b>: an{' '}
+          <b>Import Object</b> debug-panel button loads an SVG-generator export (zip
+          or .svg + manifest .json) into a live sim as a session-only test object,
+          with optional slider-control presets at import (speed / launch angle /
+          accel); <b>select + Delete</b> removes any object (with full
+          control/output/graph cleanup); and the <b>observation overlay is built</b> —{' '}
+          <code>?colliders=1</code> renders each body&rsquo;s decomposed collider parts
+          in distinct colors with vertex counts flagged red above Planck&rsquo;s silent
+          12-vert cap (engine-actual fixture readback deferred). Together: generator
+          export → live sim → visible engine-truth colliders, before anything lands
+          in <code>public/renderables/</code>. See{' '}
           <code>Notes_on_Concave_Colliders_Refactor.md</code>,{' '}
           <code>PHYSICS_SHAPES.md</code>, and <code>Local_Sim_Workflow.md</code>.
         </li>

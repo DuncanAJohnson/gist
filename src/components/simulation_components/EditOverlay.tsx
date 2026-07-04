@@ -62,7 +62,9 @@ const ACCENT_FILL = '#ffffff';
 
 function isCircleObject(svg: string): boolean {
   const item = getManifestItem(svg);
-  return item?.physical_properties.collider.type === 'circle';
+  // collider can be null in shipped manifest entries (e.g. "basketball") —
+  // those fall back to rectangle colliders, so treat them as non-circles.
+  return item?.physical_properties.collider?.type === 'circle';
 }
 
 function EditOverlay({

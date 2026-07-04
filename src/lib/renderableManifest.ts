@@ -27,7 +27,9 @@ export interface ManifestItem {
   color_tag?: string | null;
   parent?: string | null;
   physical_properties: {
-    collider: ManifestCollider;
+    // null in some shipped entries (e.g. "basketball") — consumers must
+    // guard and fall back to a rectangle collider.
+    collider: ManifestCollider | null;
   };
   /**
    * The sprite's authoring viewBox dimensions, parsed from the SVG at load
@@ -75,6 +77,21 @@ export function loadManifest(): Promise<Map<string, ManifestItem>> {
 const VIEWBOX_RE = /viewBox\s*=\s*["']\s*[-\d.]+\s+[-\d.]+\s+([-\d.]+)\s+([-\d.]+)/;
 
 /**
+ * Pull the viewBox width/height out of raw SVG text. Returns null when the
+ * attribute is missing or the dims are non-positive.
+ */
+export function parseViewBoxText(
+  text: string,
+): { width: number; height: number } | null {
+  const match = VIEWBOX_RE.exec(text);
+  if (!match) return null;
+  const width = parseFloat(match[1]);
+  const height = parseFloat(match[2]);
+  if (!(width > 0) || !(height > 0)) return null;
+  return { width, height };
+}
+
+/**
  * Fetch a sprite and pull its viewBox width/height. Returns null on any
  * failure (network, missing attribute, non-positive dims) so the caller can
  * fall back to the square default.
@@ -85,32 +102,66 @@ async function parseViewBox(
   try {
     const res = await fetch(getRenderablePath(name));
     if (!res.ok) return null;
-    const match = VIEWBOX_RE.exec(await res.text());
-    if (!match) return null;
-    const width = parseFloat(match[1]);
-    const height = parseFloat(match[2]);
-    if (!(width > 0) || !(height > 0)) return null;
-    return { width, height };
+    return parseViewBoxText(await res.text());
   } catch {
     return null;
   }
 }
 
+// ---------------------------------------------------------------------------
+// Runtime-imported renderables (debug "Import Object" feature).
+//
+// Entries registered here exist only in this browser session: the SVG text
+// becomes a blob URL and the manifest item lives in these maps, which are
+// consulted BEFORE the on-disk manifest. Saving a sim that references an
+// imported name will NOT carry the SVG — on reload the name won't resolve
+// and ObjectRenderer falls back to a rectangle collider.
+
+const importedItems = new Map<string, ManifestItem>();
+const importedUrls = new Map<string, string>();
+
+/**
+ * Register an SVG + manifest entry imported at runtime, making the name
+ * resolvable by `getManifestItem`/`getRenderablePath` for this session.
+ * Parses the viewBox out of the SVG text (same invariant loadManifest
+ * maintains: item present ⟹ viewBox known when parseable). Re-importing the
+ * same name replaces the previous registration.
+ */
+export function registerImportedRenderable(
+  item: ManifestItem,
+  svgText: string,
+): ManifestItem {
+  const vb = parseViewBoxText(svgText);
+  const entry: ManifestItem = { ...item, ...(vb ? { viewBox: vb } : {}) };
+  const old = importedUrls.get(entry.name);
+  if (old) URL.revokeObjectURL(old);
+  importedUrls.set(
+    entry.name,
+    URL.createObjectURL(new Blob([svgText], { type: 'image/svg+xml' })),
+  );
+  importedItems.set(entry.name, entry);
+  return entry;
+}
+
 /**
  * Synchronous accessor. Returns the manifest entry for `name`, or null if the
  * manifest hasn't loaded yet or the name isn't recognised. Callers that need
- * to wait should call `loadManifest()`.
+ * to wait should call `loadManifest()`. Runtime-imported entries win over
+ * on-disk ones.
  */
 export function getManifestItem(name: string): ManifestItem | null {
+  const imported = importedItems.get(name);
+  if (imported) return imported;
   if (!manifestCache) return null;
   return manifestCache.get(name) ?? null;
 }
 
 /**
- * Asset path for the SVG sprite associated with an approved entry.
+ * Asset path for the SVG sprite associated with an approved entry. For
+ * runtime-imported entries this is a session-local blob URL.
  */
 export function getRenderablePath(name: string): string {
-  return `/renderables/${name}.svg`;
+  return importedUrls.get(name) ?? `/renderables/${name}.svg`;
 }
 
 // Eager-fetch on module import so the manifest is usually populated before

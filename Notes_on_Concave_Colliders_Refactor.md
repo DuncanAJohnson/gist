@@ -164,7 +164,7 @@ AI-authored sims can't use concave shapes.
 
 ---
 
-## Collider debug / observation mode — SCOPED 2026-07-02 (Bill request)
+## Collider debug / observation mode — SCOPED 2026-07-02 (Bill request); BUILT 2026-07-03 (all but the engine-actual layer)
 
 A dev-only visualization of the **actual collider geometry each object receives**,
 so we can confirm the SVGs + manifest data coming from the SVG generator are good —
@@ -185,7 +185,9 @@ decomposed collider" debug switch the SVG generator's `Dev_Tasks.md` **Task 13**
 as *Bill's TODO in gist* — the sanctioned way to ground-truth decomposition downstream
 without importing `poly-decomp` into the generator repo.
 
-**Scope (not built — documented only):**
+**Scope (BUILT 2026-07-03 — see Findings "Import Object follow-ups"; every
+item below landed except the optional engine-actual layer, which is
+deferred):**
 - **Toggle:** dev-only — a `?colliders=1` URL flag (mirroring `?simdebug=1`) and/or an
   AdvancedDebugPanel switch. Never production.
 - **Draw** a `body-outline` per object; color `compound` parts distinctly so the
@@ -557,8 +559,132 @@ compound-complexity/perf signal the observation mode's part-count readout also s
 then decide here and upstream.* The observation mode is the instrument that produces that
 data. No threshold is enforced as a dev rule until then.
 
-**Status:** scope DOCUMENTED, not built (Bill: "document scope only"). See the
-"Collider debug / observation mode" section above.
+**Status:** scope DOCUMENTED 2026-07-02 (Bill: "document scope only");
+**BUILT 2026-07-03** minus the optional engine-actual layer — see the
+"Collider debug / observation mode" section above and the follow-ups
+Findings below.
+
+### 2026-07-03 — "Import Object" debug feature SHIPPED (generator-export testing in a live sim)
+
+The workflow companion to the observation mode above: a debug-panel **Import
+Object** button that loads an SVG-generator export — the "Download approved"
+`.zip` directly, or a loose `.svg` + manifest `.json` pair — and injects it
+into the running sim as a new object. Purpose (Bill): test SVG + manifest data
+*as it is generated* in the upstream SVG Gen system, without touching
+`public/renderables/`. Basic functionality confirmed by Bill same day.
+
+**What it does:** parses the zip natively ([src/lib/zipReader.ts](src/lib/zipReader.ts) —
+~90-line central-directory reader over `DecompressionStream('deflate-raw')`;
+**no jszip dependency taken on**; round-trip tested against real JSZip output
+in STORE + DEFLATE modes); registers the SVG (as a blob URL) and manifest
+entry at runtime (`registerImportedRenderable` in
+[src/lib/renderableManifest.ts](src/lib/renderableManifest.ts) — imported
+entries win over on-disk ones, viewBox parsed from the SVG text per the
+true-viewBox contract); asks **dynamic vs static**; then drops the object at
+scene center sized to **~20% of the smaller scene dimension** (aspect
+preserved) so it's immediately grabbable/resizable via the existing
+EditOverlay. Modal: [src/components/simulation_components/ImportObjectModal.tsx](src/components/simulation_components/ImportObjectModal.tsx);
+injection + deferred initial-snapshot recapture in `JsonSimulation`
+(`handleImportObject` — recapture must wait one commit for the new
+ObjectRenderer's body to mount).
+
+**Deliberate scoping:**
+- **Session-only.** The SVG never lands in `public/renderables/`; saving a sim
+  that references an imported object won't carry the artwork (name falls back
+  to a rectangle collider on reload). This is an observation instrument, not
+  an asset pipeline.
+- **Three-places status: intentionally untouched.** No schema, no prompt, no
+  design-philosophy change — nothing here is LLM-authorable, by design. Do not
+  read this as a half-landed Phase 4.
+- An SVG with **no manifest entry** still imports (amber warning, rectangle
+  collider fallback) — itself useful signal when testing generator output.
+- Decomposition still happens invisibly at body-build time — a >12-vert part
+  (Planck cap, above) won't be *visible* until the observation overlay exists.
+  This import button is the natural feeder for that overlay.
+
+**Drive-by fix:** `ManifestItem.physical_properties.collider` is now typed
+nullable (matches shipped data — "basketball" has `collider: null`), which
+surfaced and fixed a latent crash in
+[EditOverlay.tsx](src/components/simulation_components/EditOverlay.tsx)
+(`collider.type` read without a null guard → edit mode would crash on any
+null-collider object).
+
+**RESOLVED same day — Bill's pending tweaks (2026-07-03):** both were
+specified and built in a later session the same day, together with the
+observation overlay; see the follow-ups Findings below. Original open items,
+kept for the record:
+- On import, ask the user to select **slider controls** to attach to the
+  object (which properties, ranges TBD). → *Built as import-time presets;
+  Bill chose velocity/acceleration controls, NOT position sliders.*
+- In the sim itself, **select + Delete key removes an object** (would be the
+  first object-removal UI; note `commitObjectEdit`'s slider/control re-sync
+  concerns apply in reverse — removal must clean up controls/outputs/graphs
+  that reference the object id). → *Built, for ANY object (Bill's call), with
+  exactly that cleanup.*
+
+### 2026-07-03 — Import Object follow-ups + collider observation overlay BUILT (later session, same day)
+
+All three remaining debug-tool items landed in one push. **Build-verified**
+(tsc: no new errors; `vite build` clean; dev server boots) and **CONFIRMED
+hands-on by Bill same day** ("all works — and I see the collider geometry
+with ?colliders=1"). Three-places status: **intentionally untouched again** —
+pure debug tooling, nothing LLM-authorable.
+
+**Same-day follow-up (Bill request): the overlay is also a debug-panel
+checkbox** ("Show colliders", next to Show grid) — session-local state like
+`showGrid`, toggles live without affecting the bake cache. `?colliders=1`
+now sets the checkbox's INITIAL state (so a link can open straight into
+observation mode) rather than being the only switch.
+
+**1. Select + Delete removes an object** (`JsonSimulation.tsx` —
+`removeObject` + a keydown effect). Scope decision (Bill): works on **any**
+object in edit mode, not just imported ones — one consistent rule for the
+first object-removal UI. Delete/Backspace while an object is selected and
+`editModeActive`; skipped when focus is in an input/textarea/select/
+contenteditable so typing never deletes bodies. Cleanup is the commitObjectEdit
+re-sync concern in reverse, fully enumerable from the schema (controls are
+slider|toggle, graphs are line-only): drops controls with `targetObj === id`
+(and their live `controlValues` entries), output values (and now-empty
+groups), graph lines (and now-empty graphs). Reuses the deferred-recapture
+pattern from import — renamed `pendingRecaptureRef` — which works unchanged
+for removal because a removed child's cleanup (body destroy + `objRefs`
+delete) runs before the parent's `[siObjects]` effect on the same commit.
+Draft-only like all click-edits: Save persists, reload discards.
+
+**2. Import-time slider-control presets** (`ImportObjectModal.tsx` checkboxes
+→ `handleImportObject` builds the sliders). Bill chose **Speed
+(`velocity.magnitude`, 0–30), Launch angle (`velocity.angle`, range follows
+`env.angleUnit`: 360 / 6.28 / 1), Accel X/Y (`acceleration.x/.y`, −20–20 —
+the additive-thrust `userData.configuredAcceleration` path)**. Position
+sliders deliberately NOT offered — dragging via EditOverlay already re-syncs
+position sliders, and the polar pair is the projectile-testing win. Presets
+are disabled for static bodies (velocity/acceleration writes are no-ops
+there). Labels are `"<id> speed"` etc. (control labels key `controlValues`,
+so they inherit the import's de-duped object id); defaults are 0 to match the
+object's initial state, and `controlValues` is seeded at import so the new
+sliders render controlled from frame one. A speed slider at 0 plus an angle
+slider is safe: the polar held-state resolver (vector-representation Phase 1)
+preserves the orthogonal component.
+
+**3. Collider observation overlay BUILT** — the 2026-07-02 scope above,
+minus one layer. `?colliders=1` (module flag in `JsonSimulation`, mirroring
+`?simdebug=1`) synthesizes a `body-outline` renderable per object
+(`synthesizeColliderDebugRenderable`, zIndex 30 — above sprites/arrows/
+markers) with a new `debugParts` mode in `BodyOutline.ts`: each part of
+`body.shape` (the decomposed compound, for concave colliders) gets a distinct
+palette color (translucent fill + stroke), polygon parts get a vertex-count
+label at their centroid — **red bold above 12** (`PLANCK_MAX_POLYGON_VERTS`,
+this build's silent truncate+hull cap) — and compounds get an "N parts" label
+pinned above the shape's top extent. Labels counter-rotate so they stay
+horizontal on tumbling bodies. **NOT built: the optional "engine-actual"
+fixture-readback layer** (Planck `m_vertices` / Rapier collider verts) — the
+only scope item deferred; the overlay currently shows the intended
+`ShapeDescriptor`, which for Planck parts ≤12 verts is also the engine truth.
+
+**Why one push:** Import Object (the feeder), the presets (drive the object),
+Delete (clear the bench), and the overlay (see the decomposition) complete
+the observation loop the 2026-07-02 scoping asked for — generator export →
+live sim → visible engine-truth colliders, no `public/renderables/` touch.
 
 ---
 

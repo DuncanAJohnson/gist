@@ -85,6 +85,23 @@ export function synthesizeBodyRenderable(obj: ObjectConfig): PixelRenderable {
 }
 
 /**
+ * Collider-observation renderable (`?colliders=1` debug overlay). Draws the
+ * body's engine-truth ShapeDescriptor over its sprite — for a concave manifest
+ * collider that IS the decomposed compound, so the poly-decomp split renders
+ * directly. The BodyOutline drawer handles per-part palette colors and the
+ * vertex-count readout (red above Planck's silent 12-vertex truncation cap).
+ */
+export function synthesizeColliderDebugRenderable(obj: ObjectConfig): PixelRenderable {
+  return {
+    id: `__collider_${obj.id}`,
+    source: { type: 'body', bodyId: obj.id, followAngle: true },
+    visual: { type: 'body-outline', color: '#e6194b', debugParts: true },
+    opacity: 0.9,
+    zIndex: 30, // above sprites (0), vector arrows (10), and markers (20)
+  };
+}
+
+/**
  * Background-grid renderable. Anchored at the world origin (bottom-left of the
  * play area in canvas space) and sized to fill the play area exactly. The
  * drawer handles all niceStep math; this synthesizer just fixes the geometry.

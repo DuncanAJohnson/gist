@@ -281,23 +281,44 @@ For ordinary sims this is plenty; for stiff systems (high-stiffness spring, very
 
 ## Tooling & developer experience
 
-### 🔵 Collider debug / observation overlay — SCOPED 2026-07-02, not built
+### 🟢 "Import Object" debug feature — SHIPPED 2026-07-03
+Debug-panel button that imports an SVG-generator export (the "Download
+approved" `.zip` directly, or loose `.svg` + manifest `.json`) into a live sim
+as a new object: SVG + manifest entry register at runtime (session-only, never
+touches `public/renderables/`), user picks dynamic vs static, object lands at
+scene center at ~20% of the smaller scene dimension so it's immediately
+grabbable/resizable via EditOverlay. Native zip reader
+([src/lib/zipReader.ts](src/lib/zipReader.ts)) — no jszip dependency. The
+workflow companion (and data feeder) to the observation overlay below; basic
+functionality confirmed by Bill 2026-07-03. **Three-places intentionally
+untouched** — nothing LLM-authorable. **Follow-ups BUILT + CONFIRMED
+2026-07-03**: import-time slider-control presets (Speed /
+Launch angle / Accel X-Y — Bill's picks; no position sliders) and select +
+Delete removal of ANY object with full control/output/graph cleanup — the
+first object-removal UI. Full record:
+[Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md)
+→ Findings 2026-07-03 (both entries).
+
+### 🟢 Collider debug / observation overlay — BUILT 2026-07-03 (scoped 2026-07-02; engine-actual layer deferred)
 A dev-only visualization of the **actual collider geometry** each object gets, to
 confirm SVGs + manifest data from the SVG generator are good *before* making dev
-decisions here or upstream. **Foundation already exists:**
+decisions here or upstream. **Built:** `?colliders=1` (mirrors `?simdebug=1`) draws a
+`body-outline` per object — because `body.shape` for a concave `type:"convex"` collider
+*is* the decomposed compound, this renders the poly-decomp split directly (the "render
+the decomposed collider" switch the generator repo's `Dev_Tasks.md` Task 13 logs as
+Bill's gist TODO). Each part gets a distinct palette color; polygon parts get a
+vertex-count label, **red above this Planck build's silent truncate+hull cap of 12**
+(see engine-notes correction below); compounds get an "N parts" readout.
 [BodyOutline.ts](src/components/simulation_components/renderables/visuals/BodyOutline.ts)
-draws any `ShapeDescriptor` (incl. every `compound` part) via the visuals registry — it
-is registered but currently **unwired** (nothing emits a `body-outline`). Because
-`body.shape` for a concave `type:"convex"` collider *is* the decomposed compound, drawing
-it renders the poly-decomp split directly (the "render the decomposed collider" switch the
-generator repo's `Dev_Tasks.md` Task 13 logs as Bill's gist TODO). Scope: a `?colliders=1`
-dev flag, per-part vertex-count readout flagging parts **> this Planck build's cap of 12**
-(see engine-notes correction below), and an optional engine-actual-fixture overlay
-(Planck `fixture.getShape().m_vertices` / Rapier collider verts) to expose truncation/hull
-discrepancies. **Framed as an observation instrument** — gather data on real objects first,
-defer threshold/heuristic decisions. Full spec:
+`debugParts` mode + `synthesizeColliderDebugRenderable`. **Deferred:** the optional
+engine-actual-fixture overlay (Planck `fixture.getShape().m_vertices` / Rapier collider
+verts) that would expose truncation/hull discrepancies — the intended-vs-engine diff.
+**Framed as an observation instrument** — gather data on real objects first, defer
+threshold/heuristic decisions. Confirmed by Bill 2026-07-03; same day it also became
+a debug-panel **"Show colliders" checkbox** (live toggle; `?colliders=1` now sets the
+initial state). Full spec + build record:
 [Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md) →
-"Collider debug / observation mode".
+"Collider debug / observation mode" + Findings 2026-07-03.
 
 ### 🔴 No automated test for setter idempotency / cross-engine parity
 The Rapier mass-setter bug was caught by hand. A small test harness that pumps each public `PhysicsBody` setter twice with the same value and diffs the resulting state across both engines would catch a whole class of regressions. Same for "after restore, every setter returns to a documented baseline."

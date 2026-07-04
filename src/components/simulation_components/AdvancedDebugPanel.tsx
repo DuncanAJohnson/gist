@@ -21,7 +21,10 @@ interface AdvancedDebugPanelProps {
   onAirResistanceModeChange: (mode: AirResistanceMode) => void;
   showGrid: boolean;
   onShowGridChange: (v: boolean) => void;
+  showColliders: boolean;
+  onShowCollidersChange: (v: boolean) => void;
   onTweakJSON?: () => void;
+  onImportObject?: () => void;
 }
 
 const TIMESTEP_OPTIONS = [60, 120, 240, 480, 960, 1920];
@@ -79,7 +82,10 @@ function AdvancedDebugPanel({
   onAirResistanceModeChange,
   showGrid,
   onShowGridChange,
+  showColliders,
+  onShowCollidersChange,
   onTweakJSON,
+  onImportObject,
 }: AdvancedDebugPanelProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -179,12 +185,35 @@ function AdvancedDebugPanel({
               className="cursor-pointer"
             />
           </div>
+          <div className="flex items-center justify-between gap-3">
+            <span
+              className="text-xs text-gray-600"
+              title="Collider observation overlay: draws each body's engine-truth collider geometry (the decomposed compound, for concave colliders) with per-part colors and vertex counts — red above Planck's silent 12-vertex cap. Also available as ?colliders=1."
+            >
+              Show colliders
+            </span>
+            <input
+              type="checkbox"
+              checked={showColliders}
+              onChange={(e) => onShowCollidersChange(e.target.checked)}
+              className="cursor-pointer"
+            />
+          </div>
           {onTweakJSON && (
             <button
               onClick={onTweakJSON}
               className="px-3 py-1.5 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors text-xs font-medium"
             >
               Tweak Simulation JSON
+            </button>
+          )}
+          {onImportObject && (
+            <button
+              onClick={onImportObject}
+              title="Load an SVG-generator export (zip or .svg + manifest .json) and drop it into this sim as a test object. Session-only."
+              className="px-3 py-1.5 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors text-xs font-medium"
+            >
+              Import Object
             </button>
           )}
         </div>

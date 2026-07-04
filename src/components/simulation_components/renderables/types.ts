@@ -58,6 +58,13 @@ export interface MarkerVisual {
 export interface BodyOutlineVisual {
   type: 'body-outline';
   color: string;
+  /**
+   * Collider-observation mode (`?colliders=1`): draw each part of the shape
+   * (the decomposed compound, for concave colliders) in a distinct palette
+   * color with a per-part vertex-count readout — red when a part exceeds
+   * Planck's 12-vertex cap, above which Planck silently truncates + re-hulls.
+   */
+  debugParts?: boolean;
 }
 
 /**
