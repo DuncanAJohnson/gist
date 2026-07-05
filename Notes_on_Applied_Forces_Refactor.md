@@ -260,6 +260,21 @@ Independent of Phases 3–4; can run alongside Phase 2 once `applyImpulse` exist
 - For non-flat surfaces or stacks, read `postSolve` impulses (Planck) / `ContactForceEvent` (Rapier) and surface real friction/normal vectors.
 - Only worth it if Phase 3's analytical approach feels wrong on a real demo.
 
+### Closing phase (inherited 2026-07-04) — all-vectors polar-authoring sweep
+
+Pinned here at the **vector-representation refactor's close-out** (Bill's
+disposition; see `Notes_on_Vector_Representation_Refactor.md` Findings
+2026-07-04). Vector-rep shipped polar authoring for `velocity` only
+(`{magnitude, angle}` union, normalized at the config→SI seam in
+`scaleObjectToSI`). Once `appliedForce` exists (Phase 1 here), the complete
+2D-vector field set is known — so the LAST phase of this refactor sweeps the
+polar-authoring union across **acceleration, gravity, and appliedForce** in one
+mechanical pass: apply `Vector2DInputSchema` to each field, extend the seam
+normalization, add prompt prose, regenerate the JSON schema. Rationale for
+pinning: one sweep over the complete set beats piecemeal extension, and
+`appliedForce.magnitude` / `.angle` slider projections already come free from
+vector-rep Phase 1 the moment the field lands.
+
 ---
 
 ## Decisions deferred

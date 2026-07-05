@@ -1,0 +1,102 @@
+{
+  "title": "Polar-authored velocity — Vector-Rep Phase 2 acceptance test",
+  "description": "Acceptance test for polar initial conditions. twin_xy and twin_polar are identical bodies whose velocities are authored in the two equivalent forms: {x: 12.9904, y: 7.5} vs {magnitude: 15, angle: 30}. They must fly congruent arcs (5 m apart) and their speed/direction read-backs and graph lines must overlay exactly. held_ball is authored {magnitude: 0, angle: 60} — it sits still until you drag its Speed slider, and must then launch along the authored 60° direction (held-state seeded from the polar authoring, not defaulted to 0°).",
+  "environment": {
+    "walls": ["bottom"],
+    "gravity": 9.8,
+    "unit": "m",
+    "angleUnit": "deg",
+    "pixelsPerUnit": 12,
+    "physicsEngine": "rapier"
+  },
+  "objects": [
+    {
+      "id": "twin_xy",
+      "x": 4,
+      "y": 4,
+      "width": 3,
+      "height": 3,
+      "svg": "baseball",
+      "velocity": { "x": 12.9904, "y": 7.5 },
+      "mass": 1,
+      "restitution": 0.4,
+      "showVectors": ["velocity"]
+    },
+    {
+      "id": "twin_polar",
+      "x": 9,
+      "y": 4,
+      "width": 3,
+      "height": 3,
+      "svg": "baseball",
+      "velocity": { "magnitude": 15, "angle": 30 },
+      "mass": 1,
+      "restitution": 0.4,
+      "showVectors": ["velocity"]
+    },
+    {
+      "id": "held_ball",
+      "x": 17,
+      "y": 4,
+      "width": 3,
+      "height": 3,
+      "svg": "baseball",
+      "velocity": { "magnitude": 0, "angle": 60 },
+      "mass": 1,
+      "restitution": 0.4,
+      "showVectors": ["velocity"]
+    }
+  ],
+  "controls": [
+    {
+      "type": "slider",
+      "label": "held_ball Speed (m/s)",
+      "targetObj": "held_ball",
+      "property": "velocity.magnitude",
+      "min": 0,
+      "max": 30,
+      "step": 1,
+      "defaultValue": 0
+    }
+  ],
+  "outputs": [
+    {
+      "title": "Twin read-back (rows must match pairwise)",
+      "values": [
+        { "label": "xy twin |v|", "targetObj": "twin_xy", "property": "velocity.magnitude", "unit": "m/s" },
+        { "label": "polar twin |v|", "targetObj": "twin_polar", "property": "velocity.magnitude", "unit": "m/s" },
+        { "label": "xy twin θ", "targetObj": "twin_xy", "property": "velocity.angle", "unit": "°" },
+        { "label": "polar twin θ", "targetObj": "twin_polar", "property": "velocity.angle", "unit": "°" }
+      ]
+    },
+    {
+      "title": "held_ball (should launch at 60° when Speed > 0)",
+      "values": [
+        { "label": "held |v|", "targetObj": "held_ball", "property": "velocity.magnitude", "unit": "m/s" },
+        { "label": "held θ", "targetObj": "held_ball", "property": "velocity.angle", "unit": "°" }
+      ]
+    }
+  ],
+  "graphs": [
+    {
+      "type": "line",
+      "title": "Twin speeds over time (two lines must overlay exactly)",
+      "yAxisRange": { "min": 0, "max": 20 },
+      "yAxisLabel": "Speed (m/s)",
+      "lines": [
+        { "label": "xy twin |v|", "color": "#2563eb", "targetObj": "twin_xy", "property": "velocity.magnitude" },
+        { "label": "polar twin |v|", "color": "#db2777", "targetObj": "twin_polar", "property": "velocity.magnitude" }
+      ]
+    },
+    {
+      "type": "line",
+      "title": "Twin heights over time (two lines must overlay exactly)",
+      "yAxisRange": { "min": 0, "max": 12 },
+      "yAxisLabel": "Height (m)",
+      "lines": [
+        { "label": "xy twin y", "color": "#2563eb", "targetObj": "twin_xy", "property": "position.y" },
+        { "label": "polar twin y", "color": "#db2777", "targetObj": "twin_polar", "property": "position.y" }
+      ]
+    }
+  ]
+}

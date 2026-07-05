@@ -1,4 +1,4 @@
-import type { ObjectConfig } from '../schemas/simulation';
+import type { ObjectConfig, Vector2D, Vector2DInput, PolarVector2D } from '../schemas/simulation';
 
 /**
  * Supported unit types for the simulation. These are display labels only —
@@ -96,16 +96,52 @@ export function unitScaleFor(
   return 1;
 }
 
-export function scaleObjectToSI(obj: ObjectConfig, scale: number): ObjectConfig {
+/**
+ * True when a vector initial condition was authored in polar form
+ * ({magnitude, angle}) rather than components ({x, y}).
+ */
+export function isPolarVector(v: Vector2DInput): v is PolarVector2D {
+  return (
+    typeof (v as PolarVector2D).magnitude === 'number' &&
+    typeof (v as PolarVector2D).angle === 'number'
+  );
+}
+
+/**
+ * An ObjectConfig whose vector fields are guaranteed cartesian — what
+ * scaleObjectToSI returns. Everything below the config→SI boundary consumes
+ * this, never the authoring-side polar union.
+ */
+export type SIObjectConfig = Omit<ObjectConfig, 'velocity'> & { velocity?: Vector2D };
+
+/**
+ * The config→SI boundary. Besides length scaling, this is where polar-authored
+ * initial conditions normalize to cartesian: authored magnitude is in
+ * env.unit-per-second (like components) and authored angle is in env.angleUnit,
+ * so polar → SI is magnitude·scale at angle·angleScale radians. This runs on
+ * every ingestion path (static cast, LLM, DB load) — none of them Zod-parse,
+ * so this is the ONE place normalization is guaranteed to happen.
+ */
+export function scaleObjectToSI(obj: ObjectConfig, scale: number, angleScale: number): SIObjectConfig {
+  let velocity: Vector2D | undefined;
+  if (obj.velocity) {
+    if (isPolarVector(obj.velocity)) {
+      // Defensive clamp mirrors writeVectorPolar: magnitude is ≥ 0 by contract,
+      // but nothing runtime-enforces the schema's .min(0).
+      const m = Math.max(0, obj.velocity.magnitude) * scale;
+      const theta = obj.velocity.angle * angleScale;
+      velocity = { x: m * Math.cos(theta), y: m * Math.sin(theta) };
+    } else {
+      velocity = { x: obj.velocity.x * scale, y: obj.velocity.y * scale };
+    }
+  }
   return {
     ...obj,
     x: obj.x * scale,
     y: obj.y * scale,
     width: obj.width * scale,
     height: obj.height * scale,
-    velocity: obj.velocity
-      ? { x: obj.velocity.x * scale, y: obj.velocity.y * scale }
-      : obj.velocity,
+    velocity,
     acceleration: obj.acceleration
       ? { x: obj.acceleration.x * scale, y: obj.acceleration.y * scale }
       : obj.acceleration,

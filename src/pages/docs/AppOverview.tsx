@@ -12,6 +12,7 @@ flowchart LR
 
   subgraph FRONTEND["React frontend (Vite + Tailwind + react-router)"]
     direction TB
+    SEAM["config→SI ingestion seam<br/>scaleObjectToSI: unit scaling +<br/>polar→x,y normalization<br/>⚠ no runtime Zod parse"]
     BASE["BaseSimulation.tsx<br/>(rAF loop, modes)"]
     RENDERERS["ObjectRenderer<br/>controls / graphs / outputs"]
     SCHEMA["src/schemas/simulation.ts<br/>(Zod source of truth)"]
@@ -29,28 +30,35 @@ flowchart LR
   ASSETS[(public/renderables/<br/>manifest.json)]
   SUPA[("Supabase")]
   GENJSON[("modal_functions/<br/>simulation_schema.json")]
+  STATIC[("src/simulations/*.json<br/>(hand-authored dev sims)")]
 
   HOME --> DYN
   HOME --> CREATE
   CREATE -->|prompt + edit requests| GEN
   GEN --> PIPE --> LLM
   LLM -.->|streamed JSON| CREATE
-  CREATE -->|validated config| DYN
-  DYN --> BASE
+  CREATE -->|config, validated backend-side only| DYN
+  DYN -->|unparsed| SEAM
+  STATIC -->|unparsed, type-cast| SEAM
+  SEAM --> BASE
   BASE --> RENDERERS
   BASE --> ADAPTER
   ADAPTER --> ENGINES
   RENDERERS --> ASSETS
   SCHEMA -->|npm run generate:schema| GENJSON
+  SCHEMA -.->|import type ONLY — never runtime-parsed| SEAM
   GENJSON -->|bundled into Modal image| PIPE
-  DYN -.->|saved sims| SUPA
+  DYN -.->|save| SUPA
+  SUPA -.->|load, unparsed| DYN
 
   classDef refactor fill:#fef3c7,stroke:#d97706,color:#92400e;
   classDef llm fill:#dbeafe,stroke:#2563eb,color:#1e40af;
   classDef done fill:#dcfce7,stroke:#16a34a,color:#166534;
+  classDef seam fill:#f3e8ff,stroke:#9333ea,color:#6b21a8;
 
   class BASE,ADAPTER,ENGINES refactor;
   class PIPE,SCHEMA,GENJSON llm;
+  class SEAM seam;
 `;
 
 function AppOverview() {
@@ -65,8 +73,20 @@ function AppOverview() {
         Supabase. The renderables manifest drives both visual sprites and collider shapes — the
         same file that feeds the LLM also feeds the runtime.
       </p>
+      <p>
+        The purple node is the <strong>config→SI ingestion seam</strong>: all three config
+        sources (LLM output, Supabase loads, hand-authored dev sims) converge on{' '}
+        <code>scaleObjectToSI</code> <em>unparsed</em> — the Zod schema is consumed as{' '}
+        <code>import type</code> plus schema generation only, and never runs at runtime. Unit
+        scaling and polar→cartesian normalization (vector-rep Phase 2) live at this seam today;
+        the full &ldquo;runtime ingestion boundary (parse, don&rsquo;t validate)&rdquo; — one
+        parse/migrate/default/normalize step all three paths share — is a parked architectural
+        item (see <code>parking_lot.md</code> → &ldquo;Saved sims bypass schema validation&rdquo;,
+        update 2026-07-04, with its two motivating exhibits: the dead matter→rapier preprocess
+        and the tolerated wrapper cast errors).
+      </p>
 
-      <MermaidDiagram chart={chart} caption="App architecture. Yellow = physics-runtime layer; blue = LLM/schema layer." />
+      <MermaidDiagram chart={chart} caption="App architecture. Yellow = physics-runtime layer; blue = LLM/schema layer; purple = config ingestion seam (no runtime parse — see parking lot)." />
 
       <h2>What each refactor touches</h2>
       <ul>
@@ -80,8 +100,9 @@ function AppOverview() {
           renderables.
         </li>
         <li>
-          <strong>Vector representation</strong> — pure binding-layer change in the controls /
-          outputs / graphs path; no engine work.
+          <strong>Vector representation</strong> — binding-layer change in the controls /
+          outputs / graphs path (Phase 1), plus polar→cartesian normalization of authored
+          initial conditions at the ingestion seam (Phase 2); no engine work.
         </li>
         <li>
           <strong>LLM prompting</strong> — touches <code>simulation.ts</code> Zod descriptions

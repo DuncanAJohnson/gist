@@ -13,7 +13,7 @@ import type { PhysicsEngineKind } from '../physics';
 import { resolveEngine } from '../config/engines';
 import { createSimulation, updateChangesMade } from '../lib/simulationService';
 import type { UnitType, AngleUnit } from '../lib/unitConversion';
-import { UNIT_ABBREV, unitToMeters, scaleObjectToSI, unitScaleFor, angleUnitToRadians } from '../lib/unitConversion';
+import { UNIT_ABBREV, unitToMeters, scaleObjectToSI, unitScaleFor, angleUnitToRadians, isPolarVector } from '../lib/unitConversion';
 import { WorldToCanvas } from '../lib/worldToCanvas';
 // Controls
 import ControlRenderer from './simulation_components/controls/ControlRenderer';
@@ -62,7 +62,7 @@ const COLLIDER_DEBUG_INITIAL =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).has('colliders');
 
-interface SimulationConfig {
+export interface SimulationConfig {
   title?: string;
   description?: string;
   environment: {
@@ -187,8 +187,8 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   const gravityVec: Vec2 = useMemo(() => ({ x: 0, y: -siGravityMagnitude }), [siGravityMagnitude]);
 
   const siObjects = useMemo(
-    () => objects.map((obj) => scaleObjectToSI(obj, unitScale)),
-    [objects, unitScale],
+    () => objects.map((obj) => scaleObjectToSI(obj, unitScale, angleScale)),
+    [objects, unitScale, angleScale],
   );
 
   const [showJsonEditor, setShowJsonEditor] = useState(false);
@@ -236,9 +236,12 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   }, [objects, environment.walls, environment.unit, experimentalData, configPixelsPerMeter, pixelsPerUnit, showGrid, showColliders, zoomFactor]);
 
   const dataSources = useMemo<Record<string, DataPositionResolver>>(() => {
-    if (!experimentalData) return {};
-    const resolver = buildExperimentalDataResolver(experimentalData, unitScale);
-    return resolver ? { experimental: resolver } : {};
+    const sources: Record<string, DataPositionResolver> = {};
+    const resolver = experimentalData
+      ? buildExperimentalDataResolver(experimentalData, unitScale)
+      : null;
+    if (resolver) sources.experimental = resolver;
+    return sources;
   }, [experimentalData, unitScale]);
 
   // Refs to all physics bodies by config id (SI PhysicsBody).
@@ -408,6 +411,36 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   // Below this magnitude a vector has no usable direction (atan2(0,0) is
   // undefined), so we fall back to held state instead of reading it.
   const POLAR_EPS = 1e-9;
+
+  // Seed held polar state from polar-AUTHORED velocities, so an authored
+  // direction with zero magnitude ({magnitude: 0, angle: 60}) isn't lost when
+  // normalization produces {x: 0, y: 0}: the first magnitude-slider drag
+  // launches along the authored angle. Non-degenerate vectors refresh held
+  // state on every polar write, so this seed only decides the degenerate case.
+  useEffect(() => {
+    objects.forEach((obj) => {
+      if (obj.velocity && isPolarVector(obj.velocity)) {
+        heldVectorStateRef.current[`${obj.id}.velocity`] = {
+          angle: obj.velocity.angle * angleScale,
+          magnitude: Math.max(0, obj.velocity.magnitude) * unitScale,
+        };
+      }
+    });
+  }, [objects, unitScale, angleScale]);
+
+  // Load-time authoring check (a seed of the future ingestion boundary — see
+  // parking_lot.md): a ".magnitude" slider authored with min < 0 can't behave
+  // as authored, because magnitude writes clamp at 0.
+  useEffect(() => {
+    controls.forEach((c) => {
+      if (c.type === 'slider' && c.property?.endsWith('.magnitude') && c.min < 0) {
+        console.warn(
+          `Slider "${c.label}" binds "${c.property}" with min ${c.min} < 0 — ` +
+          'magnitude is ≥ 0 by definition, so the negative part of the range clamps to 0. Author min ≥ 0.',
+        );
+      }
+    });
+  }, [controls]);
 
   // Resolve the {x, y} of a vector base path for reading. Acceleration is the
   // finite-difference on userData, not a body field.

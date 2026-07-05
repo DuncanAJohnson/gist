@@ -57,7 +57,9 @@ function LineGraph({ config, data, compact = false, maxDuration, overlayData, ov
 
     combinedData.forEach((point) => {
       lines.forEach((line) => {
-        const value = point[line.label];
+        // combinedData is a union of point shapes; dynamic-string indexing needs
+        // a common index signature. Missing keys yield undefined, guarded below.
+        const value = (point as Record<string, number | undefined>)[line.label];
         if (value !== undefined) {
           if (value < minValue) minValue = value;
           if (value > maxValue) maxValue = value;

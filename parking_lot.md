@@ -56,7 +56,23 @@ The "shift right and back" pattern (rather than "shift right and stay") points s
 **Known back-compat shims today** (kept here as the seed of the checklist for option 3):
 
 - `obj.showForceArrows: true` → `obj.showVectors: ["force-net"]`. Lives in: schema preprocess at [simulation.ts:81-91](src/schemas/simulation.ts#L81-L91) (fires on `.parse()`), runtime fallback at [synthesize.ts:132-141](src/components/simulation_components/renderables/synthesize.ts#L132-L141) (fires for Supabase-loaded sims). Two-site shim because of the parse-bypass.
-- `env.physicsEngine: "matter"` → `"rapier"`. Schema preprocess in [simulation.ts](src/schemas/simulation.ts). Single-site (only matters when configs go through `.parse()`; if Supabase-loaded sims ever hit a code path that switches on `physicsEngine` literally, they'd silently mis-engine).
+- `env.physicsEngine: "matter"` → `"rapier"`. Schema preprocess in [simulation.ts:218](src/schemas/simulation.ts#L218). Single-site. ~~If Supabase-loaded sims ever hit a code path that switches on `physicsEngine` literally, they'd silently mis-engine.~~ **Confirmed worse (2026-07-04):** they'd **throw** — the value flows uncoerced to `createPhysicsAdapter`'s exhaustive switch ([physics/index.ts:27](src/physics/index.ts#L27)), which errors on unknown kinds. The shim is dead code on every runtime path.
+
+---
+
+**UPDATE 2026-07-04 — scope widened; reframed as "runtime ingestion boundary (parse, don't validate)". Stage: wishlist (architectural).** Surfaced during vector-representation Phase 2 / close-out; recorded here because this entry already owns the topic.
+
+**The stronger fact.** The 2026-05-20 entry blamed the DB path. The reality: **nothing in the frontend runs Zod `.parse()` at runtime, ever.** The schema is consumed as `import type` (erased at compile) plus the `generate:schema` build step — Zod isn't even in the shipped bundle. So ALL THREE ingestion paths arrive unparsed:
+
+1. **Static dev sims** — `src/simulations/*.json` imported with `as SimulationConfig`-style casts (symptom was 6 tolerated `tsc` wrapper errors from JSON literal-widening on `environment.unit`; fixed 2026-07-04 by consolidating all six into ONE documented cast — `asLocalSimConfig` in [src/simulations/localSimConfig.ts](src/simulations/localSimConfig.ts) — which is now the ready-made static-path parse hook if this boundary lands).
+2. **LLM generate/remix** — validated against `simulation_schema.json` backend-side only; arrives via `DynamicSimulation` unparsed. Zod-side preprocesses/refinements don't translate to JSON schema, so they run **nowhere**.
+3. **Supabase saved sims** — as originally recorded.
+
+**Where the boundary wants to live.** All three paths already converge on ONE choke point: the config→SI boundary (`scaleObjectToSI`, called from `JsonSimulation`'s `siObjects` memo). Vector-rep Phase 2 deliberately placed its polar→cartesian normalization there — that is the **embryo** of the ingestion boundary. The full item: one `ingestSimulation(raw)` at that choke point — `safeParse` → migrations/coercions (matter→rapier, `showForceArrows`→`showVectors`) → defaults (`angleUnit: 'deg'`) → normalizations (polar→cartesian moves inside) → warnings — with everything downstream trusting the genuinely-inferred type (kills the duplicate local `SimulationConfig` interfaces in `JsonSimulation` / `DynamicSimulation` and the wrapper casts).
+
+**Costs found in the 2026-07-04 pro/con** (add to the fix-path calculus above): Zod enters the runtime bundle (~13 kB gz); Zod strips unknown keys by default (audit what runtime reads outside the schema before turn-on); fail-loud needs a designed error surface (a ZodError wall on a teacher's saved sim is worse UX than limping — lean `safeParse` + warn + best-effort). The existing fix paths and the Supabase-corpus diagnostic stand, with one amendment: the parse site should be the **choke point shared by all three paths**, not just `DynamicSimulation.loadSimulation` (fix path 1 as written would still miss static sims and editor-paste).
+
+**Diagnostic addition:** grep the Supabase corpus for `"physicsEngine": "matter"` — if any exist, this item promotes from wishlist to scoped immediately (those sims crash on load today).
 
 ---
 
@@ -127,3 +143,92 @@ fix #1 closes it.
 - Interaction with `force-net = 0` (resting body). After a spike, fading down to 0 may pass through visible-but-shrinking territory before disappearing. Right behavior; worth verifying it doesn't look glitchy.
 
 **Diagnostic to confirm value before building.** Record-and-replay the bowling-ball-and-feather sim, watch a collision frame at slow playback speed (0.25×). If the spike is clearly visible at slow speed but not at 1× speed, decay is the right answer. If even at slow speed the spike is fleeting, the decay window needs to be longer than the natural visual persistence (~100 ms).
+
+---
+
+## `polarSlider` compound control — seed of a future UI-refactor track (2026-07-04)
+
+**What it is.** A paired magnitude+angle control: two stacked sliders + a live
+direction-arrow preview presented as one UI item, bound to a vector (e.g.
+`velocity`), not a scalar leaf. Designed (never built) as Phase 3 of the
+vector-representation refactor; moved here at that refactor's close-out
+(2026-07-04, Bill's disposition: "a cool UI exploration … the start of a UI
+refactor effort").
+
+**Why parked.** It's a *control-composition* question, not a vector question —
+the general form is "compound controls" (paired min/max sliders, XY pads, any
+multi-binding control presented as one item). No UI-refactor track exists yet;
+this entry is its seed. Not blocking: two separate sliders (shipped, Phase 1)
+cover the pedagogy today.
+
+**What's already in place when this starts.** The held polar state is keyed
+BY VECTOR (`${targetObj}.${base}`, JsonSimulation `heldVectorStateRef`),
+precisely so a paired control shares one direction with zero extra plumbing.
+Design sketch (JSON shape, rendering) preserved in
+`Notes_on_Vector_Representation_Refactor.md` → "Optional: a paired polar
+control". Note: the arrow-preview half should reuse the vector-arrows
+infrastructure (`vectorTheme.ts`), NOT grow its own renderer.
+
+**Lifecycle.** When a UI-refactor track opens, this entry moves into its
+`Notes_on_UI_Refactor.md` and is deleted from here.
+
+---
+
+## Angle-wrap toggle for angle graphs (2026-07-04)
+
+**What it is.** Per-graph option: plot `velocity.angle`-style series wrapped to
+`(-180°, 180°]` (atan2 native, the current behavior) or unwrapped/continuous
+(a spinning vector traces a monotone line instead of sawtooth jumps). Phase 4
+of the vector-representation refactor; moved here at close-out (never built).
+
+**Why parked.** Explicitly conditional in the original plan: "only worth doing
+if a sim makes the default look wrong." No sim has. The known candidate:
+any rotational-mechanics sim where direction crosses ±180° repeatedly.
+
+**Trigger / diagnostic.** When a sim's angle graph shows sawtooth artifacts
+that confuse the pedagogy, build it then — as a `GraphConfig` per-line or
+per-graph boolean (`unwrapAngle`), default off (wrapped).
+
+---
+
+## Lint repair & maintenance queue (2026-07-04)
+
+**What happened.** `npm run lint` had never worked since the TS migration
+(commit `b4feaff`): eslint 9's config loader failed on `eslint.config.ts`
+(stale transitive `jiti@1`), and behind that, `typescript-eslint` was never
+installed (config referenced its rules; package absent). Fixed 2026-07-04:
+config renamed → `eslint.config.js` (file was already pure JS);
+`typescript-eslint@8.62.1` installed as devDep (vetted: official repo, no
+lifecycle hooks, stable published 2026-06-29); core `no-unused-vars` swapped
+for the TS-aware `@typescript-eslint/no-unused-vars` (core rule false-flagged
+96 declaration-file params); 2 stale disable-directives auto-fixed. Same
+session, all 8 non-locale `tsc` errors fixed (typed accumulator in
+JsonSimulation `dataSources`; contained cast in LineGraph; six wrapper casts
+consolidated into `src/simulations/localSimConfig.ts` → `asLocalSimConfig`,
+the static-path hook for the ingestion-boundary item above).
+
+**Remaining, queued for next session (Bill, 2026-07-04):**
+
+1. **`npm audit fix`** — 15 pre-existing vulnerabilities, all with compatible
+   fixes. Only three reach the browser: `react-router-dom` (HIGH — the one
+   that matters; XSS/open-redirect class), `mermaid` + `dompurify` (moderate;
+   docs pages, no attacker input — low practical risk). The rest are dev/build
+   toolchain. Run as its OWN maintenance commit; verify with tsc + lint +
+   driving one sim.
+2. **`react-hooks/exhaustive-deps` warning** (JsonSimulation ~line 744, the
+   per-frame sampling callback missing `readDisplayValue`). Works today only
+   because every config edit also replaces `objects`/`graphs` identities.
+   Fix DELIBERATELY: wrap `readDisplayValue` in `useCallback([unitScale,
+   angleScale])`, add to deps, then re-drive `projectile-launch-polar` (unit
+   conversion is exactly what it touches). Hot-path callback — no reflex fixes,
+   no `--fix`.
+
+**Not queued (fix opportunistically):** 4 `react-refresh/only-export-components`
+errors (three contexts + ExperimentalDataModal export hooks/constants beside
+components → full page reload instead of HMR when editing those files; DX-only).
+Split the non-component exports out next time each file is touched anyway.
+
+**Also visible now (separate, unqueued):** the `da.ts` locale bucket — dozens
+of `tsc` errors because the Danish strings are typed against the English
+literal types; wants `Record<keyof typeof en, string>`. Cosmetic; excluded
+from the 8-error fix by scope.

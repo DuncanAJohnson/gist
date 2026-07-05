@@ -75,7 +75,7 @@ const SIM_DEBUG =
 const SIM_DEBUG_STEP_INTERVAL = 15;
 
 function logSnapshot(label: string, snap: WorldSnapshot) {
-  // eslint-disable-next-line no-console
+   
   console.log(
     `[sim] ${label} t=${snap.t.toFixed(3)} bodies=${snap.bodies.length}`,
     snap.bodies.map((b) => ({

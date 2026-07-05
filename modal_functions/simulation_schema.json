@@ -133,23 +133,48 @@
             "type": "string"
           },
           "velocity": {
-            "description": "Initial linear velocity {x, y} in units/second. Positive Y = upward motion. Typical range: -30 to 30 m/s.",
-            "type": "object",
-            "properties": {
-              "x": {
-                "description": "X component. Positive = rightward, negative = leftward. Applies to position, velocity, and acceleration uniformly. Values are in the simulation's configured units (e.g., meters).",
-                "type": "number"
+            "description": "Initial linear velocity, authored either as components {x, y} or as polar {magnitude, angle} — e.g. a projectile launched at 20 units/s, 45° above horizontal: {\"magnitude\": 20, \"angle\": 45}. Components and magnitude are in units/second; angle is in the environment angleUnit (default degrees), counter-clockwise from +X. Positive Y = upward motion. Use ONE form per value — never mix x/y with magnitude/angle. Typical speed range: -30 to 30 m/s (magnitude ≥ 0).",
+            "anyOf": [
+              {
+                "description": "2D vector for position, velocity, or acceleration. Coordinate system: origin (0,0) at BOTTOM-LEFT, X increases right, Y increases upward (real-world physics coordinates).",
+                "type": "object",
+                "properties": {
+                  "x": {
+                    "description": "X component. Positive = rightward, negative = leftward. Applies to position, velocity, and acceleration uniformly. Values are in the simulation's configured units (e.g., meters).",
+                    "type": "number"
+                  },
+                  "y": {
+                    "description": "Y component. Positive = upward, negative = downward (physics convention: Y-up, origin at bottom-left). Applies to position, velocity, and acceleration uniformly. Note: gravity is a separate scalar field with its own sign convention (positive magnitude = downward pull).",
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "additionalProperties": false
               },
-              "y": {
-                "description": "Y component. Positive = upward, negative = downward (physics convention: Y-up, origin at bottom-left). Applies to position, velocity, and acceleration uniformly. Note: gravity is a separate scalar field with its own sign convention (positive magnitude = downward pull).",
-                "type": "number"
+              {
+                "description": "Polar form of a 2D vector: {magnitude, angle}. Interchangeable with the {x, y} component form — normalized to components at load (x = magnitude·cos(angle), y = magnitude·sin(angle)). Author a given value as pure polar OR pure components; never mix fields from both forms.",
+                "type": "object",
+                "properties": {
+                  "magnitude": {
+                    "description": "Vector length, ≥ 0, in the same units as the equivalent {x, y} components (e.g. units/second for velocity).",
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "angle": {
+                    "description": "Direction, measured counter-clockwise from +X, in the environment angleUnit (default degrees). 0 = rightward, 90 (deg) = straight up.",
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "magnitude",
+                  "angle"
+                ],
+                "additionalProperties": false
               }
-            },
-            "required": [
-              "x",
-              "y"
-            ],
-            "additionalProperties": false
+            ]
           },
           "acceleration": {
             "description": "Additional constant linear acceleration {x, y} in units/s², applied ON TOP OF environment gravity each frame via velocity integration (v += a·dt). NOT a gravity override — environment.gravity continues to act on this body. Use for non-gravity constant accelerations: rocket thrust ({x:0, y:15}), constant braking deceleration ({x:-3, y:0} on a body moving +x), conveyor-belt push, a constant horizontal wind, etc. Leave unset (or {x:0, y:0}) for plain gravity-only motion. Typical range: -20 to 20 m/s².",

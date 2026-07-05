@@ -8,6 +8,7 @@ import TossBallSimulation from './simulations/TossBallSimulation'
 import BallIntoCupDropSimulation from './simulations/BallIntoCupDropSimulation'
 import BallIntoCupArcSimulation from './simulations/BallIntoCupArcSimulation'
 import ProjectileLaunchPolarSimulation from './simulations/ProjectileLaunchPolarSimulation'
+import PolarAuthoredVelocitySimulation from './simulations/PolarAuthoredVelocitySimulation'
 import DynamicSimulation from './pages/DynamicSimulation'
 import { CreateSimulationProvider } from './contexts/CreateSimulationContext'
 import { LanguageProvider } from './contexts/LanguageContext'
@@ -43,6 +44,7 @@ function AppContent() {
         <Route path="/simulation/ball-into-cup-drop" element={<BallIntoCupDropSimulation />} />
         <Route path="/simulation/ball-into-cup-arc" element={<BallIntoCupArcSimulation />} />
         <Route path="/simulation/projectile-launch-polar" element={<ProjectileLaunchPolarSimulation />} />
+        <Route path="/simulation/polar-authored-velocity" element={<PolarAuthoredVelocitySimulation />} />
         <Route path="/simulation/dynamic" element={<DynamicSimulation />} />
         <Route path="/simulation/:id" element={<DynamicSimulation />} />
         <Route

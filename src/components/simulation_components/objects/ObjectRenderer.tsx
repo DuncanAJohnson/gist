@@ -1,6 +1,6 @@
 import { useEffect, forwardRef } from 'react';
 import { usePhysics } from '../../../contexts/PhysicsContext';
-import type { ObjectConfig } from './types';
+import type { SIObjectConfig } from './types';
 import type { BodyDef, PhysicsBody, ShapeDescriptor } from '../../../physics/types';
 import { getManifestItem } from '../../../lib/renderableManifest';
 import { scaleManifestColliderToShape } from '../../../physics/shapeHelpers';
@@ -30,7 +30,7 @@ function defaultCd(shape: ShapeDescriptor): number {
   }
 }
 
-const ObjectRenderer = forwardRef<PhysicsBody, ObjectConfig>(function ObjectRenderer(
+const ObjectRenderer = forwardRef<PhysicsBody, SIObjectConfig>(function ObjectRenderer(
   {
     id,
     x,

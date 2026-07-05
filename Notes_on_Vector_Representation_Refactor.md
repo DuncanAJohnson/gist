@@ -5,8 +5,18 @@ held-state + angle-unit family + three-places: schema describe-strings,
 `gist_instructions.py` prompt, this note; JSON schema regenerated). Verified
 headlessly (cm+rot risk-#4 case) AND visually via the `projectile-launch-polar`
 acceptance sim (held-state on both sliders, read-back |v|=√(vx²+vy²) & θ=atan2,
-live graphs correct). **Phase 2 (polar initial conditions) NOT yet implemented.**
-Phases 3–4 design-only.
+live graphs correct). **Phase 2 DONE (velocity only) — implemented + VERIFIED 2026-07-04**
+(headless harness AND visual acceptance: Bill drove
+`/simulation/polar-authored-velocity` — twin trajectories congruent, so the
+{x,y} and {magnitude,angle} forms are equivalent end-to-end; held-state seeding
+confirmed on held_ball). **REFACTOR CLOSED 2026-07-04.** Dispositions: the all-vectors polar-authoring
+sweep (acceleration, gravity, appliedForce) is PINNED to the end of the
+applied-forces refactor (recorded in `Notes_on_Applied_Forces_Refactor.md`);
+Phase 3 SPLIT — `polarSlider` seeds a future UI-refactor track
+(`parking_lot.md`), `VectorArrow` transferred to the vector-arrows /
+applied-forces tracks; Phase 4 (angle-wrap) → `parking_lot.md`. This note is
+now a closed record — see the two Findings entries dated 2026-07-04 for the
+final state.
 Scope: controls, outputs, and graphs. No physics-engine changes.
 Goal: any vector quantity (velocity, acceleration, force, gravity) can be authored, controlled via slider, and displayed as **either** Cartesian components (`x`, `y`) **or** polar form (magnitude, angle) — with the same fluency.
 
@@ -244,21 +254,26 @@ The one display improvement worth bundling: a small **vector arrow visual** over
 - LLM prompt updated with one or two examples ("speed slider for projectile sim", "angle output for vector readout").
 - **Acceptance test**: a JSON sim with two sliders bound to `velocity.magnitude` and `velocity.angle` produces correct projectile launches; a graph plotting `velocity.magnitude` over time matches `Math.hypot(vx, vy)` from a separate component-based readout.
 
-### Phase 2 — polar input form for initial conditions
+### Phase 2 — polar input form for initial conditions — SHIPPED 2026-07-04 (velocity only)
 
-- Schema accepts `velocity: { magnitude, angle }` as an alternative to `{ x, y }`. Parser normalizes at load time.
-- Same for `gravity`, `appliedForce`, etc.
-- LLM gets a second authoring style for vectors; LLM prompt examples updated.
+- Schema accepts `velocity: { magnitude, angle }` as an alternative to `{ x, y }`. ~~Parser normalizes at load time.~~ Normalization happens at the config→SI boundary (`scaleObjectToSI`) — the ONE runtime site all three ingestion paths share, since nothing runtime-parses (see Findings 2026-07-04).
+- ~~Same for `gravity`, `appliedForce`, etc.~~ PINNED to the end of the applied-forces refactor: once `appliedForce` exists, one mechanical sweep applies the union to all remaining vector fields (acceleration, gravity, appliedForce) over the complete field set.
+- LLM gets a second authoring style for vectors; LLM prompt examples updated. ✓
 
-### Phase 3 — paired `polarSlider` control variant + `VectorArrow` renderable
+### Phase 3 — paired `polarSlider` control variant + `VectorArrow` renderable — SPLIT AT CLOSE-OUT (2026-07-04, never built here)
 
-- New `polarSlider` variant: two stacked sliders with a live arrow preview.
-- `VectorArrow` renderable: takes any vector path, draws the live arrow on the canvas.
-- Coordinate with the [applied-forces refactor](Notes_on_Applied_Forces_Refactor.md) — same renderable, used for force arrows there.
+- ~~New `polarSlider` variant: two stacked sliders with a live arrow preview.~~
+  → **Moved to `parking_lot.md`** as the seed of a future **UI-refactor track**
+  (control composition: paired bindings presented as one control). Bill's call:
+  it's a UI exploration, not a vector-rep item. The vector-keyed held-state
+  (Phase 1) means it composes for free whenever that track starts.
+- ~~`VectorArrow` renderable~~ → **Transferred to the vector-arrows /
+  applied-forces tracks**, which own arrow rendering (`vectorTheme.ts`, the 7
+  kinds) and already co-planned this renderable for force arrows.
 
-### Phase 4 (optional) — angle-wrap toggle for graphs
+### Phase 4 (optional) — angle-wrap toggle for graphs — PARKED (2026-07-04, never built)
 
-Per-graph option for whether angle series wraps to `(-180°, 180°]` or unwraps continuously. Only worth doing if a sim makes the default look wrong.
+Per-graph option for whether angle series wraps to `(-180°, 180°]` or unwraps continuously. Only worth doing if a sim makes the default look wrong. → **Moved to `parking_lot.md`** at close-out; trigger condition unchanged.
 
 ---
 
@@ -299,9 +314,9 @@ Surfaced during vector-arrows Phase 1c-rev. Noted here because vector quantities
 ## Open questions for Duncan
 
 1. ~~**Two separate sliders vs paired `polarSlider` for projectile UX.**~~ **RESOLVED in Phase 1 (2026-06-23):** shipped two separate sliders (a Phase 1 freebie); the paired `polarSlider` stays Phase 3. The held-state is keyed by vector (`${targetObj}.${base}`) precisely so the future paired control composes for free. See Findings.
-2. **Should authored initial conditions ever be polar?** Phase 2 adds it. Useful for LLM-authored projectile sims; some risk that the LLM mixes the two forms inconsistently within one config. Lean: ship it but require pure-component **or** pure-polar within a single vector authored value (no mixing `x` with `angle`).
+2. ~~**Should authored initial conditions ever be polar?**~~ **RESOLVED (2026-07-04, Bill): yes — shipped in Phase 2, velocity only.** Bill hand-authors JSON constantly while thinking/testing and wants polar for all 2D vectors eventually; velocity-first shipped now, the rest pinned to end of applied-forces. The "no mixing" rule is enforced STRUCTURALLY: the union's two branches are both `additionalProperties: false` in the generated JSON schema, so `{x, angle}` fails both branches. See Findings 2026-07-04.
 3. ~~**Default angle slider range.**~~ **RESOLVED in Phase 1 (2026-06-23):** `.angle` reads return `atan2`, i.e. `(-180°, 180°]` CCW from +X natively; per-binding slider `min`/`max` are authored as needed (the acceptance sim uses `0–90`). `[0°, 360°)` was not adopted (would need extra wrapping). See Findings.
-4. **PARTIALLY resolved (2026-06-23).** `.magnitude` writes now clamp negatives to zero (`Math.max(0, value)` in `writeVectorPolar`). STILL OPEN: the parse-time warning when a `.magnitude` slider is authored with `min < 0` — no validator yet (ties to the deferred Phase-2 parse-time checks).
+4. ~~**Magnitude clamp + authoring warning.**~~ **FULLY RESOLVED (2026-07-04).** `.magnitude` writes clamp negatives to zero (Phase 1, `writeVectorPolar`); Phase 2 added the authoring warning — a load-time `console.warn` in JsonSimulation when a `.magnitude` slider is authored with `min < 0` (not a Zod refinement: nothing runtime-parses, so a refinement would never execute). The prompt also now tells the LLM `min ≥ 0` for `.magnitude` sliders.
 
 ---
 
@@ -377,3 +392,89 @@ Zod-inferred type), so `environment.angleUnit` had to be added there too; and th
 two imported example JSONs (`tossBall.json`, `twoBoxes.json`) needed
 `"angleUnit": "deg"` because the `.default('deg')` makes it required in the
 inferred output type used by their `as SimulationConfig` casts.
+
+### 2026-07-04 — Phase 2 implemented (polar initial conditions, velocity only)
+
+Shipped as the last coding task before close-out (Bill's disposition call:
+Phase 2 velocity-first now; all-vectors sweep pinned to end of applied-forces;
+Phase 3 split; Phase 4 parked).
+
+**The design collapsed to one normalization site.** The original plan said
+"normalize at parse time AND at the runtime apply point (DB sims bypass
+`.parse()`)". Investigating for close-out sharpened the gotcha into a stronger
+fact: **nothing in the frontend runs Zod `.parse()` at runtime, ever** — the
+schema is `import type` + `generate:schema` only (Zod isn't even in the shipped
+bundle). All three ingestion paths (static JSON casts, LLM output via
+`DynamicSimulation`, DB loads) converge unparsed on `scaleObjectToSI`, so that
+IS the boundary. Polar→cartesian normalization lives there and nowhere else:
+authored magnitude (env.unit/s) and angle (env.angleUnit) → SI cartesian, with
+negative magnitude defensively clamped (mirrors `writeVectorPolar`).
+
+**Concrete exhibit found en route:** the schema's matter→rapier preprocess
+([simulation.ts:218](src/schemas/simulation.ts#L218)) is DEAD CODE — it never
+executes on any path; a legacy `"matter"` saved sim would throw at the adapter
+factory's exhaustive switch. Together with the 6 tolerated wrapper cast errors
+(`environment.unit` string-widening), this motivates the **"runtime ingestion
+boundary (parse, don't validate)"** architectural item → parking lot at
+close-out. Phase 2's choke-point normalization is that boundary's embryo; if
+the full parse boundary ever lands, this normalization moves inside it.
+
+**What shipped (three places):**
+1. Schema — `PolarVector2DSchema` (`magnitude ≥ 0`, `angle`), `Vector2DInputSchema`
+   union; `velocity` accepts either form; `simulation_schema.json` regenerated.
+   The union's branches are both `additionalProperties: false`, so mixed forms
+   (`{x, angle}`) fail structurally — "no mixing" needs no prose enforcement.
+2. Runtime — `scaleObjectToSI(obj, scale, angleScale)` (new third param) does
+   the normalization; new `isPolarVector` guard + `SIObjectConfig` type
+   (velocity guaranteed cartesian below the boundary; `ObjectRenderer` now
+   takes it). Held-state seeding: polar-authored velocities seed
+   `heldVectorStateRef` at load so `{magnitude: 0, angle: 60}` launches along
+   60° on the first magnitude-slider drag (the authored direction survives the
+   degenerate zero vector). Plus the load-time `min < 0` magnitude-slider warn.
+3. Prompt — FILL OBJECTS: both authoring forms + "prefer polar when the prompt
+   speaks speed-and-direction" + never-mix rule; the FILL CONTROLS projectile
+   recipe now pairs polar sliders with polar-authored initial velocity
+   (supersedes "velocity still uses {x, y}"); `.magnitude` slider `min ≥ 0`.
+
+**Verification.** Headless harness (throwaway, re-creatable): m+deg polar twin
+matches cartesian twin exactly; cm+rot polar→SI correct; negative-magnitude
+clamp; guard discrimination; cartesian passthrough regression. `tsc` clean of
+NEW errors (the 8 remaining are pre-existing classes; the new acceptance-sim
+wrapper joins the existing wrapper-widening class shared by all 5 prior
+wrappers). `gist_instructions.py` parses. **Visual acceptance sim committed:**
+`src/simulations/polarAuthoredVelocity.json` at
+`/simulation/polar-authored-velocity` — twin arcs must overlay (outputs match
+pairwise, twin graphs coincide) and held_ball must launch at 60°. **Visual
+acceptance PASSED same day (Bill): twin trajectories congruent; held-state
+launch at the authored 60° confirmed.**
+
+### 2026-07-04 — CLOSE-OUT (same day, after visual acceptance)
+
+The refactor is CLOSED with Phases 1 + 2 shipped and verified. Dispositions
+(all decided by Bill this session; lifecycle moves executed):
+
+- **All-vectors polar-authoring sweep** (acceleration, gravity, appliedForce) —
+  PINNED to the end of the applied-forces refactor, because `appliedForce`
+  doesn't exist until that refactor creates it; one mechanical sweep over the
+  complete field set beats piecemeal extension. Recorded in
+  `Notes_on_Applied_Forces_Refactor.md`.
+- **Phase 3 split** — `polarSlider` → `parking_lot.md` (seed of a future
+  UI-refactor track); `VectorArrow` → vector-arrows / applied-forces tracks.
+- **Phase 4 (angle-wrap)** → `parking_lot.md`, trigger condition intact.
+- **RefactorRoadmap** updated (track prose, phase diagram, composition
+  bullets); **AppOverview** gained the config→SI ingestion-seam node and prose
+  (2026-07-04, during Phase 2).
+
+**Housekeeping shipped with the close-out** (session 2026-07-04, full detail in
+`parking_lot.md` → "Lint repair & maintenance queue"):
+
+- All 8 non-locale `tsc` errors fixed — incl. consolidating the six sim-wrapper
+  casts into `src/simulations/localSimConfig.ts` (`asLocalSimConfig`), the
+  ready-made static-path hook for the parked ingestion boundary.
+- `npm run lint` WORKS for the first time since the TS migration: config
+  renamed `.ts`→`.js` (was blocked by eslint's jiti loader), `typescript-eslint`
+  8.62.1 installed (vetted; no lifecycle hooks), TS-aware `no-unused-vars`
+  swapped in, two stale disable-directives auto-fixed.
+- Remaining, queued for next session: `npm audit fix` (15 pre-existing vulns,
+  priority `react-router-dom`) and the JsonSimulation `exhaustive-deps` warning
+  (fix deliberately + re-drive a sim; hot-path callback).

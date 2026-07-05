@@ -17,7 +17,7 @@ flowchart TB
   subgraph PHYSICS["Physics refactor proposals"]
     AIR["Air Resistance<br/>quadratic, mass-dependent drag"]
     APP["Applied Forces<br/>PhET Forces and Motion"]
-    VEC["Vector Representation<br/>magnitude/angle paths"]
+    VEC["Vector Representation<br/>magnitude/angle paths<br/><b>P1+P2 SHIPPED — CLOSED 2026-07-04</b>"]
   end
 
   subgraph VIS["Visualization & runtime proposals"]
@@ -121,11 +121,11 @@ flowchart LR
     APPP1 -.parallel track.-> APPP25
   end
 
-  subgraph VECPHASES["3. Vector representation (magnitude / angle)"]
+  subgraph VECPHASES["3. Vector representation — CLOSED 2026-07-04"]
     direction TB
     VECP1["Phase 1: path-resolver<br/>.magnitude / .angle<br/>+ angleUnit family<br/><b>SHIPPED</b>"]
-    VECP2["Phase 2: polar input form<br/>magnitude + angle init"]
-    VECP3["Phase 3: polarSlider variant<br/>+ shared VectorArrow"]
+    VECP2["Phase 2: polar initial conditions<br/>velocity only; normalized at the<br/>config→SI ingestion seam<br/><b>SHIPPED</b>"]
+    VECP3["Dispositions at close-out:<br/>all-vectors sweep → end of applied-forces<br/>polarSlider → future UI track (parking lot)<br/>VectorArrow → applied-forces / vector-arrows<br/>angle-wrap (P4) → parking lot"]
     VECP1 --> VECP2 --> VECP3
   end
 
@@ -254,18 +254,24 @@ function RefactorRoadmap() {
         </li>
         <li>
           <strong>Vector representation (magnitude / angle)</strong> — the polar
-          binding layer. Composes with Applied Forces and with the camera system.
-          <b>Phase 1 implemented (2026-06-22, pending visual verify + commit)</b>:
-          the path-resolver reads/writes <code>.magnitude</code> /{' '}
+          binding layer. <b>CLOSED 2026-07-04; Phases 1 + 2 shipped and verified.</b>{' '}
+          Phase 1 (2026-06-23): the path-resolver reads/writes <code>.magnitude</code> /{' '}
           <code>.angle</code> as a derived projection over canonical{' '}
-          <code>{'{x,y}'}</code>, with held-angle state keyed per vector. A new{' '}
+          <code>{'{x,y}'}</code>, with held-angle state keyed per vector, plus the{' '}
           <strong>angle-unit family</strong> (<code>environment.angleUnit</code>:{' '}
-          deg / rad / rot, canonical radians) parallels the length-unit family and
-          dissolves a latent bug that silently mis-scaled <code>velocity.angle</code>{' '}
-          by the length factor on non-meter sims. Landed across all three places
-          (schema + prompt + doc). Phase 2 (polar initial conditions) is next; the
-          paired <code>polarSlider</code> + shared <code>VectorArrow</code> stay
-          Phase 3.
+          deg / rad / rot, canonical radians) that dissolved a latent bug silently
+          mis-scaling <code>velocity.angle</code> by the length factor on non-meter
+          sims. Phase 2 (2026-07-04): polar-authored initial conditions
+          (<code>velocity: {'{magnitude, angle}'}</code>, velocity only), normalized
+          at the config→SI ingestion seam (<code>scaleObjectToSI</code>) — see the
+          seam node on <a href="/docs/app-overview">the app overview</a>. Close-out
+          dispositions: the all-vectors polar-authoring sweep (acceleration, gravity,
+          appliedForce) is pinned to the <em>end of applied-forces</em>; the paired{' '}
+          <code>polarSlider</code> seeds a future UI-refactor track (parking lot);{' '}
+          <code>VectorArrow</code> transferred to the vector-arrows / applied-forces
+          tracks; the angle-wrap graph toggle is parked. Canonical rationale:{' '}
+          <code>Notes_on_Vector_Representation_Refactor.md</code> Findings
+          2026-07-04.
         </li>
         <li>
           <strong>Applied forces</strong> — the most invasive physics refactor;{' '}
@@ -347,9 +353,12 @@ function RefactorRoadmap() {
         <li>
           <strong>Applied forces + vector representation</strong> — together unlock force-magnitude
           + force-angle sliders. The polar layer's held-angle / held-magnitude state is what makes
-          &quot;set force magnitude while preserving direction&quot; work correctly. Worth landing
-          applied-forces Phase 1 first (so the field exists), then vector Phase 1 immediately on
-          top.
+          &quot;set force magnitude while preserving direction&quot; work correctly. The polar
+          layer shipped first (vector-rep closed 2026-07-04), so when{' '}
+          <code>appliedForce</code> lands, its polar projections come free — and the
+          closing phase of applied-forces sweeps polar <em>authoring</em> across all
+          remaining vector fields (acceleration, gravity, appliedForce), pinned there
+          at vector-rep close-out.
         </li>
         <li>
           <strong>Applied forces + air resistance</strong> — both rely on the substep-invariant
@@ -378,8 +387,9 @@ function RefactorRoadmap() {
           <strong>Recordings &amp; cameras + vector representation</strong> —
           cameras are reference-frame transforms; polar projections are
           coordinate-system transforms. Same machinery, applied at view time.
-          The vector-rep refactor's <code>VectorArrow</code> renderable becomes
-          the natural rendering target for any transformed view.
+          The shared <code>VectorArrow</code> renderable (owned by the
+          vector-arrows / applied-forces tracks since vector-rep&apos;s close-out)
+          becomes the natural rendering target for any transformed view.
         </li>
         <li>
           <strong>Recordings &amp; cameras + applied forces</strong> — the

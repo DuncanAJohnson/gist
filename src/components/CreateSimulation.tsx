@@ -187,7 +187,7 @@ function CreateSimulation({
 
     // Read the SSE stream. Events are delimited by `\n\n`; each event is a
     // sequence of lines, only the `data: ...` lines carry the JSON payload.
-    // eslint-disable-next-line no-constant-condition
+     
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;

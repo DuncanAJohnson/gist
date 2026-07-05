@@ -33,6 +33,21 @@ export const Vector2DSchema = z.object({
 
 export type Vector2D = z.infer<typeof Vector2DSchema>;
 
+export const PolarVector2DSchema = z.object({
+  magnitude: z.number().min(0).describe('Vector length, ≥ 0, in the same units as the equivalent {x, y} components (e.g. units/second for velocity).'),
+  angle: z.number().describe('Direction, measured counter-clockwise from +X, in the environment angleUnit (default degrees). 0 = rightward, 90 (deg) = straight up.'),
+}).describe('Polar form of a 2D vector: {magnitude, angle}. Interchangeable with the {x, y} component form — normalized to components at load (x = magnitude·cos(angle), y = magnitude·sin(angle)). Author a given value as pure polar OR pure components; never mix fields from both forms.');
+
+export type PolarVector2D = z.infer<typeof PolarVector2DSchema>;
+
+// Authoring-side union: a vector initial condition may be written as components
+// or polar. Runtime normalizes polar → cartesian at the config→SI boundary
+// (scaleObjectToSI); everything below that boundary sees {x, y} only. Phase 2
+// of the vector-representation refactor — velocity only for now; the sweep to
+// acceleration/gravity/appliedForce is pinned to the end of applied-forces.
+export const Vector2DInputSchema = z.union([Vector2DSchema, PolarVector2DSchema]);
+export type Vector2DInput = z.infer<typeof Vector2DInputSchema>;
+
 // ============================================
 // Vector Arrow Schemas
 // ============================================
@@ -95,7 +110,7 @@ export const ObjectConfigSchema = z.preprocess(
   width: z.number().describe('Bounding-box width in configured units. DIORAMA-SIZED, not real-world: pick from the SKELETON\'s scene_dimension so the largest object is ~10% of the smaller scene dimension and the smallest stays ≥ 4%. A "real" soccer ball is 0.22 m, but at a 30 m scene that\'s invisible — emit ~3 m instead. The actual collider shape (rectangle, circle, or convex hull) is looked up from the SVG manifest by `svg` and scaled into this box.'),
   height: z.number().describe('Bounding-box height in configured units. DIORAMA-SIZED, not real-world: pick to match the SVG\'s natural aspect ratio given `width`. The actual collider shape is looked up from the SVG manifest by `svg` and scaled into this box.'),
   svg: z.string().describe('Name of a renderable from public/renderables/manifest.json (e.g., "soccer_ball", "brick_block", "boat"). Drives both the visual sprite and the physical collider shape, scaled to width × height.'),
-  velocity: Vector2DSchema.optional().describe('Initial linear velocity {x, y} in units/second. Positive Y = upward motion. Typical range: -30 to 30 m/s.'),
+  velocity: Vector2DInputSchema.optional().describe('Initial linear velocity, authored either as components {x, y} or as polar {magnitude, angle} — e.g. a projectile launched at 20 units/s, 45° above horizontal: {"magnitude": 20, "angle": 45}. Components and magnitude are in units/second; angle is in the environment angleUnit (default degrees), counter-clockwise from +X. Positive Y = upward motion. Use ONE form per value — never mix x/y with magnitude/angle. Typical speed range: -30 to 30 m/s (magnitude ≥ 0).'),
   acceleration: Vector2DSchema.optional().describe('Additional constant linear acceleration {x, y} in units/s², applied ON TOP OF environment gravity each frame via velocity integration (v += a·dt). NOT a gravity override — environment.gravity continues to act on this body. Use for non-gravity constant accelerations: rocket thrust ({x:0, y:15}), constant braking deceleration ({x:-3, y:0} on a body moving +x), conveyor-belt push, a constant horizontal wind, etc. Leave unset (or {x:0, y:0}) for plain gravity-only motion. Typical range: -20 to 20 m/s².'),
   restitution: z.number().optional().describe('Bounciness (0-1). 0 = no bounce, 1 = perfect bounce, 0.8 = realistic. Default: 0.8'),
   friction: z.number().optional().describe('Surface friction (0-1). Affects sliding against other objects. Default: 0.1'),
