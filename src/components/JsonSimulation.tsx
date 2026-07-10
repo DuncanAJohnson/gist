@@ -121,6 +121,37 @@ type Frame = {
   graphPoints: DataPoint[];
 };
 
+// Resolve the {x, y} of a vector base path for reading. Acceleration is the
+// finite-difference on userData, not a body field.
+const getVectorComponents = (obj: any, base: string): { x: number; y: number } | undefined => {
+  const v = base === 'acceleration'
+    ? obj?.userData?.derivedAcceleration
+    : base.split('.').reduce((current: any, key) => current?.[key], obj);
+  return v && typeof v.x === 'number' && typeof v.y === 'number' ? { x: v.x, y: v.y } : undefined;
+};
+
+const getNestedValue = (obj: any, path: string): any => {
+  // Polar projections of any vector base: "<base>.magnitude" / "<base>.angle".
+  // Magnitude is SI (e.g. m/s); angle is returned in RADIANS (SI), measured
+  // counter-clockwise from +X. The display boundary (readDisplayValue) then
+  // converts angle to the env angleUnit — no degree math lives here.
+  if (path.endsWith('.magnitude') || path.endsWith('.angle')) {
+    const base = path.slice(0, path.lastIndexOf('.'));
+    const vec = getVectorComponents(obj, base);
+    if (!vec) return undefined;
+    return path.endsWith('.magnitude')
+      ? Math.hypot(vec.x, vec.y)
+      : Math.atan2(vec.y, vec.x);
+  }
+  // Redirect acceleration.* to the finite-difference stored on userData.
+  if (path.startsWith('acceleration.')) {
+    const axis = path.slice('acceleration.'.length);
+    const derived = obj?.userData?.derivedAcceleration;
+    return derived?.[axis];
+  }
+  return path.split('.').reduce((current, key) => current?.[key], obj);
+};
+
 function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationProps) {
   const navigate = useNavigate();
 
@@ -442,37 +473,6 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     });
   }, [controls]);
 
-  // Resolve the {x, y} of a vector base path for reading. Acceleration is the
-  // finite-difference on userData, not a body field.
-  const getVectorComponents = (obj: any, base: string): { x: number; y: number } | undefined => {
-    const v = base === 'acceleration'
-      ? obj?.userData?.derivedAcceleration
-      : base.split('.').reduce((current: any, key) => current?.[key], obj);
-    return v && typeof v.x === 'number' && typeof v.y === 'number' ? { x: v.x, y: v.y } : undefined;
-  };
-
-  const getNestedValue = (obj: any, path: string): any => {
-    // Polar projections of any vector base: "<base>.magnitude" / "<base>.angle".
-    // Magnitude is SI (e.g. m/s); angle is returned in RADIANS (SI), measured
-    // counter-clockwise from +X. The display boundary (readDisplayValue) then
-    // converts angle to the env angleUnit — no degree math lives here.
-    if (path.endsWith('.magnitude') || path.endsWith('.angle')) {
-      const base = path.slice(0, path.lastIndexOf('.'));
-      const vec = getVectorComponents(obj, base);
-      if (!vec) return undefined;
-      return path.endsWith('.magnitude')
-        ? Math.hypot(vec.x, vec.y)
-        : Math.atan2(vec.y, vec.x);
-    }
-    // Redirect acceleration.* to the finite-difference stored on userData.
-    if (path.startsWith('acceleration.')) {
-      const axis = path.slice('acceleration.'.length);
-      const derived = obj?.userData?.derivedAcceleration;
-      return derived?.[axis];
-    }
-    return path.split('.').reduce((current, key) => current?.[key], obj);
-  };
-
   // Read a property for display (outputs/graphs). Physics bodies store SI
   // values — divide by unitScale for dimensional properties so UI labels in
   // the config's `unit` stay consistent.
@@ -481,7 +481,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   // `property: "velocity"` (no axis) would otherwise hand back a Vec2Accessor
   // instance, which crashes React when rendered. Callers should treat NaN as
   // missing data.
-  const readDisplayValue = (obj: any, path: string): number => {
+  const readDisplayValue = useCallback((obj: any, path: string): number => {
     const raw = getNestedValue(obj, path);
     if (typeof raw !== 'number') {
       if (raw !== undefined && raw !== null) {
@@ -494,7 +494,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
       return NaN;
     }
     return raw / unitScaleFor(path, unitScale, angleScale);
-  };
+  }, [unitScale, angleScale]);
 
   const setNestedValue = (obj: any, path: string, value: any): void => {
     // Acceleration isn't a native PhysicsBody field — it's a per-body config
@@ -741,7 +741,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
         graphPoints: perFrameGraphPoints,
       });
     }
-  }, [outputs, graphs, objects]);
+  }, [outputs, graphs, objects, readDisplayValue]);
 
   // All three save paths (AI remix, JSON tweak, direct-manipulation edits)
   // persist via createSimulation. For a local example sim (localJsonEdit, no
