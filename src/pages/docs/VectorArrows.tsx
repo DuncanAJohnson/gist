@@ -554,6 +554,19 @@ function VectorArrows() {
       </div>
 
       <p>
+        <strong>Unit anchoring (known issue, 2026-07-07):</strong> these default scales are
+        px per <em>SI</em> unit, while every other render path is anchored to the sim's
+        configured unit — so in a (hypothetical, none exist yet) cm-authored sim, arrows
+        would draw ~100× shorter than the diorama warrants. Agreed direction: make arrow
+        scales diorama-anchored (px per config unit), most naturally with Phase 5's
+        auto-scale calibration; force kinds need their own treatment (Newtons don't rescale
+        with the length unit). Deliberately not landed — schema description, prompt, and
+        this table move together when it is. The governing unit-semantics decision
+        ("preservation": units describe the diorama, never resize it) lives in{' '}
+        <code>parking_lot.md</code> → "Saved sims bypass schema validation", UPDATE
+        2026-07-07.
+      </p>
+      <p>
         <strong>Colorblind note:</strong> green/red are the most common confusion pair
         (deuteranopia, protanopia). The symbol-label channel is the backup — even if{' '}
         <code>v</code>'s green and <code>F<sub>net</sub></code>'s red merge for some viewers,

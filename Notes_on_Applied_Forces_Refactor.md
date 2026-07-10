@@ -305,3 +305,39 @@ vector-rep Phase 1 the moment the field lands.
 - Engine-read contact forces (Phase 4+).
 - 3D forces or rotational applied torques in the schema (PhET Basics is 2D translational only).
 - Camera follow / viewport work.
+
+---
+
+## Findings — 2026-07-07: arrow scales are SI-anchored (diorama-invariance violation under non-meter units)
+
+**Symptom.** In a sim authored with `unit: "cm"`, vector arrows render ~100×
+shorter than the same diorama authored in meters — a 10 cm/s velocity is
+0.1 m/s SI, and arrow length is SI magnitude × a fixed px-per-SI-unit scale.
+Found while driving the m→cm unit flip that ratified the "preservation" unit
+semantics (see `parking_lot.md` → "Saved sims bypass schema validation"
+entry, UPDATE 2026-07-07 — that entry owns the unit semantics and the
+ingestion-boundary/one-source-of-truth story; cross-link, don't duplicate it
+here).
+
+**Cause.** `VECTOR_DEFAULT_SCALES`
+(`src/components/simulation_components/renderables/vectorTheme.ts:60-68`)
+is denominated in px per SI unit (20 px per m/s, 10 px per m/s², 2 px per N),
+and the per-arrow `pixelsPerUnit` override is likewise documented
+"pixels-per-SI-unit" (`src/schemas/simulation.ts:67`). Every other render
+path is diorama-anchored (config value × `pixelsPerUnit`, so `unitScale`
+cancels); arrows are the one visual whose size depends on the *unit chosen
+to describe* the scene rather than the scene itself. Benign today because
+every existing sim is meter-authored (factor = 1) — same works-by-accident
+genre as the sprite-dimension bug fixed the same day.
+
+**Direction (agreed 2026-07-07, NO dev yet).** Arrow scales should be
+diorama-anchored: px per *config unit* (÷ `unitScale` at draw or synthesis),
+so the picture is invariant under choice of description. Natural home is the
+existing Phase 5 (auto-scale calibration) or a small precursor to it.
+Three-places note: landing this moves the schema `.describe()` on the
+per-arrow `pixelsPerUnit` override, the prompt prose, and the scale table on
+the `/docs/vector-arrows` page **together** — until then the SI-anchored
+behavior is the documented reality, deliberately not landed. Force kinds
+(px per N) need their own think: Newtons don't rescale with the length unit,
+so "diorama-anchored" for force arrows isn't a simple ÷`unitScale` — resolve
+when Phase 3 force arrows land.

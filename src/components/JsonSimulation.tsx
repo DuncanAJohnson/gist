@@ -247,7 +247,10 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   // Compose renderables in SI — every object emits one SVG renderable from
   // its `svg` field, plus walls, vector arrows, and any experimental overlay.
   const pixelRenderables = useMemo<PixelRenderable[]>(() => {
-    const sprites = objects.map(synthesizeBodyRenderable);
+    // Sprites take SI dimensions: the drawer scales visual.width/height via
+    // WorldToCanvas.dimension (m → px), so config-unit values would render
+    // wrong for any unit but meters.
+    const sprites = siObjects.map(synthesizeBodyRenderable);
     const vectorArrows = objects.flatMap(synthesizeVectorArrowRenderables);
     const walls = synthesizeWallRenderables(environment.walls ?? [], configPixelsPerMeter);
     const experimental = experimentalData
@@ -264,7 +267,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     return [...grid, ...walls, ...sprites, ...vectorArrows, ...experimental, ...colliderOutlines].sort(
       (a, b) => a.zIndex - b.zIndex
     );
-  }, [objects, environment.walls, environment.unit, experimentalData, configPixelsPerMeter, pixelsPerUnit, showGrid, showColliders, zoomFactor]);
+  }, [objects, siObjects, environment.walls, environment.unit, experimentalData, configPixelsPerMeter, pixelsPerUnit, showGrid, showColliders, zoomFactor]);
 
   const dataSources = useMemo<Record<string, DataPositionResolver>>(() => {
     const sources: Record<string, DataPositionResolver> = {};

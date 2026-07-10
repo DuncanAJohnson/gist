@@ -76,6 +76,25 @@ The "shift right and back" pattern (rather than "shift right and stay") points s
 
 ---
 
+**UPDATE 2026-07-07 — unit semantics RATIFIED ("preservation"); unit-switch migration joins this item's scope. Stage: still wishlist (architectural), scope grown.** Surfaced by driving a unit flip (m → cm) on `projectile-launch-polar` during the exhaustive-deps verification.
+
+**The decision (Bill, 2026-07-07).** `env.unit` / `env.angleUnit` are *descriptions of the diorama, never knobs on it*. Changing a unit must preserve the physical scene — same SI world, same picture, same physics; only the description (and therefore the numbers) changes: a 35 m world re-described in cm is 3500 cm, 10 m/s becomes 1000 cm/s. The rejected alternative ("reinterpretation": numbers keep values, now mean cm) silently shrinks the SI world 100× — invisible in the picture but real in drag behavior and engine tolerances. Recorded as the sharpened invariant #10 in CLAUDE.md.
+
+**Operational split.** The JSON always means what it says (numbers are in the declared unit — schema stays the contract, no special cases). Therefore **raw JSON editing is not the sanctioned way to change an existing sim's unit** — a teacher flipping `"m"` → `"cm"` without converting every value silently rebuilds a different world. The sanctioned path is a future **UI unit switch that migrates**: rewrite every dimensional value (positions, sizes, velocities, gravity, `pixelsPerUnit`, control min/max/step/defaults, per-arrow scale overrides, experimental data) so the new JSON describes the *same* scene. Same rule covers `angleUnit` (flipping deg→rad in raw JSON reinterprets authored angles identically).
+
+**Why it lives HERE.** The migration needs a complete list of dimensional fields, and that list must never fork from the ingestion seam's knowledge — `scaleObjectToSI` *is* that list in code form, and the migration is essentially ingest-to-SI ∘ re-emit-in-new-unit. One source of truth: when the ingestion boundary lands, the unit-switch migration is a consumer of it, not a parallel table.
+
+**New exhibit for "parse, don't validate":** the sprite-dimension bug (FIXED 2026-07-07). `synthesizeBodyRenderable` put config-unit `width`/`height` into the renderable while the drawer scales via `WorldToCanvas.dimension` (m → px) — config units masquerading as SI, benign only at `unit: "m"` where the factor is 1. Fix: sprites now synthesize from `siObjects` (JsonSimulation `pixelRenderables` memo). Sibling issue found same day, NOT fixed: vector-arrow default scales are px-per-SI-unit (`vectorTheme.ts` `VECTOR_DEFAULT_SCALES`) — arrows shrink 100× in a cm sim; recorded in the vector-arrows workstream (`Notes_on_Applied_Forces_Refactor.md`, Findings 2026-07-07), fix deferred to arrow-scale work (Phase 5 adjacency).
+
+**Drive-confirmed 2026-07-10 (Bill, projectile-launch-polar):** sprite fix holds (ball pixel-identical under m→cm AND m→km); arrow issue confirmed both directions (invisible at cm, huge at km); reinterpretation behaves as ratified (grid relabels; authored numbers/text sit still). The drive sharpened the **migration list into two classes**:
+
+1. **Dimensional numbers** — positions, sizes, velocities, gravity, `pixelsPerUnit`, control `min`/`max`/`step`/`defaultValue`, graph `yAxisRange`, per-arrow scale overrides, experimental data. Mechanically migratable via the ingestion seam.
+2. **Unit-bearing authored TEXT** — `output.unit` strings (`"m/s"`), control `label`s (`"Launch Speed (m/s)"`), graph `yAxisLabel`s, description prose. NOT reliably migratable (free text). Mitigation: auto-generated labels that follow `env.unit`, shrinking class 2 to whatever the author explicitly hard-coded.
+
+**Sub-finding (2026-07-10) — output unit auto-generation is a dead promise.** The schema (`simulation.ts` OutputValue `unit` `.describe()`) and therefore the prompt say "Leave blank to auto-generate based on property and environment unit" — but `Output.tsx:9` defaults `unit = ''`; no auto-generation code exists anywhere. Three-places violation in reverse: schema + prompt promise, code missing. LLM-authored sims that trust the description render unitless outputs today. Small, self-contained fix candidate (derive label from property family + `env.unit`/`env.angleUnit` in Output.tsx); landing it needs NO schema/prompt motion (they already describe it) and is a prerequisite-shaped step for the class-2 mitigation above.
+
+---
+
 ## ObjectRenderer builds bodies before the renderable manifest is ready (2026-06-25)
 
 **Symptom.** An object whose physics body is created *before* the renderable
@@ -207,15 +226,32 @@ JsonSimulation `dataSources`; contained cast in LineGraph; six wrapper casts
 consolidated into `src/simulations/localSimConfig.ts` → `asLocalSimConfig`,
 the static-path hook for the ingestion-boundary item above).
 
-**Remaining, queued for next session (Bill, 2026-07-04):**
+**DONE 2026-07-05 — `npm audit fix`** (was item 1 below). Split into two
+commits on `bill_dev` for bisectability: `ddc19b6` bumps `react-router-dom`
+7.9.4 → 7.18.1 alone (the runtime-facing one; Bill hand-verified routes,
+back/forward, deep-link refresh, dynamic route, a driven sim, clean console),
+then `e575979` runs `npm audit fix` for the remaining 13 (lockfile-only:
+vite 7.3.6, rollup, esbuild 0.28.1, ws, mermaid 11.16 — drops its old
+chevrotain/langium parser stack, dompurify, babel, misc glob/matchers).
+`npm audit` now reports 0 vulnerabilities. Post-checks all at known baseline:
+build passes, tsc errors are exclusively the `da.ts` bucket, lint shows only
+the 4 react-refresh errors + the exhaustive-deps warning queued below.
 
-1. **`npm audit fix`** — 15 pre-existing vulnerabilities, all with compatible
-   fixes. Only three reach the browser: `react-router-dom` (HIGH — the one
-   that matters; XSS/open-redirect class), `mermaid` + `dompurify` (moderate;
-   docs pages, no attacker input — low practical risk). The rest are dev/build
-   toolchain. Run as its OWN maintenance commit; verify with tsc + lint +
-   driving one sim.
-2. **`react-hooks/exhaustive-deps` warning** (JsonSimulation ~line 744, the
+**Decision (2026-07-05): npm's `allowScripts` gate stays ON; the pending
+esbuild/fsevents install scripts stay UNapproved.** Verified the gate costs
+nothing: both esbuild `bin/esbuild` copies are already the native Mach-O
+arm64 binaries (the postinstall's only job) and `fsevents.node` ships
+prebuilt in the tarball, loads, and exposes `watch()` — build 5.2s, Vite
+ready in 223ms, all with scripts gated. Rationale: zero third-party code
+execution at install time, per the npm-safety threat model. Standing
+practice: when approval is ever needed, `npm approve-scripts <pkg>`
+per-package after reading the script — never blanket
+`--allow-scripts-pending`; and treat any NEW name appearing in the
+allow-scripts warning list as a review trigger, not wallpaper.
+
+**Remaining, queued (Bill, 2026-07-04):**
+
+1. **`react-hooks/exhaustive-deps` warning** (JsonSimulation ~line 744, the
    per-frame sampling callback missing `readDisplayValue`). Works today only
    because every config edit also replaces `objects`/`graphs` identities.
    Fix DELIBERATELY: wrap `readDisplayValue` in `useCallback([unitScale,
