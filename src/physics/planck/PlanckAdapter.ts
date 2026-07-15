@@ -202,6 +202,17 @@ export class PlanckAdapter implements PhysicsAdapter {
     this.world = new planck.World({ gravity: { x: g.x, y: g.y } });
     this.velocityIterations = opts.solverIterations;
     this.positionIterations = opts.positionIterations;
+    // Match Rapier's Max coefficient-combine rule: the body's own friction
+    // dominates the contact. Box2D's default mix is sqrt(fA·fB), which
+    // zeroes EVERY contact against the friction-0 walls (and halves nothing
+    // else the way authors expect). Restitution already mixes as max in
+    // Box2D, so only friction needs the override. Set at contact begin;
+    // Box2D persists the value for the contact's lifetime.
+    this.world.on('begin-contact', (contact) => {
+      contact.setFriction(
+        Math.max(contact.getFixtureA().getFriction(), contact.getFixtureB().getFriction()),
+      );
+    });
   }
 
   async init(): Promise<void> {

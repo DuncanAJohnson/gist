@@ -9,6 +9,9 @@ import BallIntoCupDropSimulation from './simulations/BallIntoCupDropSimulation'
 import BallIntoCupArcSimulation from './simulations/BallIntoCupArcSimulation'
 import ProjectileLaunchPolarSimulation from './simulations/ProjectileLaunchPolarSimulation'
 import PolarAuthoredVelocitySimulation from './simulations/PolarAuthoredVelocitySimulation'
+import CupCatchSimulation from './simulations/CupCatchSimulation'
+import BoxCatchSimulation from './simulations/BoxCatchSimulation'
+import WagonStopSimulation from './simulations/WagonStopSimulation'
 import DynamicSimulation from './pages/DynamicSimulation'
 import { CreateSimulationProvider } from './contexts/CreateSimulationContext'
 import { LanguageProvider } from './contexts/LanguageContext'
@@ -45,6 +48,9 @@ function AppContent() {
         <Route path="/simulation/ball-into-cup-arc" element={<BallIntoCupArcSimulation />} />
         <Route path="/simulation/projectile-launch-polar" element={<ProjectileLaunchPolarSimulation />} />
         <Route path="/simulation/polar-authored-velocity" element={<PolarAuthoredVelocitySimulation />} />
+        <Route path="/simulation/cup-catch" element={<CupCatchSimulation />} />
+        <Route path="/simulation/box-catch" element={<BoxCatchSimulation />} />
+        <Route path="/simulation/wagon-stop" element={<WagonStopSimulation />} />
         <Route path="/simulation/dynamic" element={<DynamicSimulation />} />
         <Route path="/simulation/:id" element={<DynamicSimulation />} />
         <Route

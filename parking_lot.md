@@ -95,6 +95,41 @@ The "shift right and back" pattern (rather than "shift right and stay") points s
 
 ---
 
+## Environment-ground semantics + contact-friction authoring conventions (2026-07-10)
+
+**Context (what just shipped).** The S2.1 cup-catch drive exposed that walls
+carried engine-default friction (Rapier 0.5, silently) while the Max combine
+rule promised "the body's own friction dominates the contact." Fixed
+2026-07-10 in BOTH adapters: walls are explicit `friction: 0, restitution: 0`,
+and PlanckAdapter overrides Box2D's `sqrt(fA·fB)` friction mixing with a
+begin-contact Max hook (Box2D restitution already mixes as max). Cross-engine
+harness: a µ=0.5 box's slide distance matches `v²/2µg` in both engines
+(0.918 / 0.915 vs analytic 0.918); µ=0 glides in both. **Decision (Bill,
+2026-07-10): for now, ground-contact friction derives from the OBJECT — the
+environment ground is a zero-material collision boundary.**
+
+**Deferred decision #1 — is the environment ground a collision boundary or a
+real ground?** Current state: env walls are pure boundaries (zero material);
+any ground "feel" is authored per-object. Alternative someday: authors
+specify a real ground (env-level material, or a ground object). Schema motion
+either way → three-places. Revisit when a curriculum sim needs an authored
+ground surface.
+
+**Deferred decision #2 — object-object contact-material conventions.**
+Post-fix, contact friction = max(two bodies) everywhere, both engines.
+Before hardening this as THE authoring semantics, research what PhET and
+other physics-ed systems do (e.g. PhET's friction models are often per-PAIR
+µ, not per-body coefficients combined at contact).
+
+**Gotcha to carry:** `ObjectRenderer` defaults `friction` to **0**, and only
+the ballIntoCup pair sets 0.5 explicitly — so most existing sim objects,
+which used to inherit the walls' phantom 0.5, now sit on genuinely
+frictionless ground. Correct per the documented semantics, but visible
+(landed projectiles glide instead of skidding to a stop). Authors set
+per-object friction for ground feel.
+
+---
+
 ## ObjectRenderer builds bodies before the renderable manifest is ready (2026-06-25)
 
 **Symptom.** An object whose physics body is created *before* the renderable

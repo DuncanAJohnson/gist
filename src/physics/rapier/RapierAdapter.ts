@@ -379,7 +379,12 @@ export class RapierAdapter implements PhysicsAdapter {
           break;
       }
 
-      created.push(this.createBody({ id, position, shape, isStatic: true }));
+      // Explicit zero material: with the Max combine rule (see
+      // addCollidersForShape) the dynamic body's own friction/restitution
+      // must dominate the contact. Omitting these left Rapier's default
+      // collider friction (0.5) on walls, silently out-frictioning any
+      // slipperier object — a frictionless floor was unauthorable.
+      created.push(this.createBody({ id, position, shape, isStatic: true, friction: 0, restitution: 0 }));
     }
     return created;
   }

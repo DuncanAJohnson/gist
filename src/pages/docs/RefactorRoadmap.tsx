@@ -152,16 +152,16 @@ flowchart LR
   subgraph CONCAVEPHASES["6. Concave colliders + collider tooling"]
     direction TB
     CCP0["Phase 0 — dynamic compound proven<br/>cup catch + tip · <b>SHIPPED</b>"]
-    subgraph CCNOW["actionable now — not gated"]
+    subgraph CCNOW["actionable / in progress"]
       direction TB
+      CC3["3 · open-container factory ⭐<br/>cup / box / wagon (makeOpenContainer)<br/><b>GO 2026-07-10 — IN PROGRESS</b>"]
       CC1["1 · collider debug / observation overlay<br/>BodyOutline; shows decomposition + Planck-12"]
       CC2["2 · post-decompose Planck guard<br/>dev-warn on any part over 12 verts"]
       CC6["6 · Option B — manifest declares<br/>its collider coord-space"]
       CC7["7 · decomposition sanity<br/>part-count cap + winding / self-intersect"]
     end
-    subgraph CCGATED["gated on Bill's go"]
+    subgraph CCGATED["gated"]
       direction TB
-      CC3["3 · open-container factory ⭐<br/>cup / box / wagon (makeOpenContainer)"]
       CC4["4 · inertia override — hoop<br/>collide circle, set I = mr²"]
       CC5["5 · convex → polygon rename<br/>Phase-4 three-places landing"]
       CC8["8 · CCD + catch detection<br/>sensors / events · lower priority"]
@@ -175,8 +175,8 @@ flowchart LR
   classDef pending fill:#dbeafe,stroke:#2563eb,color:#1e40af;
 
   class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,CCP0,RP0,VECP1 done;
-  class APPP1,APPP2,APPP25,APPP3,APPP4,VECP2,VECP3,VAP3,VAP4,VAP5,CC3,CC4,CC5,CC8,RP1,RP2,RP3,RP4,RP5,RP6 pending;
-  class CC1,CC2,CC6,CC7 proposed;
+  class APPP1,APPP2,APPP25,APPP3,APPP4,VECP2,VECP3,VAP3,VAP4,VAP5,CC4,CC5,CC8,RP1,RP2,RP3,RP4,RP5,RP6 pending;
+  class CC1,CC2,CC3,CC6,CC7 proposed;
 `;
 
 const cameraChart = `
@@ -307,8 +307,22 @@ function RefactorRoadmap() {
           alongside a post-decompose guard, the <code>convex → polygon</code> rename, an
           inertia-override path for the rolling hoop, and the manifest self-describing
           its coordinate space. The phase chart above renumbers these <b>1–8</b> and
-          colors which are actionable now (amber) vs gated on the go (blue). Resume
-          still awaits an explicit go. <b>Debug-tool set completed (2026-07-03)</b>: an{' '}
+          colors which are actionable/in-progress (amber) vs gated (blue).{' '}
+          <b>Go confirmed (2026-07-10)</b> — the factory is scoped and <b>in
+          progress</b>: it lives in gist (factory code + hand-authored local sims
+          first; the schema/prompt landing stays Phase 4), synthesizes the concave
+          U outline from parameters and feeds the proven{' '}
+          <code>decomposePolygonShape</code> path (parts ≤4 verts, Planck-safe by
+          construction), draws a flat-fill visual for v1 (SVG skins later), and
+          supports <code>mode: free | grounded</code> — both <em>dynamic</em>{' '}
+          (grounded = spawn-seated on the floor + friction preset, the wagon
+          regime; static remains the orthogonal <code>isStatic</code> flag) — with{' '}
+          <code>prismatic</code> deferred to the joints workstream (the adapter
+          layer has no joint support yet). The external generator change set is
+          superseded for Tier 1 (parametric containers need no SVG assets) and
+          becomes the Tier-2 route; the generator itself gains a broader future
+          charter (custom compounds + environment/background shapes).{' '}
+          <b>Debug-tool set completed (2026-07-03)</b>: an{' '}
           <b>Import Object</b> debug-panel button loads an SVG-generator export (zip
           or .svg + manifest .json) into a live sim as a session-only test object,
           with optional slider-control presets at import (speed / launch angle /

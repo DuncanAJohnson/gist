@@ -130,6 +130,12 @@ Hand-author one concave collider and confirm a dynamic compound both catches and
 tips. Done — see Findings below. Zero engine changes.
 
 ### Phase 1 — concave content
+**REVISED 2026-07-10 — Phase 1 is now the parametric open-container factory**
+(`makeOpenContainer`, see Findings 2026-07-10): the factory synthesizes the U
+outline in gist and decomposes it; no SVG assets or generator motion needed
+for Tier 1. The SVG-authoring route below is superseded for the Rung 2
+containers and remains the Tier-2 path for arbitrary art-driven shapes.
+*Original (superseded-for-Tier-1) plan:*
 Author cup/bucket + open-top wagon/cart SVGs with concave collider polygons.
 Establish a **wall-thickness convention** tied to diorama scoping
 (`/docs/design-philosophy`): walls must be a
@@ -686,14 +692,205 @@ Delete (clear the bench), and the overlay (see the decomposition) complete
 the observation loop the 2026-07-02 scoping asked for — generator export →
 live sim → visible engine-truth colliders, no `public/renderables/` touch.
 
+### 2026-07-10 — GO confirmed; open-container factory SCOPED (six decisions)
+
+Bill confirmed the question the 2026-07-02 gate left open: the curriculum
+list arriving **was** the go. Dev resumes with the **Rung 2 open-container
+factory** (S2.1 U-cup / S2.2 open box / S2.3 wagon —
+[PHYSICS_SHAPES.md](PHYSICS_SHAPES.md) Rung 2, the file's single
+highest-ROI task). The scoping discussion settled six decisions:
+
+1. **Staged placement — the factory lives in gist.** Factory code +
+   hand-authored local sims first (the `asLocalSimConfig` static path, the
+   Phase 0 idiom); the schema/prompt landing stays Phase 4. **Three-places
+   deliberately untouched** — the missing schema motion is a decision, not
+   an oversight. Code fact driving this: the schema has *no parametric shape
+   authoring at all* — an object's collider comes exclusively from its `svg`
+   manifest lookup ([simulation.ts:110-112](src/schemas/simulation.ts#L110)),
+   so any schema route is a new concept, deferred to Phase 4.
+2. **Outline-then-decompose.** The factory synthesizes the concave U outline
+   (8 verts from `{innerWidth, wallHeight, wallThickness, floorThickness}`)
+   and feeds [`decomposePolygonShape`](src/physics/shapeHelpers.ts#L13) —
+   the proven Phase 0 path; decomposition stays single-sourced; the parts
+   are ≤4-vert quads, **Planck-12-safe by construction**. Rejected: direct
+   compound emission (a second construction idiom that skips the pipeline
+   future LLM-authored concave shapes will ride). The factory spec's
+   "computes combined mass/CoM/inertia" comes free — both engines derive it
+   from compound fixtures (parity-tested 2026-06-22, ~13% inertia gap known).
+3. **Flat-fill visual for v1; SVG skins later** (Bill: "crowd pleaser").
+   The visuals registry already draws any ShapeDescriptor including
+   compounds (the BodyOutline machinery), so a filled-polygon visual is
+   near-free. Skins compose later: stretch an SVG over the parametric
+   collider's bounding box via the existing per-axis viewBox mapping.
+4. **`mode` = constraint regime for DYNAMIC containers — NOT
+   dynamic|static.** `free` (unconstrained; the S2.1 cup must recoil or
+   `m·u = (m+M)·v` has nothing to show) | `grounded` (**also dynamic**:
+   spawn-seated on the floor + friction preset — the wagon regime; contact
+   and gravity provide the ~1D constraint, so tipping/bounce stay honest per
+   the S2.3 curriculum note) | `prismatic` (**deferred, joints-gated** —
+   verified 2026-07-10: the adapter layer has zero joint support; belongs to
+   the J-workstream, which also gates S2.2's swing phase). Static is
+   orthogonal via the existing
+   [`isStatic`](src/schemas/simulation.ts#L120) flag — no `fixed` mode;
+   `grounded` + `isStatic:true` is a contradiction-shaped no-op (factory may
+   warn).
+   **Authoring payoff (Bill):** `grounded`-as-seating solves a real pain
+   point — computing a start position so a body rests on the ground at t=0.
+   Generalizes to angled ramps (slabs at an angle): a "seat this object on
+   that surface" placement helper is a wishlist-grade seed, logged here.
+5. **Generator change set SUPERSEDED for Tier 1; generator gets a NEW
+   charter.** Parametric containers never touch `../physics_sim_icon_dev` —
+   the 2026-06-22 change set (ordered-outline extraction, cap relaxation,
+   editor-warning flip) remains the **Tier-2** route for arbitrary
+   art-driven shapes (disposition note added in the checks section below).
+   Expanded future charter (Bill, 2026-07-10): the generator becomes a tool
+   for **custom compound shapes AND environment/background shapes** —
+   interactive, purely decorative, or purely informative (tick marks,
+   targets, pathways, guiding text). Opens its own doc when that work
+   starts; intersects gist's environment/walls layer.
+6. **Wall thickness is factory-clamped.** Diorama-scoped: default/clamp to a
+   minimum fraction of the scene dimension (concrete floor to be set during
+   implementation) instead of trusting each author. Refines Phase 1's
+   original "meaningful fraction of the 64×64 viewBox" convention, which was
+   SVG-framed and doesn't apply to a parametric build.
+
+**v1 slice:** factory + U-outline synthesis; three local sims (S2.1 cup
+drop, S2.2 box catch — collision phase only, the swing needs J1, S2.3 wagon
+stop); modes `free|grounded`; flat fill; verified by driving through the
+observation overlay. Schema/prompt untouched.
+
+**Same day — v1 BUILT, headless-verified, pending Bill's drive.**
+[`src/lib/openContainer.ts`](src/lib/openContainer.ts): `makeOpenContainer`
+synthesizes BOTH manifest halves from one outline — a flat-fill SVG sprite
+and a full-viewBox concave `type:"convex"` collider — registered via
+`registerImportedRenderable` (session-only; same reload caveat as Import
+Object). Because the collider spans the FULL viewBox (unlike the Phase 0
+cup, inset 8/64), the object's width/height box IS the physical extent —
+that's what makes `grounded` seating exact rather than hand-tuned. Returns
+`{ object, dims }`; `dims.floorTopY` seats payloads (used by the wagon sim).
+Three local sims + routes: `/simulation/cup-catch`, `/simulation/box-catch`,
+`/simulation/wagon-stop` (`CupCatch/BoxCatch/WagonStopSimulation.tsx`).
+Implementation note: all three v1 sims use `grounded` — the friction preset
+is a *default*, and S2.1 overrides it near zero for clean momentum capture;
+`free` is for off-ground placements. Headless harness (tsx, Planck-parity
+style; re-creatable) drove the real factory → registration →
+`scaleManifestColliderToShape` → `decomposePolygonShape` chain: all three
+containers → 3-part compound, vertex counts [4,4,4], grounded collider
+bottom exactly at y=0, `floorTopY` consistent. tsc/lint/build clean; Vite
+transforms + routes 200. **Ship gate: drive with `?colliders=1`** (expect 3
+distinctly-colored parts per container, no rectangle-fallback warnings).
+
+### 2026-07-10 — first drive (Bill, cup-catch): two bugs fixed, one parity claim reopened
+
+Bill's drive (friction 0 everywhere, cup mass 0.5, restitution 0.9) surfaced:
+
+1. **Container invisible with the overlay off — FIXED (factory).** The
+   synthesized SVG's viewBox was in raw config units (`0 0 0.744 0.772`) with
+   no width/height attributes; the sprite path is `new Image()` +
+   `drawImage`, and an SVG with a sub-pixel intrinsic size rasterizes at ~1px
+   (or not at all in engines that require explicit intrinsic dimensions).
+   Fix: `SPRITE_SCALE = 200` viewBox units per config unit + explicit
+   `width`/`height` attributes; the collider is authored in the SAME scaled
+   space, so per-axis mapping keeps physics identical (harness re-verified:
+   3 parts, [4,4,4], seating exact).
+2. **Cup wouldn't slide on a "frictionless" floor — FIXED (RapierAdapter,
+   pre-existing).** The Max friction/restitution combine rule
+   ([RapierAdapter.ts:89](src/physics/rapier/RapierAdapter.ts#L89)) was
+   chosen so "a body's own restitution/friction dominates the contact" — but
+   `createWalls` passed no material, so walls silently carried Rapier's
+   default collider friction **0.5**, and max(anything, 0.5) out-frictioned
+   every slipperier object: a frictionless floor was unauthorable. Fix:
+   walls now get explicit `friction: 0, restitution: 0`.
+   **Behavior change to know about:** any existing sim whose object friction
+   is < 0.5 previously experienced 0.5 against walls/floor and now
+   experiences its own value (the documented semantics). Objects at ≥ 0.5
+   (e.g. the Phase 0 cup sims) are unchanged.
+3. **Parity claim REOPENED — Planck's ground contacts were never frictional
+   at all.** PlanckAdapter walls already default to `friction: 0`
+   ([PlanckAdapter.ts:61](src/physics/planck/PlanckAdapter.ts#L61)), and
+   Box2D mixes contact friction as `sqrt(fA·fB)` — so wall friction 0 zeroes
+   EVERY Planck ground contact regardless of the object's friction. The
+   2026-06-22 parity finding "Planck slides the cup 2–3× farther / is more
+   energetic," attributed to solver/contact response, is likely (at least
+   partly) this friction-mixing divergence: Rapier ground friction was 0.5,
+   Planck's was 0, in the same test. Making Planck honor "body's own
+   friction dominates" needs a per-contact `setFriction` hook or mixer
+   override — deferred (non-default engine); re-run the parity harness after
+   that before trusting the energy claim. Topics-tracker entry corrected.
+
+Also noted from the drive JSON: `environment.friction` is not a schema field
+and nothing runtime-parses configs, so it is silently ignored — after fix #2
+the sanctioned way to author a frictionless floor is per-object
+`friction: 0`. And cup `restitution: 0.9` makes the *catch* bouncy (the ball
+can pop back out) — that's real physics, not a collider defect.
+
+### 2026-07-10 (later) — Planck friction mixing FIXED; sprite + S2.3 confirmed by drive; ship-gate checklist
+
+Bill confirmed post-fix: **container sprite renders** with the overlay off,
+and **S2.3 wagon-stop passes qualitatively** (math unchecked). Decision
+(Bill): ground-contact friction derives from the OBJECT; the environment
+ground stays a zero-material collision boundary — the boundary-vs-real-ground
+authoring question and object-object contact-material conventions (research
+PhET et al.) are PARKED (`parking_lot.md` → "Environment-ground semantics",
+2026-07-10).
+
+**Planck fix (implements #3 above):** `PlanckAdapter` constructor now
+registers a `begin-contact` hook setting the contact's friction to
+`max(fixtureA, fixtureB)` — matching Rapier's Max combine rule; Box2D
+restitution already mixes as max, so friction was the only divergence.
+Cross-engine harness (tsx, real adapters, dt=1/480): µ=0 box glides in both
+engines; µ=0.5 box's slide distance matches the analytic `v²/2µg` —
+Rapier Δx 0.918, Planck 0.915, analytic 0.918. **Cross-engine ground
+friction now agrees**; the 2026-06-22 parity energy claim still awaits a
+re-run of the full cup harness.
+
+**Ship-gate checklist for the v1 factory test** (Bill re-drives, fresh
+session — the friction fixes change ground contacts in every sim):
+
+*All three sims:*
+- [ ] Sprite renders with overlay OFF (confirmed once on cup — check all 3)
+- [ ] `?colliders=1`: 3 distinctly-colored parts per container, vertex
+      counts 4/4/4, none red
+- [ ] Console: no rectangle-fallback warnings for `container-*`
+- [ ] Debug tools work on factory objects (select+Delete, Tweak JSON,
+      edit-drag)
+
+*S2.1 cup-catch:*
+- [ ] Default sliders (vx 4, drop 1.6) land the ball in the cup
+- [ ] Capture: twin vx traces converge to u·m/(m+M) = u/3 (≈1.33 at vx 4)
+- [ ] Cup genuinely glides on its µ=0.02 floor (visible recoil slide)
+- [ ] Off-center rim hit can tip the cup (Rapier tips on within-base impact)
+
+*S2.2 box-catch:*
+- [ ] Default throw (6.9) clears the near wall into the box
+- [ ] Capture V ≈ u/7 ≈ 0.99 m/s on the vx graph
+- [ ] Post-capture slide ≈ V²/(2µg) ≈ 0.14 m on the box-x graph (µ=0.35)
+
+*S2.3 wagon-stop:*
+- [ ] Re-confirm with the math: payload keeps vx across the stop; twin
+      traces diverge at the wall; payload escapes over the low front wall
+
+*Regressions from the friction fixes:*
+- [ ] ballIntoCupDrop / Arc unchanged (both bodies at µ=0.5 → Max same)
+- [ ] One older sim with default (0) object friction: landed balls now
+      GLIDE on the floor instead of skidding to a stop — confirm that reads
+      as correct-by-semantics, or set per-object friction where it jars
+- [ ] Optional parity spot-check: flip one sim to `"physicsEngine":
+      "planck"` — ground friction should now behave the same
+
+When the checklist passes, mark Phase 1 v1 SHIPPED (roadmap CC3 → green) and
+decide the next slice (S2.2 swing = joints workstream; SVG skins; Phase 4
+schema landing).
+
 ---
 
 ## Pipeline & engine-parity checks (Phase 1/4 prerequisites)
 
 Two things to verify before concave colliders are real beyond a hand-authored
-proof. Both are **open** as of Phase 0.
+proof. (Status lives per-entry: the generator route is deferred 🔵 as of
+2026-07-10, Planck parity tested 🟢 2026-06-22.)
 
-### 🟡 SVG-generation → render pipeline must emit concave collider vertices
+### 🔵 SVG-generation → render pipeline must emit concave collider vertices
 The SVG generator is **external to this repo** (`manifest.json` is
 `exported_by`/`export_mode: all_approved` — a separate tool with an approval
 workflow; the repo only has the *consuming* side:
@@ -752,6 +949,16 @@ repos, and stored geometry == authored outline). **Concrete change set in
 
 Until that lands, concave colliders stay hand-authored per asset in
 `manifest.json` (fine for prototyping, not for scale).
+
+#### Disposition 2026-07-10 — SUPERSEDED for Tier 1; deferred as the Tier-2 route (🟡→🔵)
+The Rung 2 containers are now built **parametrically in gist**
+(`makeOpenContainer`, see Findings 2026-07-10) — no generator motion needed
+for the highest-priority shapes. The change set above stays valid for
+arbitrary art-driven concave shapes (Tier 2). Separately, the generator's
+future scope **expanded** (Bill, 2026-07-10): custom compound shapes plus
+environment/background shapes — interactive, purely decorative, or purely
+informative (tick marks, targets, pathways, guiding text). That charter
+opens its own doc when the work starts.
 
 ### 🟢 Planck parity — TESTED 2026-06-22 (headless harness)
 The compound path is implemented in **both** adapters via different routes

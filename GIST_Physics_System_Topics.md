@@ -89,6 +89,15 @@ Use this to decide which engine a given sim type should run on.
   velocity sweep) but **never** in Planck (ω≈0, stays planted); and Planck is
   consistently **more energetic** (slides the cup 2–3× farther, ball retains far
   more post-collision speed). Root cause is solver/contact response, not inertia.
+  **CORRECTION 2026-07-10 — the slide/energy divergence is likely (at least
+  partly) friction mixing, not the solver:** Planck walls carry `friction: 0`
+  and Box2D mixes contact friction as `sqrt(fA·fB)` → Planck ground contacts
+  were frictionless in the parity test, while Rapier's walls (then) carried
+  default 0.5. Rapier walls are now explicitly 0 with the Max combine rule
+  (body's own friction dominates); Planck still needs a mixer/per-contact fix
+  before the parity energy claim can be re-tested. See
+  [Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md)
+  Findings 2026-07-10 (first drive).
   **Suitability:** for sims whose pedagogy hinges on impact-induced tip/tumble or
   precise post-collision energy, **prefer Rapier**; do not assume a tumble tuned
   on Rapier reproduces on Planck. See
