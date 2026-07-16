@@ -922,6 +922,57 @@ continues unchanged. Post-gate candidate: an N1 wagon variant
 (`walls: 'left'` = back wall only for a wagon moving +x, or a fourth local
 sim) — decide with the next slice.
 
+### 2026-07-16 — manifest-readiness race CLOSED (BaseSimulation gates on loadManifest)
+
+The parking-lot race (parked 2026-06-25, surfaced by the viewBox Option A fix
+— see that Finding above) is fixed, drive-confirmed, and the parking-lot entry
+is retired into this note. Cause recap: `ObjectRenderer`'s body-build effect
+read `getManifestItem(svg)` **synchronously** with manifest readiness absent
+from its deps — a body built pre-cache kept its rectangle-fallback collider
+for the whole mount, and only the module-import eager fetch kept that from
+biting day-to-day.
+
+**Fix — path #1, folded into an existing gate.** `BaseSimulation` already
+mounts ALL physics children behind `adapterReady`; its adapter-creation chain
+now awaits
+`Promise.all([createPhysicsAdapter(...), loadManifest().catch(() => null)])`
+([BaseSimulation.tsx:192](src/components/BaseSimulation.tsx#L192)) before
+flipping the flag, so children (ObjectRenderer's body-build effect,
+EditOverlay) can never read the manifest pre-cache. Chosen over the surgical
+alternative (manifest-readiness in the effect's deps) because a late manifest
+resolve would tear down and rebuild live bodies mid-mount — hostile to
+precompute/replay. Why this seam was right:
+
+- **No added latency in the common case** — the manifest is eager-fetched on
+  module import, and the await runs in parallel with adapter/WASM init.
+- **The +100 ms initial-snapshot capture keeps its semantics** — bodies are
+  still created immediately after the gate opens, so reset/precompute see
+  them. (A JsonSimulation-level gate — the parking lot's original sketch —
+  would have silently broken that whenever the manifest was slow.)
+- **Failure path is load-bearing:** `loadManifest()` caches even a *rejected*
+  promise, so the `.catch` is what lets a failed manifest fetch fall through
+  to the old per-object rectangle-fallback behavior instead of blocking every
+  sim forever.
+- Imported/synthesized renderables (`registerImportedRenderable`, incl. the
+  openContainer factory) were never racy — session-local map, no fetch.
+
+**Verified.** tsc/build/lint at known baseline; **drive-confirmed by Bill
+same day** (Slow 4G throttle): manifest + adapter load in parallel, gate
+holds, no fallback warnings — the per-sprite SVG fetches on the timeline
+(initiator `renderableManifest.ts:103`) are loadManifest's own viewBox pass
+completing *before* the gate opens. A `null` from `getManifestItem` inside a
+sim now genuinely means unknown-name or failed-manifest, never "too early"
+(comment at [ObjectRenderer.tsx:60](src/components/simulation_components/objects/ObjectRenderer.tsx#L60)).
+
+**Known trade, now measurable → Option B is the escape hatch.** Sim mount now
+*waits* on the per-sprite viewBox pass — one round-trip per approved manifest
+entry, the slow-network long pole; time-to-first-sim scales with library
+size. Option B ("manifest declares its coordinate space", the 2026-06-25
+Finding above) dissolves it: bake the authoring viewBox into `manifest.json`
+and drop the N-fetch pass entirely. Tracked cross-repo in
+`../physics_sim_icon_dev/Dev_Tasks.md` Task 14, status-updated 2026-07-16:
+race-closing is no longer part of Option B's payoff — mount latency is.
+
 ## Pipeline & engine-parity checks (Phase 1/4 prerequisites)
 
 Two things to verify before concave colliders are real beyond a hand-authored
