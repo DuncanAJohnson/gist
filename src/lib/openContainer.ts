@@ -3,6 +3,8 @@
  * S2.1 U-cup / S2.2 open box / S2.3 wagon). Cup, box, and wagon are one
  * construction problem: a U profile (two walls + a floor) as a single rigid
  * body, differing only in proportions and how the body is allowed to move.
+ * One-sided variants (`walls: 'left' | 'right'`) drop a wall for an L
+ * profile — the clean Newton's-first-law wagon (back wall only).
  *
  * The factory synthesizes BOTH halves of the manifest contract from one
  * outline: a flat-fill SVG sprite and a concave `type:"convex"` collider in
@@ -41,6 +43,14 @@ export interface OpenContainerParams {
   wallThickness?: number;
   /** Floor slab thickness, config units. Default = wall thickness. */
   floorThickness?: number;
+  /**
+   * Which vertical walls the container gets. 'both' is the U (default);
+   * 'left' / 'right' keep one wall and run the floor flat to the open side
+   * (an L profile) — e.g. a Newton's-first-law wagon with a back wall only,
+   * so the payload rolls off the open end unimpeded. At least one wall:
+   * a wall-less slab is just a rectangle — author a plain box instead.
+   */
+  walls?: 'both' | 'left' | 'right';
   /**
    * Constraint regime — both values are DYNAMIC bodies (static is the
    * orthogonal `isStatic` object flag, not a mode):
@@ -147,6 +157,7 @@ export function makeOpenContainer(params: OpenContainerParams): OpenContainer {
     innerWidth,
     wallHeight,
     mode = 'grounded',
+    walls = 'both',
     x,
     groundLevel = 0,
     sceneMin,
@@ -163,7 +174,9 @@ export function makeOpenContainer(params: OpenContainerParams): OpenContainer {
     sceneMin,
   );
   const ft = params.floorThickness ?? wt;
-  const outerWidth = round(innerWidth + 2 * wt);
+  const wtL = walls === 'right' ? 0 : wt;
+  const wtR = walls === 'left' ? 0 : wt;
+  const outerWidth = round(innerWidth + wtL + wtR);
   const outerHeight = round(wallHeight + ft);
 
   if (mode === 'free' && params.y === undefined) {
@@ -173,26 +186,50 @@ export function makeOpenContainer(params: OpenContainerParams): OpenContainer {
     mode === 'grounded' ? round(groundLevel + outerHeight / 2) : (params.y as number);
   const friction = params.friction ?? (mode === 'grounded' ? 0.7 : 0.5);
 
-  // The U outline in viewBox coordinates (Y down, origin top-left, units =
+  // The outline in viewBox coordinates (Y down, origin top-left, units =
   // config units × SPRITE_SCALE so the sprite has a real intrinsic size; the
-  // per-axis mapping keeps the physics exact). Same 8-vertex topology as the
-  // Phase 0 hand-authored cup; winding is normalized downstream by
-  // poly-decomp's makeCCW.
+  // per-axis mapping keeps the physics exact). 'both' is the 8-vertex U
+  // (same topology as the Phase 0 hand-authored cup → 3 convex quads);
+  // one-sided walls are a 6-vertex L (→ 2 quads). Winding is normalized
+  // downstream by poly-decomp's makeCCW. Every case touches all four
+  // viewBox edges, so the full-viewBox extent contract (width/height box ==
+  // physical extent, exact grounded seating) holds for every wall choice.
   const vbW = round(outerWidth * SPRITE_SCALE);
   const vbH = round(outerHeight * SPRITE_SCALE);
-  const iw = round((wt + innerWidth) * SPRITE_SCALE); // inner-right wall x
-  const wh = round(wallHeight * SPRITE_SCALE); //         inner floor y (from top)
-  const swt = round(wt * SPRITE_SCALE);
-  const outline: [number, number][] = [
-    [0, 0],
-    [0, vbH],
-    [vbW, vbH],
-    [vbW, 0],
-    [iw, 0],
-    [iw, wh],
-    [swt, wh],
-    [swt, 0],
-  ];
+  const iw = round((wtL + innerWidth) * SPRITE_SCALE); // inner-right wall x
+  const wh = round(wallHeight * SPRITE_SCALE); //          inner floor y (from top)
+  const swt = round(wtL * SPRITE_SCALE); //                inner-left wall x
+  let outline: [number, number][];
+  if (walls === 'both') {
+    outline = [
+      [0, 0],
+      [0, vbH],
+      [vbW, vbH],
+      [vbW, 0],
+      [iw, 0],
+      [iw, wh],
+      [swt, wh],
+      [swt, 0],
+    ];
+  } else if (walls === 'left') {
+    outline = [
+      [0, 0],
+      [0, vbH],
+      [vbW, vbH],
+      [vbW, wh],
+      [swt, wh],
+      [swt, 0],
+    ];
+  } else {
+    outline = [
+      [0, vbH],
+      [vbW, vbH],
+      [vbW, 0],
+      [iw, 0],
+      [iw, wh],
+      [0, wh],
+    ];
+  }
 
   const d =
     outline.map(([px, py], i) => `${i === 0 ? 'M' : 'L'} ${px} ${py}`).join(' ') + ' Z';

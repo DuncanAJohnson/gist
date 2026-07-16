@@ -154,7 +154,7 @@ flowchart LR
     CCP0["Phase 0 — dynamic compound proven<br/>cup catch + tip · <b>SHIPPED</b>"]
     subgraph CCNOW["actionable / in progress"]
       direction TB
-      CC3["3 · open-container factory ⭐<br/>cup / box / wagon (makeOpenContainer)<br/><b>GO 2026-07-10 — IN PROGRESS</b>"]
+      CC3["3 · open-container factory ⭐<br/>cup / box / wagon (makeOpenContainer)<br/>+ one-sided walls · <b>SHIPPED 2026-07-15</b>"]
       CC1["1 · collider debug / observation overlay<br/>BodyOutline; shows decomposition + Planck-12"]
       CC2["2 · post-decompose Planck guard<br/>dev-warn on any part over 12 verts"]
       CC6["6 · Option B — manifest declares<br/>its collider coord-space"]
@@ -174,9 +174,9 @@ flowchart LR
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#92400e;
   classDef pending fill:#dbeafe,stroke:#2563eb,color:#1e40af;
 
-  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,CCP0,RP0,VECP1 done;
+  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,CCP0,CC3,RP0,VECP1 done;
   class APPP1,APPP2,APPP25,APPP3,APPP4,VECP2,VECP3,VAP3,VAP4,VAP5,CC4,CC5,CC8,RP1,RP2,RP3,RP4,RP5,RP6 pending;
-  class CC1,CC2,CC3,CC6,CC7 proposed;
+  class CC1,CC2,CC6,CC7 proposed;
 `;
 
 const cameraChart = `
@@ -308,17 +308,23 @@ function RefactorRoadmap() {
           inertia-override path for the rolling hoop, and the manifest self-describing
           its coordinate space. The phase chart above renumbers these <b>1–8</b> and
           colors which are actionable/in-progress (amber) vs gated (blue).{' '}
-          <b>Go confirmed (2026-07-10)</b> — the factory is scoped and <b>in
-          progress</b>: it lives in gist (factory code + hand-authored local sims
-          first; the schema/prompt landing stays Phase 4), synthesizes the concave
-          U outline from parameters and feeds the proven{' '}
-          <code>decomposePolygonShape</code> path (parts ≤4 verts, Planck-safe by
-          construction), draws a flat-fill visual for v1 (SVG skins later), and
-          supports <code>mode: free | grounded</code> — both <em>dynamic</em>{' '}
-          (grounded = spawn-seated on the floor + friction preset, the wagon
-          regime; static remains the orthogonal <code>isStatic</code> flag) — with{' '}
-          <code>prismatic</code> deferred to the joints workstream (the adapter
-          layer has no joint support yet). The external generator change set is
+          <b>Factory SHIPPED (2026-07-15)</b> — go confirmed 2026-07-10, built and
+          headless-verified the same day, ship-gate checklist passed on Bill&rsquo;s
+          fresh-session re-drive 2026-07-15 (three factory sims + friction-fix
+          regressions, both engines): it lives in gist (factory code +
+          hand-authored local sims at <code>/simulation/cup-catch</code>,{' '}
+          <code>box-catch</code>, <code>wagon-stop</code>; the schema/prompt landing
+          stays Phase 4), synthesizes the concave U outline from parameters and
+          feeds the proven <code>decomposePolygonShape</code> path (parts ≤4 verts,
+          Planck-safe by construction), draws a flat-fill visual for v1 (SVG skins
+          later), and supports <code>mode: free | grounded</code> — both{' '}
+          <em>dynamic</em> (grounded = spawn-seated on the floor + friction preset,
+          the wagon regime; static remains the orthogonal <code>isStatic</code>{' '}
+          flag) — with <code>prismatic</code> deferred to the joints workstream (the
+          adapter layer has no joint support yet). Drive feedback grew the factory
+          same-week: <code>walls: 'both' | 'left' | 'right'</code> — one-sided
+          containers (a 6-vertex L, 2 decomposed quads) for the clean
+          Newton&rsquo;s-first-law wagon with an open front. The external generator change set is
           superseded for Tier 1 (parametric containers need no SVG assets) and
           becomes the Tier-2 route; the generator itself gains a broader future
           charter (custom compounds + environment/background shapes).{' '}

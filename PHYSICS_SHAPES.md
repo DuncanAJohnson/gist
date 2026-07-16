@@ -119,14 +119,19 @@ Cup, open box, and wagon are the **same construction problem**: 3–4 convex box
 - **Physics:** catch a projectile; horizontal momentum conserved, KE lost.
 - **Analytical:** `m_proj u = (m_proj + m_cup) v`.
 - **Graph:** G8 (p(t) flat, KE(t) step).
-- [ ] implemented
+- [x] implemented — SHIPPED 2026-07-15 (`/simulation/cup-catch`, local sim via
+      `makeOpenContainer`; ship-gate drive passed — twin vx traces converge to
+      u/3; not yet LLM-authorable, schema/prompt = Phase 4)
 
 ### S2.2 Open box / ballistic pendulum — *momentum then energy* ⭐
 - **Physics:** thrown mass embeds in box; box+mass swing together. The canonical "two conservation laws, in sequence, only one valid per phase."
 - **Analytical:** collision `mu = (m+M)V`; swing `½(m+M)V² = (m+M)gh` → `u = (m+M)/m · √(2gh)`. KE is **not** conserved across the collision.
 - **⇄ HYBRID:** this archetype is collider + joint by nature — the box is a compound-convex container (this file), the swing arm is a rod/rope (→ J1: rod = rigid DistanceJoint/RevoluteJoint arm; rope = RopeJoint if you want slack physics). Flag in schema as the first deliberately mixed build.
 - **Graph:** G8 across the collision, then G6 during the swing — the two-graphs-two-laws structure is the pedagogy.
-- [ ] implemented
+- [x] implemented (COLLISION PHASE ONLY) — SHIPPED 2026-07-15
+      (`/simulation/box-catch`; capture V ≈ u/7 and post-capture slide verified).
+      The swing phase remains gated on J1 (joints workstream — no adapter joint
+      support yet).
 
 ### S2.3 Wagon / cart — *Newton's first law, inertia*
 - **Physics:** cart stops abruptly, unsecured payload keeps moving.
@@ -134,9 +139,14 @@ Cup, open box, and wagon are the **same construction problem**: 3–4 convex box
 - **⇄ shared topic:** "railed" can be a real rail (chain/edge ground + friction, this file) or a PrismaticJoint (→ J5). Prismatic gives a perfectly 1D lab (PhET Collision-Lab-style); real ground + friction keeps the messiness (tipping, bounce) that makes the demo honest. Support both via factory flag `free | grounded | prismatic`.
 - **Analytical:** payload continues at v; relative displacement = v·Δt during the stop.
 - **Graph:** G1 twin traces — cart v(t) vs payload v(t) diverging at the stop.
-- [ ] implemented
+- [x] implemented — SHIPPED 2026-07-15 (`/simulation/wagon-stop`; evolved during
+      the ship-gate drive into the clean N1 variant: `walls: 'left'` open-front
+      wagon + static mid-window stopper; payload keeps vx, twin traces diverge at
+      the stop). `grounded` mode (real ground + friction) is the shipped rail;
+      prismatic still J5-gated.
 
 > **Factory spec:** `makeOpenContainer({ innerWidth, wallHeight, wallThickness, floorThickness, mode: free|grounded|prismatic })`. Cup = tall walls; box = medium; wagon = low. Welds N convex fixtures to one body, computes combined mass/CoM/inertia. Single highest-ROI task in the file.
+> **SHIPPED 2026-07-15** as `src/lib/openContainer.ts` with `mode: free | grounded` (prismatic deferred to J5) plus a drive-requested addition to the spec: `walls: 'both' | 'left' | 'right'` — one-sided containers (L profile) for open-ended demos. Combined mass/CoM/inertia come free from the engines' compound fixtures. See Notes_on_Concave_Colliders_Refactor.md, Findings 2026-07-10 → 2026-07-15.
 
 ---
 

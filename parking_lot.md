@@ -303,3 +303,159 @@ Split the non-component exports out next time each file is touched anyway.
 of `tsc` errors because the Danish strings are typed against the English
 literal types; wants `Record<keyof typeof en, string>`. Cosmetic; excluded
 from the 8-error fix by scope.
+
+---
+
+## Playback-speed presets don't honor their promised rates (2026-07-15)
+
+**Symptom.** In replay, ¼× and ½× barely slow playback down (if at all), and
+2× / 4× never speed it up — on graph-heavy sims all five presets converge on
+roughly the same wall-clock speed. Reported by Bill from testing; traced in
+code 2026-07-15 (not yet instrumented — see Diagnostic).
+
+**Cause — three interacting mechanisms.**
+
+1. **One-frame-per-tick paint cap.** The replay branch paints at most ONE
+   recorded frame per rAF tick, then `break`s
+   ([BaseSimulation.tsx:238-259](src/components/BaseSimulation.tsx#L238-L259)).
+   Deliberate (protects one-frame-wide events from being clobbered between
+   paints — see the comment there and the vector-arrow decay entry above),
+   but it makes every speed ≥ 1 identical to 1× by construction: 2×/4× have
+   never done anything.
+2. **Unbounded accumulator banking.** Pacing is
+   `accumulator += delta × playbackSpeed`
+   ([BaseSimulation.tsx:233](src/components/BaseSimulation.tsx#L233)), and
+   each painted frame drains only 16.67 ms. The accumulator is never clamped
+   in replay, so speeds > 1 bank "credit" (~10 s at 4× banks ~40 s of
+   full-rate playback); switching to ¼×/½× mid-replay then plays at full
+   one-frame-per-tick rate until the bank drains. `startReplay` zeroes the
+   accumulator; a speed change does not. This alone reproduces "¼× does
+   nothing" for anyone who toggles through the presets while playing.
+3. **Render-bound ticks flatten the remaining differences.** Every painted
+   frame runs [handleReplayFrame](src/components/JsonSimulation.tsx#L397):
+   restores bodies AND fires three React state setters —
+   `setGraphData` spread-appends to a growing array and re-renders the
+   Recharts line graphs over the full series. If a tick stretches to ~33 ms,
+   ½× adds one frame's worth per tick → indistinguishable from 1×; at the
+   50 ms `MAX_DELTA` clamp ([BaseSimulation.tsx:61](src/components/BaseSimulation.tsx#L61)),
+   ½×–4× are identical and ¼× is only ~25 % slower. Corollary: "1×" itself
+   is slower than wall clock on graph-heavy sims (frames are never dropped,
+   so jank stretches the replay).
+
+**NON-NEGOTIABLE (Bill, 2026-07-15): replay never drops recorded frames.**
+Dropping frames drops one-frame physics events — collision F<sub>net</sub>
+spikes, direction flips — which are precisely the teachable moments.
+The one-frame-per-tick paint cap stays; any speed feature must work within
+it. (Recorded as CLAUDE.md invariant #12. Same constraint the vector-arrow
+decay entry above builds on — and note that entry's diagnostic, "watch a
+collision frame at 0.25×," presupposes slow-mo actually works, so it
+depends on this entry's fix path 1.)
+
+**Design direction (Bill, 2026-07-15) — stop promising numbers the loop
+can't honor.**
+
+- **Reframe the speed UI from numeric promises to symbols.** Replace
+  ¼×/½×/1× ([SimulationControls.tsx:27-33](src/components/simulation_components/SimulationControls.tsx#L27-L33))
+  with the standard play symbol plus "slow" / "slower" glyphs — an ordinal
+  promise, not a ratio. Slow playback is honestly deliverable: it never
+  violates the no-drop rule and paints *fewer* frames per second, easing
+  render pressure rather than fighting it.
+- **2× / 4×: ON HOLD, candidate for elimination.** Fast-forward under the
+  no-drop rule would require painting > 60 frames/s (rAF can't) or
+  batch-advancing the index (drops paints — forbidden). Preferred teacher
+  workflow instead: **scrub the timeline** (already shipped — `seekReplay` +
+  the scrub bar) to the interesting moment, then play through at
+  slow/slower.
+
+**Why parked.** Not blocking the concave-collider ship gate. The fix bundles
+a pacing correction with a UI reframe and deserves its own small pass; no
+refactor track owns replay/playback UI yet (the `polarSlider` entry above is
+the seed of a UI track — this item would join it).
+
+**Suggested fix paths**, ranked by scope:
+
+1. **Clamp the accumulator in replay** (cap banked credit at one frame's
+   worth, and/or reset on speed change). A few lines in BaseSimulation;
+   kills mechanism 2 outright and makes slow/slower honest whenever ticks
+   run near 60 fps. Prerequisite for the vector-arrow decay diagnostic.
+2. **UI reframe:** symbols for play/slow/slower; remove the 2×/4× buttons
+   (per the hold). Pure SimulationControls change.
+3. **Reduce per-frame render cost** — buffer graph points in a ref and
+   flush to state every N frames; memoize `GraphRenderer`. The biggest
+   lever (mechanism 3) and what makes normal-speed playback true to wall
+   clock; bigger scope, adjacent to the graphs workstream.
+
+**Diagnostic to run before fixing.** Log `delta` inside the replay branch on
+a graph-heavy sim. If ticks are consistently well above 16.7 ms, mechanism 3
+is confirmed and sizes fix path 3. Deferred by decision (2026-07-15):
+document first, instrument when the fix pass opens.
+
+---
+
+## Duplicate object ids crash the page (2026-07-15)
+
+**Symptom.** Editing a sim's JSON (Tweak JSON) so two objects share an `id`
+kills the whole page. The console names the cause (duplicate body id), but
+the user gets a dead white screen instead of a rejected edit. Surfaced by
+Bill during the concave-colliders ship-gate drive.
+
+**Cause.** Both adapters correctly refuse duplicate body ids with a `throw`
+([RapierAdapter.ts:308](src/physics/rapier/RapierAdapter.ts#L308),
+[PlanckAdapter.ts:236](src/physics/planck/PlanckAdapter.ts#L236)) — but
+nothing above the adapter catches it. The committed config
+(`handleSaveTweakedJSON` → `editedConfig`,
+[JsonSimulation.tsx:772](src/components/JsonSimulation.tsx#L772)) mounts one
+`ObjectRenderer` per object; the second body-build effect throws, and an
+uncaught effect throw unmounts the React tree — no error boundary anywhere.
+(Duplicate ids would also collide as React `key`s and in `objRefs`, so the
+config is genuinely unrenderable — the bug is the *blast radius*, not the
+refusal.)
+
+**Why parked.** Editor-robustness, not physics; surfaced mid-ship-gate and
+doesn't gate it. Small enough to pick up as a standalone fix.
+
+**Suggested fix paths**, ranked (1+2 compose; Bill's preference is the
+auto-rename in 1):
+
+1. **Validate at the commit boundary.** In `handleSaveTweakedJSON` (and the
+   Import Object path), check id uniqueness before committing. On collision,
+   auto-rename the *second* occurrence (`payload` → `payload-2`) and surface
+   a visible warning. Renaming the second keeps property bindings
+   (controls/outputs/graphs target objects by id) resolving to the first —
+   matches "first wins" intuition; a silent rename with no warning would be
+   worse than rejecting, since bindings meant for the renamed object now
+   point elsewhere.
+2. **Error boundary around the sim canvas.** Any adapter/renderer throw
+   degrades to an inline error card instead of a dead page. Broader payoff:
+   catches the whole class, not just this instance.
+3. **Ingestion-boundary tie-in.** Id uniqueness is a natural Zod
+   `superRefine` — but nothing runtime-parses (see the "runtime ingestion
+   boundary" item above); this is another exhibit for it. When that boundary
+   lands, this check moves there and fix 1 becomes its warning surface.
+
+**Diagnostic.** None needed — deterministic repro (any sim, Tweak JSON,
+duplicate an object's `id`).
+
+---
+
+## Edit-mode undo (cmd-Z), surfaced by Delete (2026-07-15)
+
+**What it is.** Bill (ship-gate drive, using the debug Delete tool): "we
+should have an undo cmd-Z/ctrl-Z as well." Delete is currently
+irreversible within the session — same for edit-drags, resizes, and Tweak
+JSON commits.
+
+**Shape of the fix.** All edits already funnel through one state
+(`editedConfig`, [JsonSimulation.tsx:163](src/components/JsonSimulation.tsx#L163)
+— "source of truth for everything downstream"), so undo is a bounded
+history stack of config snapshots + a keydown handler, restoring via the
+existing edit-commit path (which already handles physics rebuild +
+`recaptureInitialSnapshot`). Care points: don't capture keystrokes inside
+the JSON editor modal; decide whether slider/control changes are
+undo-steps or excluded (lean excluded — they're sim inputs, not scene
+edits).
+
+**Why parked.** UX feature, not blocking; belongs to the future UI-refactor
+track (see the `polarSlider` seed above — this is its second seed, along
+with the playback-speed UI reframe). Move all of these into
+`Notes_on_UI_Refactor.md` when that track opens.

@@ -847,42 +847,80 @@ re-run of the full cup harness.
 **Ship-gate checklist for the v1 factory test** (Bill re-drives, fresh
 session — the friction fixes change ground contacts in every sim):
 
-*All three sims:*
-- [ ] Sprite renders with overlay OFF (confirmed once on cup — check all 3)
-- [ ] `?colliders=1`: 3 distinctly-colored parts per container, vertex
-      counts 4/4/4, none red
-- [ ] Console: no rectangle-fallback warnings for `container-*`
-- [ ] Debug tools work on factory objects (select+Delete, Tweak JSON,
-      edit-drag)
+*All three sims:* **PASS (Bill, 2026-07-15)**
+- [x] Sprite renders with overlay OFF (all 3)
+- [x] `?colliders=1`: distinctly-colored parts, correct vertex counts,
+      none red (wagon is now 2 parts — see the walls-variant note below)
+- [x] Console: no errors, no rectangle-fallback warnings for `container-*`
+- [x] Debug tools work on factory objects (grab, live resize on canvas,
+      select+Delete, Tweak JSON)
 
-*S2.1 cup-catch:*
-- [ ] Default sliders (vx 4, drop 1.6) land the ball in the cup
-- [ ] Capture: twin vx traces converge to u·m/(m+M) = u/3 (≈1.33 at vx 4)
-- [ ] Cup genuinely glides on its µ=0.02 floor (visible recoil slide)
-- [ ] Off-center rim hit can tip the cup (Rapier tips on within-base impact)
+*S2.1 cup-catch / S2.2 box-catch:* **PASS (Bill, 2026-07-15)** — math
+checks out at first-order glance; nothing raised physics-teacher eyebrows.
+- [x] All per-sim items above, per the drive
 
-*S2.2 box-catch:*
-- [ ] Default throw (6.9) clears the near wall into the box
-- [ ] Capture V ≈ u/7 ≈ 0.99 m/s on the vx graph
-- [ ] Post-capture slide ≈ V²/(2µg) ≈ 0.14 m on the box-x graph (µ=0.35)
+*S2.3 wagon-stop:* **PASS (Bill, 2026-07-15)** — and the sim itself
+evolved during the drive: Bill converted `WagonStopSimulation.tsx` to the
+clean N1 variant (`walls: 'left'` open-front wagon, `cannonball` payload,
+µ=0 wagon+payload, static `crate` stopper mid-window at x=6, exact seating
+with no epsilon pad). Wagon stops at the obstacle, payload keeps vx and
+rolls off the open front — the original "escapes over the low front wall"
+expectation is superseded by the open-front geometry.
+- [x] Payload keeps vx across the stop; twin traces diverge at the stop
 
-*S2.3 wagon-stop:*
-- [ ] Re-confirm with the math: payload keeps vx across the stop; twin
-      traces diverge at the wall; payload escapes over the low front wall
+*Regressions from the friction fixes:* **PASS (Bill, 2026-07-15)** — driven
+at defaults AND with tweaked friction values AND across both engines;
+eyebrow check good.
+- [x] ballIntoCupDrop / Arc unchanged (both bodies at µ=0.5 → Max same)
+- [x] Older sim with default (0) object friction: glide reads as
+      correct-by-semantics
+- [x] Parity spot-check on Planck: ground friction behaves the same
 
-*Regressions from the friction fixes:*
-- [ ] ballIntoCupDrop / Arc unchanged (both bodies at µ=0.5 → Max same)
-- [ ] One older sim with default (0) object friction: landed balls now
-      GLIDE on the floor instead of skidding to a stop — confirm that reads
-      as correct-by-semantics, or set per-object friction where it jars
-- [ ] Optional parity spot-check: flip one sim to `"physicsEngine":
-      "planck"` — ground friction should now behave the same
+**⛴️ SHIPPED 2026-07-15 — Phase 1 v1 (open-container factory) is done.**
+Full checklist passed on Bill's fresh-session re-drive (factory sims +
+friction-fix regressions, both engines). Roadmap CC3 → green. Next-slice
+decision open: S2.2 swing (joints workstream J1), SVG skins over parametric
+colliders, or the Phase 4 schema/prompt landing.
+
+Two items surfaced by the drive, captured in `parking_lot.md` (2026-07-15),
+neither gating: **edit-mode undo** (cmd-Z, wanted after using Delete) and
+the **duplicate-object-id page crash** (adapter's duplicate-body-id throw
+is uncaught above the adapter; Tweak-JSON with two identical ids kills the
+page).
 
 When the checklist passes, mark Phase 1 v1 SHIPPED (roadmap CC3 → green) and
 decide the next slice (S2.2 swing = joints workstream; SVG skins; Phase 4
 schema landing).
 
----
+### 2026-07-15 — ship-gate drive feedback (S2.3) + one-sided walls (`walls` param) added
+
+Bill's S2.3 re-drive: Tweak-JSON'd the payload (mass 1, µ=0.05, e=0.05,
+vx 3) against a mid-window obstacle — **wagon stops at the obstacle, ball
+rolls on**: the Newton's-first-law read, qualitatively confirmed again.
+(The checklist's S2.3 math item — payload keeps vx on the twin traces —
+still wants a look.) Payload sprite note: `bowling_ball` needs an
+SVG-generator fix (external tool, not gist; tracked by Bill).
+
+**Feature from the drive — one-sided containers.** The cleaner N1 wagon has
+a back wall but no front wall at all, so the payload rolls off unimpeded.
+Landed same day as `walls?: 'both' | 'left' | 'right'` on
+[`makeOpenContainer`](src/lib/openContainer.ts) (default `'both'`):
+one-sided values synthesize a 6-vertex **L** profile (wall + floor run flat
+to the open side) instead of the 8-vertex U. Decomposes to **2 quads**
+(Planck-safe trivially); the outline still touches all four viewBox edges,
+so the full-viewBox extent contract — width/height box == physical extent,
+exact `grounded` seating — holds for every wall choice. A wall-less slab is
+deliberately not a value (that's just a rectangle; author a plain box).
+Headless harness re-run across all three values: part counts 3/2/2, all
+parts ≤4 verts, collider spans the full box, seated bottom exactly at
+ground, `floorTopY` consistent, `outerWidth` loses exactly one wall's
+thickness per dropped side. tsc/lint clean.
+
+**Ship-gate impact: none.** Default `'both'` leaves the three v1 sims
+byte-identical; no sim or route uses the new values yet — the checklist
+continues unchanged. Post-gate candidate: an N1 wagon variant
+(`walls: 'left'` = back wall only for a wagon moving +x, or a fourth local
+sim) — decide with the next slice.
 
 ## Pipeline & engine-parity checks (Phase 1/4 prerequisites)
 
