@@ -132,6 +132,30 @@ per-object friction for ground feel.
 
 ## ObjectRenderer builds bodies before the renderable manifest is ready (2026-06-25)
 
+**RESOLVED 2026-07-16** — fix path #1, folded into an existing gate rather
+than a new one: `BaseSimulation` already mounts ALL physics children behind
+`adapterReady`, so the adapter-creation chain now awaits
+`Promise.all([createPhysicsAdapter(...), loadManifest().catch(() => null)])`
+before flipping it. Children (ObjectRenderer's body-build effect, EditOverlay)
+therefore never read the manifest pre-cache. The `.catch` matters:
+`loadManifest()` caches a rejected promise, so a failed manifest fetch falls
+through to the old rectangle-fallback behavior instead of blocking sims
+forever. The +100 ms initial-snapshot capture keeps its semantics (bodies are
+still created immediately after the gate opens). Imported/synthesized
+renderables (`registerImportedRenderable`, incl. openContainer) were never
+racy — session-local map, no fetch. Verified: build + lint clean at baseline;
+manual acceptance = the DevTools-throttle diagnostic below (warning should no
+longer fire). **Drive-CONFIRMED by Bill same day** (Slow 4G throttle: manifest
++ adapter load in parallel, gate holds, no fallback warnings; the per-sprite
+viewBox fetches visible on the timeline are loadManifest's own pass —
+`renderableManifest.ts:103` — completing *before* the gate opens). Known
+trade, now measurable: that N-fetch viewBox pass is the slow-network mount
+long pole (sim mount waits on one round-trip per approved entry). The escape
+hatch is the Option B viewBox bake — manifest carries authoring viewBox, gist
+drops the fetch pass — tracked cross-repo in
+`../physics_sim_icon_dev/Dev_Tasks.md` Task 14 (status-updated 2026-07-16).
+Original write-up kept for the record:
+
 **Symptom.** An object whose physics body is created *before* the renderable
 manifest finishes loading silently falls back to a plain rectangle collider (and,
 since the viewBox fix, also misses its sprite's viewBox dims). Intermittent —

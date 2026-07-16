@@ -57,6 +57,9 @@ const ObjectRenderer = forwardRef<PhysicsBody, SIObjectConfig>(function ObjectRe
   useEffect(() => {
     if (!adapter) return;
 
+    // BaseSimulation holds children (and thus this effect) until
+    // loadManifest() settles, so a null here means the name is genuinely
+    // unknown or the manifest failed to load — not a fetch race.
     const item = getManifestItem(svg);
     let shape: ShapeDescriptor;
     if (item && item.physical_properties.collider) {

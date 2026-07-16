@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, ReactNode } from 'react';
 import { PhysicsProvider } from '../contexts/PhysicsContext';
 import { createPhysicsAdapter, type PhysicsEngineKind } from '../physics';
+import { loadManifest } from '../lib/renderableManifest';
 import type { PhysicsAdapter, WorldSnapshot } from '../physics/types';
 
 export type SimulationMode = 'live' | 'precomputing' | 'replay';
@@ -182,7 +183,19 @@ function BaseSimulation({
     // want exactly one adapter per true component lifetime.
     const deferId = setTimeout(() => {
       if (disposed) return;
-      createPhysicsAdapter(physicsEngine).then((a) => {
+      // The renderable manifest gates adapterReady alongside the adapter
+      // itself: children read collider data synchronously on mount
+      // (ObjectRenderer's body-build effect), and a body built before the
+      // manifest resolves would keep its rectangle-fallback collider for the
+      // whole mount. Awaiting both in parallel costs nothing in the common
+      // case (the manifest is eager-fetched on module import). A FAILED
+      // manifest load must not block sims forever — loadManifest caches the
+      // rejection, so catch and fall through to the per-object
+      // rectangle-fallback path.
+      Promise.all([
+        createPhysicsAdapter(physicsEngine),
+        loadManifest().catch(() => null),
+      ]).then(([a]) => {
         if (disposed) {
           a.destroy();
           return;
