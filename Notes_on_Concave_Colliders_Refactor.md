@@ -973,6 +973,135 @@ and drop the N-fetch pass entirely. Tracked cross-repo in
 `../physics_sim_icon_dev/Dev_Tasks.md` Task 14, status-updated 2026-07-16:
 race-closing is no longer part of Option B's payoff — mount latency is.
 
+### 2026-07-16 — manifest contract v2 SHIPPED: per-entry `view_box` bake (Option B) + `convex → polygon` tag rename
+
+Same-day follow-through on the entry above: the cross-repo contract decision
+was ratified with the icon-repo side and both halves landed. Sample round-trip
+(Collider Lab single-item download, `bird`) confirmed the exporter's new shape
+before gist's half was written.
+
+**The joint contract (manifest_version 2):**
+
+- **`view_box: [minX, minY, width, height]`** — snake_case, top-level on each
+  entry (sibling of `name`, NOT inside `physical_properties`: it describes the
+  SVG, not the physics). Full SVG 4-tuple even though our convention pins the
+  origin at (0,0) — gist's old regex captured and *discarded* minX/minY, so
+  the bake preserves information the inference threw away. `null` when the
+  exporter can't parse the SVG.
+- **Collider tag `polygon`** replaces the v1 misnomer `convex` (same shape:
+  an outline, possibly concave, decomposed into a convex compound). Both
+  spellings accepted engine-side indefinitely; the icon-repo emits `polygon`
+  from v2 on.
+- **gist ignores `manifest_version`** — reads are per-entry: a valid
+  `view_box` skips that sprite's fetch; missing/null falls back to
+  fetch-and-parse for that one entry. A v1 manifest therefore degrades to
+  exactly the pre-v2 behavior with zero version plumbing.
+
+**gist half (implemented today, code-complete):**
+
+- `src/lib/renderableManifest.ts` — `view_box` on `ManifestItem`;
+  `viewBoxFromEntry` validator (Number.isFinite + positive dims);
+  `loadManifest` seeds `entry.viewBox` from the bake and the N-fetch viewBox
+  pass now `.filter((entry) => !entry.viewBox)` — for a fully-baked manifest
+  the pass is empty and sim mount stops paying one round-trip per sprite.
+  `registerImportedRenderable` prefers the baked field over parsing the SVG
+  text (Import Object zips and Collider Lab downloads now carry it).
+- `src/physics/shapeHelpers.ts` — `case 'polygon': case 'convex':` share the
+  decompose path; `ManifestCollider` type is `type: 'polygon' | 'convex'`.
+- `src/lib/openContainer.ts` migrated to emit `type: 'polygon'`;
+  `ImportObjectModal` summary + `BodyOutline` doc comment updated.
+
+**Deliberately untouched:** schema `.describe()` strings and
+`gist_instructions.py` say "rectangle, circle, or convex hull" as informal
+shape *categories*, not the JSON tag — renaming there buys the LLM nothing
+and would couple this to a schema regen + deploy. Revisit wording
+opportunistically on the next real schema touch. The Phase-4 three-places
+landing (LLM-authorable concave) remains gated and is unchanged by this.
+
+**Verified (headless, mocked fetch over the real module):** baked entry gets
+`viewBox` with NO sprite fetch; legacy entry falls back with exactly one
+fetch; `view_box: null` + 404 leaves `viewBox` undefined (rect fallback
+intact); import path prefers bake over SVG text and the SVG-text fallback
+still works; the real 39-vertex `bird` polygon decomposes through the new
+tag. tsc/lint at known baseline. **Drive-CONFIRMED by Bill same day** —
+full-library v2 export dropped into `public/renderables/` (245 kB,
+`manifest_version: 2`), then a throttled (Fast 4G) load of a fresh
+LLM-generated 1D collision sim (`/simulation/1212`, cat + dynamics_cart):
+the per-sprite fetch storm is GONE — `manifest.json` (initiator
+`renderableManifest.ts:63`) is the only manifest request, and the only SVG
+fetches are the sim's two rendered sprites via `imageCache.ts:7` (the
+visual layer, post-mount, non-gating). Remaining throttled long poles are
+Rapier WASM (~1.7 MB) and Vite dev-mode module loading, as expected.
+Bonus: dynamics_cart is the canonical non-square acceptance asset
+(64×27.43), so the baked-viewBox collider mapping rode along in the same
+drive.
+
+**⚠️ Asset finding (icon-repo, not this change):** `bird`'s outline
+decomposes into 10 parts with one at **16 vertices** — over Planck's silent
+12-vertex truncation cap, so bird-on-Planck would get a wrong collider with
+no error (`?colliders=1` flags it red). First live specimen for the scoped
+post-decompose guard (roadmap CC2) and a case for a decomposition-aware
+vertex-count check in the icon-repo's Collider Lab approval flow — relayed
+to Bill for the cross-repo conversation. *Same-day field observation:*
+Bill's `/simulation/1212` collision sim ran bird ON Planck with
+`inertia: 1e10` and behaved correctly to a physics-teacher eye — expected,
+not exonerating: rotation-locked, head-on 1D contact only exercises the
+silhouette's leading edge, and the observation overlay draws gist's
+decomposed compound (engine-actual fixture readback is deferred), so
+Planck's internal re-hull of the 16-vert part is invisible and mostly
+inconsequential in this regime. The guard remains the fix.
+*Truncation computed (real `planck.Polygon` built from the part, diffed
+against authored):* the over-cap part is the torso oval; Planck drops the
+four **underbelly** vertices (viewBox x 15–38, y 34–41) and closes a flat
+chord — max deviation ≈ **6.5% of bird height** (0.16 m at a 2.49 m bird;
+scales linearly with size). Repro that shows it: bird static +
+`angle: π` (belly-up), drop a billiard ball on the belly with
+`?colliders=1` — Rapier rests the ball on the drawn arc, Planck sinks it
+~6% of the height inside the red-flagged part (≈0.47 m at width 8). Also
+the concrete case for the deferred engine-actual fixture readback: the
+overlay draws gist's decomposition, so only behavior can reveal the chord.
+*Drive-CONFIRMED by Bill same day:* scaled-up bird on Planck with
+`?colliders=1` — the dynamics cart wedged visibly INSIDE the drawn
+underbelly outline, exactly the computed truncation region, red `16` on
+the torso part. The screenshot is the CC2 guard's motivating exhibit —
+stashed with the sim JSON in `user_exhibits_for_dev_and_debugging/`.
+*Relayed upstream same day:* full write-up appended to the icon repo's
+`Dev_Tasks.md` Task 15 (Planck-readiness warnings) — the bird answers its
+2026-07-02 "decide once we have data" gate (runner=safe vs bird=harmful
+prove outline-level heuristics can't separate them); recommended there:
+authoring-time exact decomposition verdict in the Lab (verdict-only,
+contract unchanged), bird re-trace, and the acceptance list updated with
+the cap corrected to 12.
+
+### 2026-07-16 — `inertia` override is Planck-only; Rapier silently ignores it (feeds CC4)
+
+Surfaced by the `/simulation/1212` drive above (both carts author
+`inertia: 1e10` on `physicsEngine: "planck"`). The schema promises the
+capability engine-agnostically (`simulation.ts:119` — "Set to 1e10 to
+prevent body rotation") and `PlanckAdapter` honors it (`setMassData` after
+fixtures, `PlanckAdapter.ts:262`), but **`RapierAdapter` never reads
+`def.inertia`** — on Rapier the field is a silent no-op and the same sim
+would rotate freely. Under invariant-charter language: an adapter feature
+gap, not a caller problem.
+
+Rapier's affordances (verified in the installed
+`@dimforge/rapier2d-compat` typings, `dynamics/rigid_body.d.ts`):
+
+- **`RigidBodyDesc.lockRotations()` / `rigidBody.lockRotations(locked,
+  wakeUp)`** — the clean equivalent of Box2D's `fixedRotation`; exact and
+  well-conditioned, no 1e10 magic number.
+- **`setAdditionalMassProperties(mass, centerOfMass,
+  principalAngularInertia, wakeUp)`** — for FINITE overrides (the CC4 hoop,
+  I = mr²). Same replace-not-accumulate gotcha as `setAdditionalMass`
+  (already handled at `RapierAdapter.ts:159` for mass — the base-capture
+  pattern extends).
+
+Suggested mapping when CC4 lands: treat `inertia` ≥ some sentinel threshold
+as "lock rotations" on both engines (Planck: `fixedRotation`), and finite
+values as additional angular inertia over the collider-derived base. Until
+then the field is effectively Planck-only — sims relying on it should pin
+`physicsEngine: "planck"` (per the engine-suitability rule).
+
 ## Pipeline & engine-parity checks (Phase 1/4 prerequisites)
 
 Two things to verify before concave colliders are real beyond a hand-authored

@@ -1,1 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><g transform="translate(-4.5714 -4.5714) scale(1.1429)"><circle cx="32" cy="32" r="28" fill="#fde68a"/><circle cx="32" cy="32" r="28" fill="none" stroke="#d97706" stroke-width="2"/><ellipse cx="32" cy="32" rx="12" ry="12" fill="#fff"/><text x="32" y="37" text-anchor="middle" font-size="13" font-weight="bold" font-family="Arial,sans-serif" fill="#d97706">1</text><ellipse cx="22" cy="22" rx="5" ry="3" fill="#fef9c3" opacity="0.6" transform="rotate(-30 22 22)"/></g></svg>
+<svg viewBox="0 0 64 64" version="1.1" id="svg3" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs3"></defs>
+  
+  <circle cx="32.000198" cy="32.000198" fill="#fde68a" id="circle1" style="stroke:none;stroke-width:1.14286" r="32"></circle>
+  <circle cx="32" cy="32" fill="#ffffff" id="ellipse2" style="stroke-width:1.33333" r="15.999999"></circle>
+  <text x="30.086449" y="39.554653" text-anchor="middle" font-size="14.8736px" font-weight="bold" font-family="Arial, sans-serif" fill="#d97706" id="text2" style="fill:#fde68a;fill-opacity:1;stroke-width:1.14265;stroke-dasharray:none" transform="scale(1.0690464,0.93541309)">1</text>
+</svg>

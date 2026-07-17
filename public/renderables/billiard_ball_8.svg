@@ -1,1 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><g transform="translate(-4.5714 -4.5714) scale(1.1429)"><circle cx="32" cy="32" r="28" fill="#1c1917"/><circle cx="32" cy="32" r="28" fill="none" stroke="#57534e" stroke-width="2"/><ellipse cx="32" cy="32" rx="12" ry="12" fill="#fff"/><text x="32" y="37" text-anchor="middle" font-size="13" font-weight="bold" font-family="Arial,sans-serif" fill="#1c1917">8</text><ellipse cx="22" cy="22" rx="5" ry="3" fill="#78716c" opacity="0.5" transform="rotate(-30 22 22)"/></g></svg>
+<svg viewBox="0 0 64 64" version="1.1" id="svg3" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs3"></defs>
+  
+  <g transform="translate(-4.5714 -4.5714) scale(1.1429)" id="g3">
+    <circle cx="31.998951" cy="31.998951" fill="#1c1917" id="circle1" style="fill:#1c1917;fill-opacity:1;stroke:none;stroke-width:0.999962" r="27.998951"></circle>
+    <circle cx="31.998775" cy="31.998775" fill="#ffffff" id="ellipse2" style="stroke-width:1.16662" r="13.999475"></circle>
+    <text x="28.728584" y="40.386055" text-anchor="middle" font-size="13.3374px" font-weight="bold" font-family="Arial, sans-serif" fill="#1c1917" id="text2" transform="scale(1.1149676,0.89688704)" style="stroke-width:1.02596">8</text>
+  </g>
+</svg>

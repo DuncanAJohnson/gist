@@ -1,14 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 39.9352" version="1.1" id="svg428">
-  <defs id="defs432"/>
+<svg viewBox="0 0 64 39.9352" version="1.1" id="svg428" xmlns="http://www.w3.org/2000/svg">
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-<g transform="translate(0 -12.0323) scale(1)"><g transform="translate(-3.498 -3.498) scale(1.1093)"><ellipse cx="32.109776" cy="32.43911" rx="28.509304" ry="4.4475551" fill="none" stroke="#1d4ed8" stroke-width="5" opacity="0.5" id="ellipse416"/><circle cx="32" cy="32" r="18" fill="#3B82F6" id="circle418"/><ellipse cx="28" cy="28" rx="10" ry="8" fill="#60A5FA" opacity="0.3" transform="rotate(-20 28 28)" id="ellipse420"/><path d="M18 38 Q26 42 36 38 Q42 36 46 40" fill="#22C55E" opacity="0.4" id="path422"/><path d="M14 30 Q20 28 26 32" fill="#22C55E" opacity="0.3" id="path424"/><path d="M 3.153299,34.119151 Q 17.57665,36.838984 32,36.295016 46.42335,36.838984 60.8467,34.119151" fill="none" stroke="#93c5fd" stroke-width="2.99926" opacity="0.85" id="path426"/></g></g></svg>
+  <defs id="defs432"></defs>
+  <g transform="matrix(0.8915539,0,0,0.8915539,3.3620637,-8.5617683)" id="g2">
+    <g transform="matrix(1.1093,0,0,1.1093,-3.498,-3.498)" id="g1">
+      <ellipse cx="32.109776" cy="32.43911" rx="28.509304" ry="4.4475551" fill="none" stroke="#1d4ed8" stroke-width="5" opacity="0.5" id="ellipse416"></ellipse>
+      <circle cx="32" cy="32" r="18" fill="#3b82f6" id="circle418"></circle>
+      <ellipse cx="28" cy="28" rx="10" ry="8" fill="#60a5fa" opacity="0.3" transform="rotate(-20,28,28)" id="ellipse420"></ellipse>
+      <path d="m 18,38 q 8,4 18,0 6,-2 10,2" fill="#22c55e" opacity="0.4" id="path422"></path>
+      <path d="m 14,30 q 6,-2 12,2" fill="#22c55e" opacity="0.3" id="path424"></path>
+      <path d="M 3.153299,34.119151 Q 17.57665,36.838984 32,36.295016 46.42335,36.838984 60.8467,34.119151" fill="none" stroke="#93c5fd" stroke-width="2.99926" opacity="0.85" id="path426"></path>
+    </g>
+  </g>
+</svg>

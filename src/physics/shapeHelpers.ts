@@ -78,6 +78,9 @@ export function scaleManifestColliderToShape(
       };
     }
 
+    // 'polygon' (manifest_version 2) and 'convex' (legacy v1 tag) are the
+    // same shape: an outline, possibly concave, decomposed into a compound.
+    case 'polygon':
     case 'convex':
       return decomposePolygonShape(
         collider.vertices.map(([vx, vy]) => mapV(vx, vy)),

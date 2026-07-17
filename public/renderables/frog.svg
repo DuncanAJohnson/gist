@@ -1,1 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 51.3741"><g transform="translate(0.0002 -6.3127) scale(1)"><g transform="translate(-9.7959 -11.9728) scale(1.3061)"><g fill="none"><ellipse cx="32" cy="38" rx="16" ry="12" fill="#4aaa4a"/><ellipse cx="32" cy="26" rx="12" ry="9" fill="#4aaa4a"/><circle cx="22" cy="20" r="6" fill="#4aaa4a"/><circle cx="42" cy="20" r="6" fill="#4aaa4a"/><circle cx="22" cy="20" r="4" fill="#f0f0f0"/><circle cx="42" cy="20" r="4" fill="#f0f0f0"/><circle cx="22" cy="20" r="2" fill="#1a4a1a"/><circle cx="42" cy="20" r="2" fill="#1a4a1a"/><ellipse cx="32" cy="38" rx="10" ry="7" fill="#7acc7a"/><ellipse cx="32" cy="28" rx="7" ry="5" fill="#7acc7a"/><path d="M12,46 Q6,40 8,52 Q14,56 20,48" fill="#4aaa4a"/><path d="M52,46 Q58,40 56,52 Q50,56 44,48" fill="#4aaa4a"/><path d="M28,32 Q32,36 36,32" stroke="#1a4a1a" stroke-width="2" fill="none" stroke-linecap="round"/></g></g></g></svg>
+<svg viewBox="0 0 64 51.3741" version="1.1" id="svg12" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs12"></defs>
+  
+  <g transform="matrix(1.3061,0,0,1.3061,-9.7957,-18.2855)" id="g11">
+    <g fill="none" id="g10">
+      <ellipse cx="32" cy="38" rx="16" ry="12" fill="#4aaa4a" id="ellipse1"></ellipse>
+      <ellipse cx="32" cy="26" rx="12" ry="9" fill="#4aaa4a" id="ellipse2"></ellipse>
+      <circle cx="22" cy="20" r="6" fill="#4aaa4a" id="circle2"></circle>
+      <circle cx="42" cy="20" r="6" fill="#4aaa4a" id="circle3"></circle>
+      <circle cx="22" cy="20" r="4" fill="#f0f0f0" id="circle4"></circle>
+      <circle cx="42" cy="20" r="4" fill="#f0f0f0" id="circle5"></circle>
+      <circle cx="22" cy="20" r="2" fill="#1a4a1a" id="circle6"></circle>
+      <circle cx="42" cy="20" r="2" fill="#1a4a1a" id="circle7"></circle>
+      <ellipse cx="32" cy="38" rx="10" ry="7" fill="#7acc7a" id="ellipse7"></ellipse>
+      <ellipse cx="32" cy="28" rx="7" ry="5" fill="#7acc7a" id="ellipse8"></ellipse>
+      <path d="m 16.25,42.333333 q -6,-6 -4,6 6,4 12,-4" fill="#4aaa4a" id="path8"></path>
+      <path d="m 47.75,42.333333 q 6,-6 4,6 -6,4.000001 -12,-4" fill="#4aaa4a" id="path8-6"></path>
+      <path d="m 28,32 q 4,4 8,0" stroke="#1a4a1a" stroke-width="2" fill="none" stroke-linecap="round" id="path10"></path>
+    </g>
+  </g>
+</svg>

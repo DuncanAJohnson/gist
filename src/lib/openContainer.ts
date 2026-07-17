@@ -7,7 +7,7 @@
  * profile — the clean Newton's-first-law wagon (back wall only).
  *
  * The factory synthesizes BOTH halves of the manifest contract from one
- * outline: a flat-fill SVG sprite and a concave `type:"convex"` collider in
+ * outline: a flat-fill SVG sprite and a concave `type:"polygon"` collider in
  * the sprite's own viewBox coordinates (Y down), registered session-side via
  * registerImportedRenderable. Downstream, the existing machinery does the
  * rest: scaleManifestColliderToShape maps the outline per-axis into the
@@ -248,7 +248,7 @@ export function makeOpenContainer(params: OpenContainerParams): OpenContainer {
     color_tag: null,
     parent: null,
     physical_properties: {
-      collider: { type: 'convex', vertices: outline },
+      collider: { type: 'polygon', vertices: outline },
     },
   };
   registerImportedRenderable(item, svgText);

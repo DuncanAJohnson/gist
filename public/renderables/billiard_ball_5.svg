@@ -1,1 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><g transform="translate(-4.5714 -4.5714) scale(1.1429)"><circle cx="32" cy="32" r="28" fill="#f97316"/><circle cx="32" cy="32" r="14" fill="#fff7ed"/><circle cx="32" cy="32" r="10" fill="#f97316"/><text x="32" y="37" text-anchor="middle" font-size="12" font-family="Arial Black,sans-serif" font-weight="900" fill="#fff7ed">5</text><circle cx="22" cy="20" r="5" fill="#fb923c" opacity="0.4"/></g></svg>
+<svg viewBox="0 0 64 64" version="1.1" id="svg4" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs4"></defs>
+  
+  <g transform="translate(-4.5714 -4.5714) scale(1.1429)" id="g4">
+    <circle cx="31.998951" cy="31.998951" fill="#f97316" id="circle1" style="stroke-width:0.999962" r="27.998951"></circle>
+    <circle cx="32" cy="32" r="10" fill="#f97316" id="circle3"></circle>
+    <circle cx="31.998775" cy="31.998775" fill="#ffffff" id="ellipse2" style="stroke-width:1.16662" r="13.999475"></circle>
+    <text x="32.386082" y="35.835449" text-anchor="middle" font-size="11.8885px" font-family="'Arial Black', sans-serif" font-weight="900" fill="#fff7ed" id="text3" transform="scale(0.98919347,1.0109246)" style="stroke-width:0.990701;fill:#f97316;fill-opacity:1">5</text>
+  </g>
+</svg>

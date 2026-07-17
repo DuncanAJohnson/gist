@@ -9,7 +9,7 @@ import type { ShapeDescriptor } from '../../../../physics/types';
  *
  * With `debugParts` set (the `?colliders=1` observation overlay), each part of
  * the shape is drawn in a distinct palette color with a per-part vertex-count
- * readout. Because `body.shape` for a concave `type:"convex"` manifest
+ * readout. Because `body.shape` for a concave `type:"polygon"` manifest
  * collider IS the decomposed compound, this renders the poly-decomp split
  * directly — the engine-truth geometry, not the authored outline.
  */

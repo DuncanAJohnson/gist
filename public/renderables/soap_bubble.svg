@@ -1,1 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><g transform="translate(-14.5455 -14.5455) scale(1.4545)"><circle cx="32" cy="32" r="22" fill="#e2e8f0" opacity="0.15"/><circle cx="32" cy="32" r="22" fill="none" stroke="#475569" stroke-width="1.2"/><ellipse cx="24" cy="22" rx="6" ry="3" fill="none" stroke="#cbd5e1" stroke-width="1.5" transform="rotate(-30 24 22)"/><ellipse cx="38" cy="18" rx="3" ry="1.5" fill="none" stroke="#cbd5e1" stroke-width="1" transform="rotate(-20 38 18)"/><circle cx="32" cy="32" r="22" fill="none" stroke="#94a3b8" stroke-width="0.6" opacity="0.5"/></g></svg>
+<svg viewBox="0 0 64 64" version="1.1" id="svg3" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs3"></defs>
+  
+  <g transform="matrix(1.336064,0,0,1.336064,-10.754048,-10.754048)" id="g3">
+    <circle cx="32" cy="32" r="22" fill="#e2e8f0" opacity="0.15" id="circle1"></circle>
+    <circle cx="32" cy="32" r="22" fill="none" stroke="#475569" stroke-width="1.2" id="circle2"></circle>
+    <ellipse cx="24" cy="22" rx="6" ry="3" fill="none" stroke="#cbd5e1" stroke-width="1.5" transform="rotate(-30,24,22)" id="ellipse2"></ellipse>
+    <ellipse cx="38" cy="18" rx="3" ry="1.5" fill="none" stroke="#cbd5e1" stroke-width="1" transform="rotate(-20,38,18)" id="ellipse3"></ellipse>
+    <circle cx="32" cy="32" r="22" fill="none" stroke="#94a3b8" stroke-width="0.6" opacity="0.5" id="circle3"></circle>
+  </g>
+</svg>

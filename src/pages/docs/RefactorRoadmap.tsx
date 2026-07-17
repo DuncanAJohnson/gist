@@ -157,13 +157,13 @@ flowchart LR
       CC3["3 · open-container factory ⭐<br/>cup / box / wagon (makeOpenContainer)<br/>+ one-sided walls · <b>SHIPPED 2026-07-15</b>"]
       CC1["1 · collider debug / observation overlay<br/>BodyOutline; shows decomposition + Planck-12"]
       CC2["2 · post-decompose Planck guard<br/>dev-warn on any part over 12 verts"]
-      CC6["6 · Option B — manifest declares<br/>its collider coord-space"]
+      CC6["6 · Option B — manifest bakes view_box<br/>+ convex → polygon tag (v2) · <b>SHIPPED 2026-07-16</b>"]
       CC7["7 · decomposition sanity<br/>part-count cap + winding / self-intersect"]
     end
     subgraph CCGATED["gated"]
       direction TB
       CC4["4 · inertia override — hoop<br/>collide circle, set I = mr²"]
-      CC5["5 · convex → polygon rename<br/>Phase-4 three-places landing"]
+      CC5["5 · Phase-4 three-places landing<br/>(schema + prompt; manifest tag<br/>rename shipped with 6)"]
       CC8["8 · CCD + catch detection<br/>sensors / events · lower priority"]
     end
     CCP0 --> CC1
@@ -174,9 +174,9 @@ flowchart LR
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#92400e;
   classDef pending fill:#dbeafe,stroke:#2563eb,color:#1e40af;
 
-  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,CCP0,CC3,RP0,VECP1 done;
+  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,CCP0,CC3,CC6,RP0,VECP1 done;
   class APPP1,APPP2,APPP25,APPP3,APPP4,VECP2,VECP3,VAP3,VAP4,VAP5,CC4,CC5,CC8,RP1,RP2,RP3,RP4,RP5,RP6 pending;
-  class CC1,CC2,CC6,CC7 proposed;
+  class CC1,CC2,CC7 proposed;
 `;
 
 const cameraChart = `
@@ -338,7 +338,13 @@ function RefactorRoadmap() {
           in distinct colors with vertex counts flagged red above Planck&rsquo;s silent
           12-vert cap (engine-actual fixture readback deferred). Together: generator
           export → live sim → visible engine-truth colliders, before anything lands
-          in <code>public/renderables/</code>. See{' '}
+          in <code>public/renderables/</code>. <b>Manifest contract v2 SHIPPED
+          (2026-07-16)</b>: each entry bakes its authoring{' '}
+          <code>view_box</code> (Option B — kills the per-sprite fetch pass that
+          became the slow-network mount long pole once the manifest-readiness
+          race was closed) and the collider tag renamed{' '}
+          <code>convex → polygon</code> (misnomer resolved; both spellings
+          accepted, per-entry fallback keeps v1 manifests working). See{' '}
           <code>Notes_on_Concave_Colliders_Refactor.md</code>,{' '}
           <code>PHYSICS_SHAPES.md</code>, and <code>Local_Sim_Workflow.md</code>.
         </li>

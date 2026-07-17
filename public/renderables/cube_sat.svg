@@ -1,1 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 22.8571"><g transform="translate(-0.0002 -20.5716) scale(1)"><g transform="translate(-4.5714 -4.5714) scale(1.1429)"><rect x="22" y="22" width="20" height="20" rx="2" fill="#94A3B8"/><rect x="24" y="24" width="16" height="16" rx="1" fill="#CBD5E1"/><line x1="32" y1="24" x2="32" y2="40" stroke="#64748B" stroke-width="1"/><line x1="24" y1="32" x2="40" y2="32" stroke="#64748B" stroke-width="1"/><rect x="4" y="29" width="16" height="6" rx="1" fill="#3B82F6"/><rect x="44" y="29" width="16" height="6" rx="1" fill="#3B82F6"/><line x1="7" y1="29" x2="7" y2="35" stroke="#1D4ED8" stroke-width="1"/><line x1="11" y1="29" x2="11" y2="35" stroke="#1D4ED8" stroke-width="1"/><line x1="15" y1="29" x2="15" y2="35" stroke="#1D4ED8" stroke-width="1"/><line x1="47" y1="29" x2="47" y2="35" stroke="#1D4ED8" stroke-width="1"/><line x1="51" y1="29" x2="51" y2="35" stroke="#1D4ED8" stroke-width="1"/><line x1="55" y1="29" x2="55" y2="35" stroke="#1D4ED8" stroke-width="1"/></g></g></svg>
+<svg viewBox="0 0 64 22.8571" version="1.1" id="svg10" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs10"></defs>
+  
+  <rect x="-60.5" y="6.9239788" width="57" height="9.1980572" rx="3.166667" fill="#60a5fa" id="rect3-0" style="stroke-width:2.03987" transform="scale(-1,1)"></rect>
+  <rect style="fill:#0000ff;fill-rule:evenodd;stroke-width:0.872458" id="rect10" width="2.28" height="9.1980572" x="6.9199977" y="6.9239788"></rect>
+  <rect style="fill:#0000ff;fill-rule:evenodd;stroke-width:0.872458" id="rect10-5" width="2.28" height="9.1980572" x="12.619997" y="6.9239788"></rect>
+  <rect style="fill:#0000ff;fill-rule:evenodd;stroke-width:0.872458" id="rect10-5-8" width="2.28" height="9.1980572" x="18.319996" y="6.9239788"></rect>
+  <rect style="fill:#0000ff;fill-rule:evenodd;stroke-width:0.872458" id="rect10-8" width="2.28" height="9.1980572" x="43.400002" y="6.9239788"></rect>
+  <rect style="fill:#0000ff;fill-rule:evenodd;stroke-width:0.872458" id="rect10-5-5" width="2.28" height="9.1980572" x="49.100018" y="6.9239788"></rect>
+  <rect style="fill:#0000ff;fill-rule:evenodd;stroke-width:0.872458" id="rect10-5-8-8" width="2.28" height="9.1980572" x="54.800007" y="6.9239788"></rect>
+  <rect x="24.02" y="2.1185503" width="15.96" height="18.619999" rx="2.6600001" fill="#94a3b8" id="rect1-8" style="stroke-width:1.33"></rect>
+  <circle cx="31.999996" cy="11.523009" r="4.0304818" fill="#fbbf24" id="circle9-6" style="stroke-width:1.34349"></circle>
+</svg>

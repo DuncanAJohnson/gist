@@ -1,1 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 33.2308"><g transform="translate(-0.0002 -15.3849) scale(1)"><g transform="translate(-7.3846 -11.6923) scale(1.2308)"><rect x="26" y="22" width="12" height="14" rx="2" fill="#94A3B8"/><rect x="6" y="27" width="18" height="7" rx="1" fill="#60A5FA"/><rect x="40" y="27" width="18" height="7" rx="1" fill="#60A5FA"/><line x1="9" y1="27" x2="9" y2="34" stroke="#2563EB" stroke-width="1"/><line x1="13" y1="27" x2="13" y2="34" stroke="#2563EB" stroke-width="1"/><line x1="17" y1="27" x2="17" y2="34" stroke="#2563EB" stroke-width="1"/><line x1="43" y1="27" x2="43" y2="34" stroke="#2563EB" stroke-width="1"/><line x1="47" y1="27" x2="47" y2="34" stroke="#2563EB" stroke-width="1"/><line x1="51" y1="27" x2="51" y2="34" stroke="#2563EB" stroke-width="1"/><ellipse cx="32" cy="43" rx="6" ry="4" fill="none" stroke="#94A3B8" stroke-width="1.5"/><ellipse cx="32" cy="43" rx="10" ry="6" fill="none" stroke="#64748B" stroke-width="1"/><line x1="32" y1="36" x2="32" y2="39" stroke="#64748B" stroke-width="1.5"/><circle cx="32" cy="29" r="3" fill="#FBBF24"/></g></g></svg>
+<svg viewBox="0 0 64 33.2308" version="1.1" id="svg10" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs10"></defs>
+  
+  <g transform="matrix(0.9575101,0,0,0.9575101,1.3587193,-14.320602)" id="g10">
+    <rect x="-58.110382" y="20.56201" width="52.218769" height="8.4265127" rx="2.9010432" fill="#60a5fa" id="rect3-0" style="stroke-width:1.86876" transform="scale(-1,1)"></rect>
+    <ellipse cx="32.000999" cy="41.542107" rx="12.308" ry="7.3848" fill="none" stroke="#64748b" stroke-width="1.2308" id="ellipse9-8"></ellipse>
+    <line x1="32.000999" y1="32.926506" x2="32.000999" y2="36.618904" stroke="#64748b" stroke-width="1.8462" id="line9-5"></line>
+    <rect style="fill:#0000ff;fill-rule:evenodd;stroke-width:0.799275" id="rect10" width="2.0887508" height="8.4265127" x="9.0247412" y="20.56201"></rect>
+    <rect style="fill:#0000ff;fill-rule:evenodd;stroke-width:0.799275" id="rect10-5" width="2.0887508" height="8.4265127" x="14.246618" y="20.56201"></rect>
+    <rect style="fill:#0000ff;fill-rule:evenodd;stroke-width:0.799275" id="rect10-5-8" width="2.0887508" height="8.4265127" x="19.468494" y="20.56201"></rect>
+    <rect style="fill:#0000ff;fill-rule:evenodd;stroke-width:0.799275" id="rect10-8" width="2.0887508" height="8.4265127" x="42.444756" y="20.56201"></rect>
+    <rect style="fill:#0000ff;fill-rule:evenodd;stroke-width:0.799275" id="rect10-5-5" width="2.0887508" height="8.4265127" x="47.666649" y="20.56201"></rect>
+    <rect style="fill:#0000ff;fill-rule:evenodd;stroke-width:0.799275" id="rect10-5-8-8" width="2.0887508" height="8.4265127" x="52.888512" y="20.56201"></rect>
+    <rect x="24.690372" y="16.159666" width="14.621256" height="17.05813" rx="2.4368761" fill="#94a3b8" id="rect1-8" style="stroke-width:1.21844"></rect>
+    <circle cx="32.000999" cy="24.775267" r="3.6924" fill="#fbbf24" id="circle9-6" style="stroke-width:1.2308"></circle>
+    <ellipse cx="32.000999" cy="41.542107" rx="7.3848" ry="4.9232001" fill="none" stroke="#94a3b8" stroke-width="1.8462" id="ellipse8-2"></ellipse>
+  </g>
+</svg>

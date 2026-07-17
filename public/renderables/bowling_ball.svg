@@ -1,7 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg viewBox="0 0 64 64" version="1.1" id="svg5" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs5"></defs>
   
-  
-  
-  
-  
-<g transform="translate(-19.2 -19.2) scale(1.6)"><circle cx="32" cy="32" r="20" fill="#64748B"/><circle cx="32" cy="32" r="20" fill="none" stroke="#334155" stroke-width="1.5"/><circle cx="26" cy="24" r="3" fill="#0F172A"/><circle cx="34" cy="22" r="3" fill="#0F172A"/><circle cx="30" cy="30" r="3" fill="#0F172A"/></g></svg>
+  <g transform="matrix(1.4562385,0,0,1.4562385,-14.599632,-14.599632)" id="g5">
+    <circle cx="32" cy="32" r="20" fill="#64748b" id="circle1"></circle>
+    <circle cx="32" cy="32" r="20" fill="none" stroke="#334155" stroke-width="1.5" id="circle2"></circle>
+    <circle cx="26" cy="24" r="3" fill="#0f172a" id="circle3"></circle>
+    <circle cx="34" cy="22" r="3" fill="#0f172a" id="circle4"></circle>
+    <circle cx="30" cy="30" r="3" fill="#0f172a" id="circle5"></circle>
+  </g>
+</svg>

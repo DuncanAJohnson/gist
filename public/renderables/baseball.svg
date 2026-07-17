@@ -1,6 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg viewBox="0 0 64 64" version="1.1" id="svg3" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs3"></defs>
   
-  
-  
-  
-<g transform="translate(-19.2 -19.2) scale(1.6)"><circle cx="32" cy="32" r="20" fill="#F5F5F4"/><circle cx="32" cy="32" r="20" fill="none" stroke="#DC2626" stroke-width="1.5"/><path d="M22 14 Q18 22 20 32 Q22 42 26 50" fill="none" stroke="#DC2626" stroke-width="1.5"/><path d="M42 14 Q46 22 44 32 Q42 42 38 50" fill="none" stroke="#DC2626" stroke-width="1.5"/></g></svg>
+  <g transform="matrix(1.4431693,0,0,1.4431693,-14.181418,-14.181418)" id="g3">
+    <circle cx="32" cy="32" r="20" fill="#f5f5f4" id="circle1"></circle>
+    <circle cx="32" cy="32" r="20" fill="none" stroke="#dc2626" stroke-width="1.5" id="circle2"></circle>
+    <path d="m 21.248359,15.66459 q -4,8 -2,18 2,10 6,18" fill="none" stroke="#dc2626" stroke-width="1.5" id="path2"></path>
+    <path d="m 42.563731,15.66459 q 4,8 2,18 -2,10 -6,18" fill="none" stroke="#dc2626" stroke-width="1.5" id="path3"></path>
+  </g>
+</svg>

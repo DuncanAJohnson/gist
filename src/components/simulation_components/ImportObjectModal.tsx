@@ -103,9 +103,9 @@ async function parseFiles(files: File[]): Promise<ImportCandidate[]> {
 function colliderSummary(item: ManifestItem): string {
   const c = item.physical_properties?.collider;
   if (!c) return 'none — will fall back to a rectangle collider';
-  if (c.type === 'convex') return `convex outline, ${c.vertices.length} vertices`;
   if (c.type === 'box') return `box ${c.width}×${c.height}, center [${c.center.join(', ')}]`;
-  return `circle r=${c.radius}, center [${c.center.join(', ')}]`;
+  if (c.type === 'circle') return `circle r=${c.radius}, center [${c.center.join(', ')}]`;
+  return `polygon outline, ${c.vertices.length} vertices`;
 }
 
 function ImportObjectModal({ onClose, onImport }: ImportObjectModalProps) {
