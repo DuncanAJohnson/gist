@@ -227,22 +227,43 @@ Needed for fast projectiles or thin walls (high-velocity falls in free-fall sims
 Adapter doesn't expose `setFriction(μ)`. Needed for the `frictionDemo` mode (Phase 2.5 of applied forces).
 - See cross-engine inconsistency note above re: Planck contact-cache.
 
-### 🔴 Mass-property override (custom angular inertia) — confirmed gap 2026-07-02
-The adapter exposes a **mass** override (`setMass`/`setAdditionalMass`, added in the
-air-resistance refactor — Rapier [RapierAdapter.ts:226](src/physics/rapier/RapierAdapter.ts#L226), Planck `setMassData`) but **no angular-inertia override**. Code-read
-2026-07-02: Rapier has no `setAdditionalMassProperties` call anywhere, and Planck's
-`setMassData` I-term isn't plumbed. Needed for `PHYSICS_SHAPES.md` v2's **mass-property
-override** technique — the rolling race (S0.2) collides all three bodies as convex
-circles but must carry a *different* inertia each (`I = mr²` hoop / `½mr²` disk /
-`⅖mr²` sphere) so `a = g sinθ / (1 + I/mr²)` comes out right **without any concave
-annulus collider**. It's the cheapest correct route to the hoop and resolves that old
+### 🔴 Mass-property override (custom angular inertia) — Rapier gap; Planck honors def-time `inertia` (corrected 2026-07-16)
+**Correction (2026-07-16, field-found via Bill's 1D-collision sim):** the
+2026-07-02 code-read below was half right. There is still **no runtime
+inertia setter** on either engine, but the **def-time** path is split:
+`ObjectConfig.inertia` (schema-landed, `simulation.ts:119` — "1e10 prevents
+rotation") IS plumbed by Planck (`setMassData` post-fixtures,
+[PlanckAdapter.ts:262](src/physics/planck/PlanckAdapter.ts#L262) — shipped
+with the engine itself, missed on 07-02) and **silently ignored by Rapier**
+(`RapierAdapter` never reads `def.inertia`). Same sim rotates on Rapier,
+doesn't on Planck; until fixed, inertia-reliant sims must pin
+`physicsEngine: "planck"`. Rapier affordances verified in the pinned
+typings: `lockRotations()` (the exact tool for the 1e10 no-rotation
+semantic) and `setAdditionalMassProperties(mass, com, principalAngularInertia,
+wake)` for finite overrides (replace-not-accumulate, same gotcha as mass).
+Detail: [Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md)
+Findings 2026-07-16 ("inertia override is Planck-only").
+
+*(2026-07-02 read — superseded above on the def-time half; the setter half
+stands:)* the adapter exposes a **mass** override (`setMass`/`setAdditionalMass`,
+added in the air-resistance refactor — Rapier
+[RapierAdapter.ts:226](src/physics/rapier/RapierAdapter.ts#L226), Planck
+`setMassData`) but **no angular-inertia setter**. Needed for
+`PHYSICS_SHAPES.md` v2's **mass-property override** technique — the rolling
+race (S0.2) collides all three bodies as convex circles but must carry a
+*different* inertia each (`I = mr²` hoop / `½mr²` disk / `⅖mr²` sphere) so
+`a = g sinθ / (1 + I/mr²)` comes out right **without any concave annulus
+collider**. It's the cheapest correct route to the hoop and resolves that old
 concave open question.
-- **Plan:** add an idempotent inertia/mass-properties setter to `PhysicsBody` (Rapier
-  `RigidBodyDesc.setAdditionalMassProperties` or explicit collider mass-props; Planck
-  `body.setMassData({ mass, center, I })`). Idempotency required (see principle above).
-  Gated with the shapes rolling-race / joints work. Tracked in
+- **Plan:** add an idempotent inertia/mass-properties setter to `PhysicsBody`
+  (Rapier `setAdditionalMassProperties`; Planck
+  `body.setMassData({ mass, center, I })`), and fix the def-time Rapier path in
+  the same pass — suggested mapping: `inertia` ≥ sentinel → lock-rotations on
+  both engines (Planck `fixedRotation`), finite → angular inertia over the
+  collider-derived base. Idempotency required (see principle above). Gated
+  with the shapes rolling-race / joints work. Tracked in
   [Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md)
-  (Findings 2026-07-02) as scope item #4.
+  (Findings 2026-07-02 scope item #4 + 2026-07-16).
 
 ---
 
@@ -254,7 +275,7 @@ Every refactor that adds a field (drag coefficients, applied force, frictionDemo
 
 ### 🔴 Engine compatibility per field
 Some schema fields are inherently engine-specific (`solverIterations` works for both but with different defaults; `positionIterations` is Planck-only; spring joints are cleaner under Rapier). Today the schema accepts everything regardless of which engine the sim picks.
-- **Open question:** should the parser warn/error when an authored sim picks an engine that doesn't support a field it uses? Or silently no-op? Lean: warn at parse time, render the sim regardless. Concrete trigger: when the joints adapter lands and `JointConfig` becomes a thing.
+- **Open question:** should the parser warn/error when an authored sim picks an engine that doesn't support a field it uses? Or silently no-op? Lean: warn at parse time, render the sim regardless. Concrete trigger: when the joints adapter lands and `JointConfig` becomes a thing. **No longer hypothetical (2026-07-16):** `ObjectConfig.inertia` is this field *today* — the schema `.describe()` promises it engine-agnostically, Planck honors it, Rapier silently ignores it (see "Mass-property override" gap above). Sub-question: caveat the `.describe()` string now ("currently Planck-only") or wait for the CC4 fix.
 
 ### 🔴 Schema versioning / migration story
 Commit `118ae3a` notes "single source of truth for object/collider sizing (makes all old sims not backwards compatible)." There's no schema version field, no migration shim. Each breaking change silently invalidates older sims.

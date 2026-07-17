@@ -303,7 +303,10 @@ function RefactorRoadmap() {
           <b>collider debug / observation overlay</b> (renders the actual decomposed
           geometry + a per-part Planck-vertex readout — the pinned Planck silently
           truncates polygons over 12 verts, so a decomposed part that big builds a wrong
-          collider with no error) is scoped as an <em>observation instrument</em>,
+          collider with no error; <b>demonstrated live 2026-07-16</b>: the{' '}
+          <code>bird</code> asset&rsquo;s 16-vert torso part, cart wedged inside the
+          drawn belly outline on Planck — see the concave note&rsquo;s Findings) is
+          scoped as an <em>observation instrument</em>,
           alongside a post-decompose guard, the <code>convex → polygon</code> rename, an
           inertia-override path for the rolling hoop, and the manifest self-describing
           its coordinate space. The phase chart above renumbers these <b>1–8</b> and
