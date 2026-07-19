@@ -72,6 +72,7 @@ const ObjectRenderer = forwardRef<PhysicsBody, SIObjectConfig>(function ObjectRe
         height,
         item.viewBox?.width,
         item.viewBox?.height,
+        svg,
       );
     } else {
       if (!item) {

@@ -1,6 +1,7 @@
 import { registerVisual } from '../registry';
 import type { DrawContext, PixelVisual } from '../types';
 import type { ShapeDescriptor } from '../../../../physics/types';
+import { PLANCK_MAX_POLYGON_VERTS } from '../../../../physics/shapeHelpers';
 
 /**
  * Draws the outline of a physics body using its SI ShapeDescriptor, converted
@@ -20,11 +21,10 @@ const PART_PALETTE = [
   '#f032e6', '#808000', '#9a6324', '#469990', '#800000', '#000075',
 ];
 
-// Planck's Settings.maxPolygonVertices. A part above this is SILENTLY
-// truncated (first 12 vertices kept, order-dependent) and re-hulled by Planck
-// — a wrong collider with no thrown error. Rapier re-hulls safely. The
-// overlay's job is to make that silent break loud.
-const PLANCK_MAX_POLYGON_VERTS = 12;
+// Planck's Settings.maxPolygonVertices (a part above it is SILENTLY truncated
+// then re-hulled — a wrong collider with no error). The overlay flags it in
+// red; the matching dev-build console.warn lives at the decomposition seam
+// (decomposePolygonShape). Single source of truth: shapeHelpers.
 
 function drawBodyOutline(drawCtx: DrawContext, visual: PixelVisual) {
   if (visual.type !== 'body-outline') return;

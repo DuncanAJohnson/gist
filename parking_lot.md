@@ -409,3 +409,55 @@ edits).
 track (see the `polarSlider` seed above — this is its second seed, along
 with the playback-speed UI reframe). Move all of these into
 `Notes_on_UI_Refactor.md` when that track opens.
+
+---
+
+## Decomposition sanity guard — CC7, the "second fence" (2026-07-18)
+
+**What it is.** A load-time robustness guard on `decomposePolygonShape`
+([shapeHelpers.ts](src/physics/shapeHelpers.ts)) for outline defects the
+CC2 >12-vertex warn (SHIPPED 2026-07-18, same file) does NOT cover:
+- **Self-intersection** — `poly-decomp`'s `quickDecomp` requires a *simple*
+  (non-self-intersecting) closed ring; a self-intersecting outline makes it
+  throw or emit garbage parts with no attribution.
+- **Part-count cap** — a sloppy outline exploding into dozens of fixtures
+  (perf drag + a signal the outline is bad data).
+- **Winding is NOT part of this** — `decomp.makeCCW` already normalizes winding
+  before `quickDecomp`, so there is nothing to guard. Roadmap CC7's original
+  "winding" leg is moot; only self-intersection + part-count remain.
+
+**Why parked (no live specimen).** Unlike CC2 — which shipped against a known
+silent failure with a live specimen (`bird`) — CC7's failure modes aren't
+currently biting. The 2026-07-18 full-manifest sweep (152 polygon/convex
+colliders run through the real `poly-decomp` with an error trap; see
+`Notes_on_Concave_Colliders_Refactor.md` Findings 2026-07-18) found ZERO
+decomposition failures and a max of ~11 parts (duck/pumpkin). Nothing
+self-intersects or explodes. Building guards for absent problems is premature.
+
+**Why it still matters (the second fence).** The icon-repo
+(`../physics_sim_icon_dev`) is adding its own poly-decomp pass to flag these at
+*authoring* time — the right place for the fix, exactly as CC2's >12 fix lives
+upstream. But gist should still reject bad geometry at *load* time as a second
+fence: collider outlines don't come from sim JSON (the schema has no parametric
+shape authoring — colliders resolve only from `svg` manifest lookup), but they
+DO come from the hand-edited on-disk `manifest.json` and from Import Object's
+imported manifest, and a future generator could regress. Upstream cleanliness
+is a strong default, not a guarantee.
+
+**Trigger to un-park.** A manifest/imported outline that self-intersects or
+explodes into fixtures and produces a wrong/janky collider in a drive. When
+that shows up, the self-intersection guard is a ~20-line addition next to the
+CC2 warn.
+
+**Home when it lands: the runtime ingestion boundary** (see "Saved sims bypass
+schema validation" / "runtime ingestion boundary (parse, don't validate)"
+above — 2026-05-20, updated 2026-07-04). Collider sanity is a natural
+`ingestSimulation(raw)` check at the same `scaleObjectToSI` choke point where
+decomposition is already reached — build it there once, alongside the other
+parse-don't-validate checks (id uniqueness, matter→rapier migration, defaults),
+not as a standalone pass. Another exhibit for that item, like the
+duplicate-object-ids entry above (whose fix-path 3 is the same tie-in).
+
+**Diagnostic.** The 2026-07-18 census script (real `poly-decomp` over the whole
+manifest, error-trapped) re-runs headlessly; it is both CC2's re-author
+worklist and this guard's future test corpus.

@@ -1102,6 +1102,90 @@ values as additional angular inertia over the collider-derived base. Until
 then the field is effectively Planck-only — sims relying on it should pin
 `physicsEngine: "planck"` (per the engine-suitability rule).
 
+### 2026-07-18 — CC2 SHIPPED: post-decompose dev-warn on any part over the Planck 12-vert cap
+
+The silent-truncation hazard from the 2026-07-02 finding above now has a loud
+guard. **`decomposePolygonShape`** ([shapeHelpers.ts:60](src/physics/shapeHelpers.ts#L60))
+emits a dev-build `console.warn` when any convex part it produces exceeds
+`PLANCK_MAX_POLYGON_VERTS` (12). Placed after `quickDecomp` because that is the
+**only** point where every part's true vertex count is known — a concave
+outline's own count does NOT predict its parts' counts (2026-07-02 lesson).
+
+Design choices:
+- **Engine-agnostic on purpose.** The warn lives at the gist-owned decomposition
+  seam, not in `PlanckAdapter`, and fires whatever engine is active. Rationale:
+  an over-cap part is a collider-*content* portability hazard — the sim
+  mis-collides the moment it runs on Planck, even if it looks fine on Rapier
+  today. This flags bad content, not engine-specific behavior, so it does not
+  violate invariant #4 (no engine *logic* leaks above the adapter — only a
+  portability diagnostic does).
+- **Single source of truth.** `PLANCK_MAX_POLYGON_VERTS` is now exported from
+  `shapeHelpers` and imported by `BodyOutline` (the `?colliders=1` overlay),
+  which previously defined its own local `12`. Warn (console) + overlay (red
+  vertex label) share one threshold.
+- **Attribution.** An optional `label` threads
+  `decomposePolygonShape(verts, label)` ← `scaleManifestColliderToShape(…,
+  label)` ← `ObjectRenderer` (passes the sprite `svg` key), so the warning
+  names the offending renderable. Optional param → all other callers
+  (openContainer's ≤4-vert quads) unchanged and Planck-safe by construction.
+- **Dev-gate** via `(import.meta as any).env.DEV` (matches the codebase idiom
+  for reading Vite env without wiring `vite/client` types) — silent in prod.
+
+Verified headlessly against the documented specimen: the icon-repo **`bird`**
+(39-vertex concave outline) runs the real `poly-decomp` path to 10 parts with
+counts `[3,3,10,4,4,4,4,3,6,16]` — **part 9 = 16 verts**, over cap, warn fires
+exactly on it. `tsc`/`eslint` clean on the three touched files (pre-existing
+`da.ts` locale-typing errors unrelated). Roadmap CC2 flipped proposed → done.
+
+**Live-drive CONFIRMED same day (Bill).** Two sims driven on `physicsEngine:
+"planck"` with `?colliders=1`: `Bird_hidden_rehull_sim.json` (bird +
+dynamics_cart) and a polar projectile sim (baseball). Overlay shows the
+over-cap part's vertex count in red; console emits the warn as authored. The
+warn double-fires per asset — expected React 19 StrictMode dev double-invoke,
+dev-only noise, not suppressed. First live drive surfaced a NEW specimen the
+memory didn't know: **`baseball`** (18-vert outline → parts `[3,17]`, part 1 =
+17 verts).
+
+**Over-cap census — 19 of 152 polygon/convex manifest colliders (~12.5%) are
+Planck-unsafe** (ran the real `poly-decomp` path over the whole
+`manifest.json`, 2026-07-18). This is the payoff: a widespread silent problem
+made visible in one pass. Max over-cap part vert count in parens:
+
+| asset | outline | decomposed parts | over |
+|---|---|---|---|
+| alarm_clock | 35 | [6,4,4,7,3,**21**] | 21 |
+| weather_balloon | 35 | [4,3,4,9,3,4,**20**] | 20 |
+| baseball | 18 | [3,**17**] | 17 |
+| globe_bulb | 28 | [6,8,3,**17**] | 17 |
+| hamburger | 38 | [3,**17**,4,4,8,12] | 17 |
+| orange_fruit | 24 | [3,6,4,**17**] | 17 |
+| red_heat_lamp | 27 | [4,7,4,3,**17**] | 17 |
+| bird | 39 | [3,3,10,4,4,4,4,3,6,**16**] | 16 |
+| bowling_ball | 17 | [3,**16**] | 16 |
+| cat | 19 | [4,3,**16**] | 16 |
+| donut | 17 | [3,**16**] | 16 |
+| large_analog_clock_face | 17 | [3,**16**] | 16 |
+| soccer_ball | 17 | [3,**16**] | 16 |
+| basketball | 20 | [3,6,3,**14**] | 14 |
+| duck | 42 | […,**14**] | 14 |
+| frog | 38 | […,**14**] | 14 |
+| planet | 23 | [6,6,3,**14**] | 14 |
+| pumpkin | 35 | […,**14**] | 14 |
+| porous_asteroid | 14 | [3,**13**] | 13 |
+
+**Pattern — most are ROUND objects encoded as many-sided polygon outlines**
+(baseball, bowling_ball, soccer_ball, donut, basketball, planet, orange_fruit,
+large_analog_clock_face, globe_bulb): a near-circular outline decomposes to one
+big fan-shaped part. For these the correct icon-repo fix is almost certainly a
+**`type: "circle"` collider**, not re-authoring the outline to ≤12-vert parts
+— cheaper, exact, and Planck-safe. The genuinely-irregular ones (bird, cat,
+duck, frog, hamburger, pumpkin, alarm_clock, weather_balloon, red_heat_lamp)
+do need outline re-authoring or a coarser tessellation. This census is the
+cross-repo re-author worklist (aligns with Bill's existing `bowling_ball`
+external TODO). NB: `basketball` here carries a real 20-vert polygon — the
+2026-07-03 "basketball has `collider: null`" note is now STALE (superseded by
+the v2 manifest re-bake 2026-07-16).
+
 ## Pipeline & engine-parity checks (Phase 1/4 prerequisites)
 
 Two things to verify before concave colliders are real beyond a hand-authored
