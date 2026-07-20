@@ -35,6 +35,8 @@ import ExperimentalDataModal, { type ExperimentalDataConfig, type ModalFormState
 import ImportObjectModal, { type ImportCandidate, type ImportControlPreset } from './simulation_components/ImportObjectModal';
 import { registerImportedRenderable, MANIFEST_VIEWBOX } from '../lib/renderableManifest';
 import { expandContainerObjects } from '../lib/containerExpansion';
+import { clearDiagnostics } from '../lib/diagnosticsBus';
+import { dedupeObjectIds } from '../lib/objectIdGuard';
 // Render Layer
 import RenderLayer from './simulation_components/renderables/RenderLayer';
 // Edit overlay + unsaved-changes indicator
@@ -227,14 +229,29 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   // Must precede scaleObjectToSI (which requires width/height/svg). Render-
   // time on purpose — registration must precede ObjectRenderer mount; the
   // module's signature cache makes re-renders and StrictMode no-ops.
-  const expandedObjects = useMemo(
-    () =>
-      expandContainerObjects(objects, {
-        sceneMin: Math.min(SIMULATION_WIDTH, SIMULATION_HEIGHT) / configPixelsPerUnit,
-        hasBottomWall: (environment.walls ?? []).includes('bottom'),
-      }),
-    [objects, configPixelsPerUnit, environment.walls],
-  );
+  const expandedObjects = useMemo(() => {
+    // Re-expansion = a new config generation: clear the seam diagnostics bus
+    // so the debug-panel badge reflects THIS config, not a fixed (or newly
+    // broken) predecessor — first live specimen: baseball swapped to
+    // cannonball via Tweak JSON kept its stale over-cap pill until reload
+    // (2026-07-20). Every load-time producer downstream re-reports: the
+    // container checks run per-call (see containerExpansion), and the CC2
+    // over-cap warn re-fires when the body rebuild re-decomposes colliders
+    // after this render.
+    clearDiagnostics();
+    // Duplicate-id BACKSTOP before expansion: the commit boundaries
+    // (JsonEditor save, CreateSimulation paste) reject duplicate ids
+    // outright, so this only fires for configs that arrive broken from
+    // elsewhere (legacy DB rows, pre-guard saves). Later duplicates are
+    // renamed (first wins, bus-badged — live truth: THIS loaded config
+    // carries duplicates) so such sims render best-effort instead of
+    // white-paging on the adapter's (correct) duplicate-id throw. Derived-
+    // only, like the expansion itself — never written back to editedConfig.
+    return expandContainerObjects(dedupeObjectIds(objects), {
+      sceneMin: Math.min(SIMULATION_WIDTH, SIMULATION_HEIGHT) / configPixelsPerUnit,
+      hasBottomWall: (environment.walls ?? []).includes('bottom'),
+    });
+  }, [objects, configPixelsPerUnit, environment.walls]);
 
   const siObjects = useMemo(
     () => expandedObjects.map((obj) => scaleObjectToSI(obj, unitScale, angleScale)),
@@ -791,6 +808,9 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   const handleSaveTweakedJSON = async (tweakedJSON: any) => {
     if (!canPersist) return;
     try {
+      // Duplicate-id rejection happens upstream in JsonEditor's save
+      // validation (like a parse error) — by the time JSON reaches here its
+      // ids are unique, so no sanitize pass is needed.
       // Manual JSON edits have no natural-language prompt.
       const newSimulationId = await createSimulation(tweakedJSON, false, simulationId ?? null, null);
       updateChangesMade(newSimulationId);

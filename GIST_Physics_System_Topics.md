@@ -354,21 +354,25 @@ initial state). Full spec + build record:
 [Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md) →
 "Collider debug / observation mode" + Findings 2026-07-03.
 
-### 🔵 Seam diagnostics bus + visible badge — SCOPED 2026-07-19, not built
-Load-time authoring warnings (over-cap colliders, container-expansion drops,
-future ingestion-boundary checks) currently reach only the dev console — a
-pull channel. First live miss 2026-07-18: the CC2 >12-vert warn fired
-correctly for `baseball` on Planck but Bill diagnosed the invisible rehulled
-collider by physics-reasoning, not the console. **Decided (Bill 2026-07-19):**
-a `reportDiagnostic()` helper at the gist-owned seams (console.warn + keyed
-module-level session store; keys dedupe StrictMode double-fires) with an
-**amber badge + expandable list on the debug panel**. Dev-gated; three-places
-intentionally untouched (nothing LLM-authorable). One mechanism, many
-producers — also the future UI surface for the parked dup-id warning and
-ingestion-boundary checks (they stay parked; the bus is the surface, not the
-fix). Full scope + alternatives considered:
+### 🟢 Seam diagnostics bus + visible badge — SHIPPED 2026-07-20 (scoped 2026-07-19)
+Built as scoped and drive-confirmed by Bill:
+[src/lib/diagnosticsBus.ts](src/lib/diagnosticsBus.ts) (`reportDiagnostic()` =
+console.warn passthrough + keyed session store, microtask-coalesced notify) +
+amber count pill on the collapsed Debug Mode button and expandable list in
+the panel (dev-gated; three-places untouched — nothing LLM-authorable).
+Producers: CC2 over-cap warn + all container-expansion warn/drop cases.
+**Ratified semantic (Bill 2026-07-20): the bus reports LIVE config-state
+truth, never past events** — the expansion memo clears the store each
+re-expansion and producers re-derive (per-call checks, bus-deduped), so a
+fixed sim drops its badge without a reload and no stale/past-event notice
+survives. The parked **dup-id warning found a different home than predicted**:
+duplicate ids are now REJECTED at the commit boundaries (Tweak-JSON editor +
+paste-to-create, like a parse error), with a runtime rename-and-badge
+backstop for configs that arrive broken (legacy DB / LLM slips).
+Ingestion-boundary checks remain future producers. Ship record + lifecycle
+rule + dup-id resolution:
 [Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md)
-→ Findings 2026-07-19.
+→ Findings 2026-07-20.
 
 ### 🔴 No automated test for setter idempotency / cross-engine parity
 The Rapier mass-setter bug was caught by hand. A small test harness that pumps each public `PhysicsBody` setter twice with the same value and diffs the resulting state across both engines would catch a whole class of regressions. Same for "after restore, every setter returns to a documented baseline."

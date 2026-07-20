@@ -1389,6 +1389,104 @@ Implementation notes recorded now so the future slice starts smart:
 - Three-places: nothing landed — wishlist-stage note only; schema/prompt
   untouched until the slice is scoped.
 
+### 🟢 2026-07-20 — seam diagnostics bus SHIPPED (scoped → shipped in one day) + a ratified semantic: the bus reports LIVE truth, never past events
+
+**Shipped as scoped 2026-07-19, drive-confirmed by Bill same day.** The build:
+
+- **[src/lib/diagnosticsBus.ts](src/lib/diagnosticsBus.ts)** —
+  `reportDiagnostic(key, message, ...consoleArgs)`: unconditional
+  `console.warn` passthrough (pre-bus console behavior preserved; extra args
+  keep error objects inspectable) + a keyed module-level session store (same
+  singleton pattern as `registerImportedRenderable`; keys dedupe StrictMode
+  double-fires). `subscribe`/`getSnapshot` are `useSyncExternalStore`-shaped
+  with a reference-stable cached snapshot; **subscriber notification is
+  microtask-coalesced** because producers (and the clear, below) run during
+  render on purpose — a synchronous notify would setState the panel
+  mid-render of `JsonSimulation`. No React import, no `import.meta` reads —
+  headless-harness safe.
+- **Producers wired:** the CC2 over-cap warn
+  ([shapeHelpers.ts](src/physics/shapeHelpers.ts) `warnOnOverCapParts`, DEV
+  gate unchanged at the callsite) and ALL of the container-expansion seam's
+  warn/drop cases ([containerExpansion.ts](src/lib/containerExpansion.ts)).
+- **UI:** amber count pill on the **collapsed** Debug Mode button (visible
+  without opening anything — the direct fix for the baseball specimen's "the
+  guard worked; the channel failed") + an expandable ⚠ Diagnostics list at
+  the top of the panel ([AdvancedDebugPanel.tsx](src/components/simulation_components/AdvancedDebugPanel.tsx)).
+  Dev-gated; zero prop plumbing (the panel subscribes to the store directly).
+- Three-places: intentionally untouched, per scoping — nothing LLM-authorable.
+
+**The drive immediately found the missing lifecycle rule.** First drive
+(cup-catch, baseball payload): pill fired as designed. But swapping the
+payload to `cannonball` and saving left the **stale baseball pill** in place
+until a hard reload — the session store had no notion of "this config
+changed." Bill's second drive (dup-id, below) then surfaced the inverse: a
+commit-time rename reported to the bus was wiped by navigation before the
+badge could show it.
+
+**RATIFIED (Bill, 2026-07-20): the bus is grounded in LIVE config-state
+truth — it reports what is true of the currently-loaded config and what will
+happen when the sim runs, never past events.** A "sticky" notice about a
+past action (e.g. "your save renamed an id") was explicitly rejected —
+past-event notices bleed across contexts and confuse. Mechanics that
+implement the rule:
+
+- **Clear-on-re-expansion:** `JsonSimulation`'s expansion memo calls
+  `clearDiagnostics()` before every re-expansion (Tweak-JSON apply/save,
+  sim navigation, Import Object). Each config generation re-derives its
+  diagnostic set from scratch.
+- **Producers re-derive:** the container authoring checks moved OUTSIDE the
+  factory's signature cache (per-call, bus-deduped) — a cache hit after a
+  clear must not lose a still-true warning. Side payoff: fixed two latent
+  staleness bugs (`hasBottomWall` was never in the cache signature;
+  same-signature duplicate ids never warned at all). The CC2 warn re-reports
+  naturally: `ObjectRenderer`'s body-build effect deps include `svg`, so a
+  config change rebuilds bodies and re-runs decomposition after the clear.
+- **Consequence for future producers** (FBD analytical-vs-engine delta,
+  ingestion checks): they must be re-derivable from current state, and
+  per-frame producers need their own throttling (the bus dedupes by key; it
+  does not rate-limit console passthrough).
+
+**Dup-id crash RESOLVED same day (retired from parking_lot.md, entry
+2026-07-15).** Symptom: two objects sharing an `id` white-paged the whole
+sim. Cause (recorded at parking): both adapters **correctly throw** on a
+duplicate body id ([RapierAdapter.ts:308](src/physics/rapier/RapierAdapter.ts#L308),
+[PlanckAdapter.ts:236](src/physics/planck/PlanckAdapter.ts#L236)), but the
+second `ObjectRenderer`'s body-build effect throw escaped with no error
+boundary anywhere — the blast radius was the bug, not the refusal. The fix
+**supersedes the parked fix-path-1 preference (auto-rename at the commit
+boundary, Bill 2026-07-15)** — an intermediate auto-rename build worked but
+its rename notice was a *past-event* diagnostic, which the live-truth rule
+forbids; Bill's refinement (2026-07-20): *"I literally can't save invalid
+JSON — catch duplicate ids there too."* Final two-layer architecture
+([src/lib/objectIdGuard.ts](src/lib/objectIdGuard.ts)):
+
+1. **Commit boundaries REJECT** (`findDuplicateObjectIds`): the Tweak-JSON
+   editor ([JsonEditor.tsx](src/components/JsonEditor.tsx)) and the
+   paste-to-create path ([CreateSimulation.tsx](src/components/CreateSimulation.tsx))
+   block the save exactly like a parse error — duplicate ids can no longer
+   be persisted from either human path. Drive-confirmed by Bill.
+2. **Runtime seam RENAMES as backstop** (`dedupeObjectIds`, in the expansion
+   memo ahead of container expansion): configs that arrive broken from
+   elsewhere (legacy DB rows, LLM output — the schema `.describe()` on `id`
+   already demands uniqueness, but nothing enforces it in generation) render
+   best-effort with later duplicates renamed `<id>-N` (first-wins keeps
+   control/output/graph bindings on the first object) plus a bus diagnostic —
+   which IS live truth: *this loaded config carries duplicates*. Derived-only,
+   never written back to `editedConfig`.
+
+Parked fix 2 (error boundary around the sim canvas — catches the whole class
+of renderer throws) stays parked as its own residual entry; fix 3 folds into
+the runtime-ingestion-boundary item as before.
+
+**Incidental gotcha worth remembering** (found by Bill tinkering with badge
+colors): [src/index.css](src/index.css) has a base-layer `button` rule
+(`bg-primary text-white`, `hover:bg-primary-dark`) that bleeds through any
+button that doesn't set its own background — and `button:hover` (specificity
+0-1-1) beats a plain `bg-*` utility (0-1-0) on hover. The codebase idiom is
+therefore to ALWAYS pair an explicit `bg-*` with a `hover:bg-*` on every
+button; the diagnostics toggle was the one button in the debug panel that
+broke the idiom.
+
 ## Pipeline & engine-parity checks (Phase 1/4 prerequisites)
 
 Two things to verify before concave colliders are real beyond a hand-authored

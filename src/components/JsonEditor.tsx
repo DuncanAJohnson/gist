@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { findDuplicateObjectIds } from '../lib/objectIdGuard';
 
 interface JsonEditorProps {
   initialJSON: any;
@@ -18,6 +19,19 @@ function JsonEditor({ initialJSON, onSave, onClose }: JsonEditorProps) {
       // Validate it has required fields
       if (!parsed.title || !parsed.objects) {
         setError('Invalid JSON: Missing required fields (title, objects)');
+        return;
+      }
+      // Duplicate object ids are unrenderable (the physics adapter refuses
+      // duplicate body ids) — reject at the commit boundary, exactly like a
+      // parse error, so invalid JSON can't be persisted.
+      const dupIds = Array.isArray(parsed.objects)
+        ? findDuplicateObjectIds(parsed.objects)
+        : [];
+      if (dupIds.length > 0) {
+        setError(
+          `Invalid JSON: duplicate object id(s) ${dupIds.map((d) => `"${d}"`).join(', ')} — ` +
+            'object ids must be unique (controls/outputs/graphs target objects by id).',
+        );
         return;
       }
       setError(null);

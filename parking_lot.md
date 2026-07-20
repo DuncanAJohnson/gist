@@ -342,51 +342,32 @@ document first, instrument when the fix pass opens.
 
 ---
 
-## Duplicate object ids crash the page (2026-07-15)
+## No error boundary around the sim canvas (2026-07-15, residual of the dup-id entry — retired 2026-07-20)
 
-**Symptom.** Editing a sim's JSON (Tweak JSON) so two objects share an `id`
-kills the whole page. The console names the cause (duplicate body id), but
-the user gets a dead white screen instead of a rejected edit. Surfaced by
-Bill during the concave-colliders ship-gate drive.
+**What it is.** Fix path 2 of the "Duplicate object ids crash the page"
+entry (2026-07-15), which was otherwise **RESOLVED 2026-07-20** and retired
+into [Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md)
+→ Findings 2026-07-20 (two-layer fix: commit boundaries reject duplicate
+ids like a parse error; the runtime seam renames as a bus-badged backstop —
+the reject-at-commit choice supersedes the auto-rename preference recorded
+here at parking time; rationale in the findings entry).
 
-**Cause.** Both adapters correctly refuse duplicate body ids with a `throw`
-([RapierAdapter.ts:308](src/physics/rapier/RapierAdapter.ts#L308),
-[PlanckAdapter.ts:236](src/physics/planck/PlanckAdapter.ts#L236)) — but
-nothing above the adapter catches it. The committed config
-(`handleSaveTweakedJSON` → `editedConfig`,
-[JsonSimulation.tsx:772](src/components/JsonSimulation.tsx#L772)) mounts one
-`ObjectRenderer` per object; the second body-build effect throws, and an
-uncaught effect throw unmounts the React tree — no error boundary anywhere.
-(Duplicate ids would also collide as React `key`s and in `objRefs`, so the
-config is genuinely unrenderable — the bug is the *blast radius*, not the
-refusal.)
+**Symptom class.** Any uncaught throw from an adapter or renderer effect
+(the dup-id adapter throw was the live specimen) unmounts the whole React
+tree — dead white page instead of a degraded sim. No error boundary exists
+anywhere in the app.
 
-**Why parked.** Editor-robustness, not physics; surfaced mid-ship-gate and
-doesn't gate it. Small enough to pick up as a standalone fix.
+**Why parked.** The live specimen is now guarded at its seams, so nothing
+currently reproduces it; the boundary is broad-payoff robustness (catches
+the *class*, not an instance) with no driving exhibit. Pick up alongside
+editor-robustness work or the next unexplained white page.
 
-**Suggested fix paths**, ranked (1+2 compose; Bill's preference is the
-auto-rename in 1):
+**Suggested fix.** An error boundary around the sim canvas (roughly
+`BaseSimulation`'s children) degrading to an inline error card naming the
+thrown error; pairs naturally with the seam diagnostics bus for visibility.
 
-1. **Validate at the commit boundary.** In `handleSaveTweakedJSON` (and the
-   Import Object path), check id uniqueness before committing. On collision,
-   auto-rename the *second* occurrence (`payload` → `payload-2`) and surface
-   a visible warning. Renaming the second keeps property bindings
-   (controls/outputs/graphs target objects by id) resolving to the first —
-   matches "first wins" intuition; a silent rename with no warning would be
-   worse than rejecting, since bindings meant for the renamed object now
-   point elsewhere. *The "visible warning" surface now has a decided home:
-   the seam diagnostics bus + debug-panel badge (SCOPED 2026-07-19 —
-   GIST_Physics_System_Topics.md + concave note Findings 2026-07-19).*
-2. **Error boundary around the sim canvas.** Any adapter/renderer throw
-   degrades to an inline error card instead of a dead page. Broader payoff:
-   catches the whole class, not just this instance.
-3. **Ingestion-boundary tie-in.** Id uniqueness is a natural Zod
-   `superRefine` — but nothing runtime-parses (see the "runtime ingestion
-   boundary" item above); this is another exhibit for it. When that boundary
-   lands, this check moves there and fix 1 becomes its warning surface.
-
-**Diagnostic.** None needed — deterministic repro (any sim, Tweak JSON,
-duplicate an object's `id`).
+**Diagnostic.** None needed — any forced throw inside a body-build effect
+reproduces the class.
 
 ---
 

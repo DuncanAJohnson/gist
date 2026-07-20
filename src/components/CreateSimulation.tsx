@@ -8,6 +8,7 @@ import {
   type AiProviderKind,
 } from '../config/aiProviders';
 import { useLanguage } from '../contexts/LanguageContext';
+import { findDuplicateObjectIds } from '../lib/objectIdGuard';
 
 interface CreateSimulationProps {
   isOpen: boolean;
@@ -118,6 +119,21 @@ function CreateSimulation({
       // Validate it has required fields for a simulation
       if (!parsed.title || !parsed.objects) {
         setJsonError(t('create.jsonMissingFields'));
+        return;
+      }
+
+      // Duplicate object ids are unrenderable (adapters refuse duplicate body
+      // ids) — same commit-boundary rejection as the Tweak-JSON editor.
+      // Plain-English on purpose: JsonEditor's sibling message isn't
+      // localized either; localize both together if that changes.
+      const dupIds = Array.isArray(parsed.objects)
+        ? findDuplicateObjectIds(parsed.objects)
+        : [];
+      if (dupIds.length > 0) {
+        setJsonError(
+          `Duplicate object id(s) ${dupIds.map((d) => `"${d}"`).join(', ')} — ` +
+            'object ids must be unique.',
+        );
         return;
       }
 

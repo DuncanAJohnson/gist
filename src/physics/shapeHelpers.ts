@@ -4,6 +4,7 @@ import {
   MANIFEST_VIEWBOX,
   type ManifestCollider,
 } from '../lib/renderableManifest';
+import { reportDiagnostic } from '../lib/diagnosticsBus';
 
 /**
  * Planck's `Settings.maxPolygonVertices`. A convex part above this is SILENTLY
@@ -21,7 +22,9 @@ export const PLANCK_MAX_POLYGON_VERTS = 12;
  * decomposition we know every part's real vertex count — the only place we do,
  * since a concave outline's own count does NOT predict its parts' counts. Warn
  * (dev only) on any part over the cap so the silent break becomes loud at
- * body-build time, complementing the visual overlay. Engine-agnostic on
+ * body-build time — via the seam diagnostics bus (console.warn + debug-panel
+ * badge; the console-only channel was missed in the live baseball-on-Planck
+ * specimen, 2026-07-19), complementing the visual overlay. Engine-agnostic on
  * purpose: it flags collider *content* that isn't Planck-portable, whatever
  * engine happens to be running now.
  */
@@ -40,7 +43,10 @@ function warnOnOverCapParts(
 
   const who = label ? `"${label}" ` : '';
   const detail = over.map((p) => `part ${p.i} → ${p.n} verts`).join(', ');
-  console.warn(
+  // Diagnostics bus: keyed so repeat decompositions of the same collider
+  // (re-renders, StrictMode) surface as one badge entry, not a growing list.
+  reportDiagnostic(
+    `collider-overcap:${label ?? 'unlabeled'}:${outlineVerts}:${detail}`,
     `decomposePolygonShape: collider ${who}(${outlineVerts}-vertex outline) ` +
       `decomposed to ${parts.length} part(s); ${detail} — over Planck's ` +
       `${PLANCK_MAX_POLYGON_VERTS}-vertex cap. Planck will SILENTLY truncate ` +

@@ -24,6 +24,7 @@
 
 import type { ObjectConfig, ExpandedObjectConfig } from '../schemas/simulation';
 import { makeOpenContainer, type OpenContainer } from './openContainer';
+import { reportDiagnostic } from './diagnosticsBus';
 
 export interface ExpansionEnv {
   /** Smaller scene dimension in configured units (wall-thickness clamp floor). */
@@ -35,8 +36,9 @@ export interface ExpansionEnv {
 /**
  * Per-container-id cache of the last factory result, keyed by a full input
  * signature. A signature hit skips makeOpenContainer entirely (no
- * re-registration, no new blob URL). One-time warnings are emitted on cache
- * miss only, so they don't spam every render.
+ * re-registration, no new blob URL). Authoring warnings live OUTSIDE the
+ * cache (evaluated every call, deduped by the diagnostics bus) so they track
+ * the current config after the expansion memo clears the bus.
  */
 const cache = new Map<string, { sig: string; result: OpenContainer }>();
 
@@ -72,7 +74,8 @@ export function expandContainerObjects(
   for (const obj of objects) {
     if (!obj.container) {
       if (!isCompleteObject(obj)) {
-        console.warn(
+        reportDiagnostic(
+          `container-drop-incomplete:${obj.id}`,
           `expandContainerObjects: object "${obj.id}" has no \`container\` and is missing ` +
             `width/height/svg — dropped (it would build a NaN-sized body).`,
         );
@@ -83,6 +86,36 @@ export function expandContainerObjects(
     }
 
     const c = obj.container;
+
+    // Authoring checks run on EVERY call, outside the factory cache: the
+    // expansion memo clears the diagnostics bus before each re-expansion, so
+    // warnings must re-derive from current params or a fixed sim would keep
+    // wearing a stale badge (and vice versa — e.g. hasBottomWall isn't in the
+    // cache signature). The bus's keyed dedupe keeps repeat calls one entry.
+    if ((c.mode ?? 'grounded') === 'grounded' && !env.hasBottomWall) {
+      reportDiagnostic(
+        `container-grounded-no-bottom:${obj.id}`,
+        `expandContainerObjects: container "${obj.id}" is grounded but environment.walls ` +
+          `has no 'bottom' — it will seat at y=0 over empty space and fall.`,
+      );
+    }
+    if (obj.width !== undefined || obj.height !== undefined || obj.svg !== undefined) {
+      reportDiagnostic(
+        `container-derived-wins:${obj.id}`,
+        `expandContainerObjects: container "${obj.id}" also authors width/height/svg — ` +
+          `derived values win; the authored ones are ignored.`,
+      );
+    }
+    if (seenIds.has(obj.id)) {
+      // Outside the cache also for correctness: duplicate ids share one cache
+      // slot, so the old cache-miss-only check missed same-signature dups.
+      reportDiagnostic(
+        `container-dup-id:${obj.id}`,
+        `expandContainerObjects: duplicate container id "${obj.id}" — the later ` +
+          `registration wins the renderable name (duplicate object ids are invalid sim-wide).`,
+      );
+    }
+
     const sig = JSON.stringify([
       obj.id, c.innerWidth, c.wallHeight, c.wallThickness, c.floorThickness,
       c.walls, c.mode, c.fill, c.stroke,
@@ -93,26 +126,6 @@ export function expandContainerObjects(
     if (cached && cached.sig === sig) {
       result = cached.result;
     } else {
-      // Cache miss — the one-time home for authoring warnings.
-      const grounded = (c.mode ?? 'grounded') === 'grounded';
-      if (grounded && !env.hasBottomWall) {
-        console.warn(
-          `expandContainerObjects: container "${obj.id}" is grounded but environment.walls ` +
-            `has no 'bottom' — it will seat at y=0 over empty space and fall.`,
-        );
-      }
-      if (obj.width !== undefined || obj.height !== undefined || obj.svg !== undefined) {
-        console.warn(
-          `expandContainerObjects: container "${obj.id}" also authors width/height/svg — ` +
-            `derived values win; the authored ones are ignored.`,
-        );
-      }
-      if (seenIds.has(obj.id)) {
-        console.warn(
-          `expandContainerObjects: duplicate container id "${obj.id}" — the later ` +
-            `registration wins the renderable name (duplicate object ids are invalid sim-wide).`,
-        );
-      }
       try {
         result = makeOpenContainer({
           id: obj.id,
@@ -126,8 +139,12 @@ export function expandContainerObjects(
           ...c,
         });
       } catch (err) {
-        console.warn(
-          `expandContainerObjects: container "${obj.id}" failed to synthesize — dropped. `,
+        // String(err) inline so the badge entry carries the reason; the raw
+        // error object still rides along to the console for stack inspection.
+        reportDiagnostic(
+          `container-synthesize-failed:${obj.id}`,
+          `expandContainerObjects: container "${obj.id}" failed to synthesize — dropped ` +
+            `(${String(err)}).`,
           err,
         );
         continue;

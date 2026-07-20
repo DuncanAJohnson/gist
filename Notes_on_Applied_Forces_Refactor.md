@@ -341,3 +341,216 @@ behavior is the documented reality, deliberately not landed. Force kinds
 (px per N) need their own think: Newtons don't rescale with the length unit,
 so "diorama-anchored" for force arrows isn't a simple ÷`unitScale` — resolve
 when Phase 3 force arrows land.
+
+---
+
+## Goal 1 — Free-Body Diagrams workstream (opened 2026-07-19)
+
+Bill is re-opening force-vector work with two goals, FBD first:
+
+1. **High-quality free-body diagrams during simulations** — break out separate
+   force arrows for **air resistance, friction, normal force, and gravity**
+   (plus applied + net as they land). This is the entry point.
+2. **High-quality applied-force sims in 1D** — start small, on top of the
+   applied-force pipeline this note already specs (Phase 1–3 above).
+
+A **seam diagnostics bus** (scoped 2026-07-19, `Notes_on_Concave_Colliders_Refactor.md`;
+`GIST_Physics_System_Topics.md:357`) is a named prerequisite Bill flagged for the
+"extensive testing" both goals need — see the plan below.
+
+This workstream inherits the shared `VectorArrow` renderable and the 7-kind
+`vectorTheme.ts` vocabulary that the vector-representation refactor transferred
+here at its 2026-07-04 close-out.
+
+### Current-state R/Y/G readiness (audited 2026-07-19)
+
+The fault line is clean: the **vocabulary + render machinery are built**, two of
+the four FBD forces are **data-ready today**, and **normal + friction have no
+data source at all**.
+
+| System | Light | State (cite) |
+|---|---|---|
+| Vector-arrow render pipeline (geometry/scale/label/plumbing) | 🟢 | Built; proven by velocity/accel/net end-to-end. `VectorArrow.ts`, `synthesize.ts:150`. |
+| Kind vocabulary / theme | 🟢 | All 7 kinds incl. `force-gravity/friction/drag` (`vectorTheme.ts:15-23`). **Gap: no `normal` kind** — ~4-line add across the `Record` maps. |
+| `force-net` arrow | 🟢 | Live: `m·derivedAcceleration` (`VectorArrow.ts:53-56`). |
+| Gravity arrow | 🟢 | Data on hand — `m·g`; `g` already threaded to renderers via `DrawContext.gravity` (`renderables/types.ts:169-170`, `RenderLayer.tsx:136`). Only the draw path + double-count policy needed. |
+| Drag / air-resistance arrow | 🟢 | *Already vectorized* every frame: `userData.dragForce = −k·|v|·v` (`JsonSimulation.tsx:666`). Renderer early-returns before reading it (`VectorArrow.ts:57-60`) — a ~3-line un-stub. Only populated in quadratic air mode. |
+| "Show force vectors" debug toggle | 🟢 | Debug panel extensible; follows the shipped air-resistance-toggle pattern. |
+| FBD closure semantics (components sum to net?) | 🟡 | **Design gate.** `force-net` is *measured* (`m·a`); components would be *analytical* or *engine-read*. They must visibly close onto net or the FBD teaches the wrong thing. Gravity is deliberately excluded from net today to avoid double-count (`VectorArrow.ts:23-29`). |
+| Force-arrow legibility / scale | 🟡 | Force scales are SI-anchored px-per-N (2 px/N) with a 14 px min-length floor. A 1.5 N friction = 3 px → *suppressed*. Needs per-diorama auto-scale (ties to the 2026-07-07 SI-anchored-scale finding above). |
+| Schema + prompt (three-places) | 🟡 | `showVectors` already accepts the force kinds; `normal` kind + prompt + docs are the three-places move. Deferrable (debug-first pattern). |
+| Diagnostic bus (testing substrate) | 🟡 | Not built, but fully scoped + shovel-ready (`reportDiagnostic()` singleton + amber dev-gated badge). Producers exist as scattered `console.warn`. |
+| **Normal force data** | 🔴 | **No source.** No contact-impulse read in either adapter. |
+| **Friction force data** | 🔴 | **No source.** `BodyDef.friction` is a create-time scalar, never read back; analytically blocked on N. |
+| **Contact / grounded-state substrate** | 🔴 | **The crux gate.** Neither adapter surfaces contacts as forces — only friction-*combine* hooks (`PlanckAdapter.ts:211-214`). No `applyImpulse`/`setFriction` either. |
+
+Decision (Bill, 2026-07-19): pursue **engine contact forces (Path B)** for the
+red gate, with expansive brainstorming — external research on game engines + how
+top-tier education systems (PhET etc.) do FBDs. Both captured below.
+
+### Engine contact-force readback — grounded API surface (Path B)
+
+Verified against the exact in-repo versions: `@dimforge/rapier2d-compat@0.19.x`
+and `planck@1.4.x`. Both step loops are minimal insertion points
+(`RapierAdapter.ts:392`, `PlanckAdapter.ts:325`).
+
+**Rapier 0.19 — read contact pairs directly (no event queue).** After
+`world.step()`, walk the collider's live manifolds:
+- `world.contactPairsWith(collider, other => …)` then
+  `world.contactPair(a, b, (m: TempContactManifold, flipped) => …)`.
+- Per point `i`: `m.contactImpulse(i)` = **normal** impulse (≥0),
+  `m.contactTangentImpulse(i)` = **friction** impulse (signed, single tangent in
+  2D — NOT the `X`/`Y` 3D variants). `m.normal()` is world-space, collider1→collider2;
+  `flipped` orients it onto your body.
+- **`force = impulse / world.timestep`** (accumulated over the whole step across
+  solver iterations — divide by the full `dt`, NOT a sub-iteration/CCD count).
+- `TempContactManifold` is a transient view — copy numbers out inside the
+  callback; use `target?` out-params to cut wasm-boundary GC. Watch sleeping
+  bodies (`body.isSleeping()` flattens impulses). Reserve
+  `EventQueue.drainContactForceEvents` (threshold-gated, `totalForce`/`maxForce*`,
+  no normal/tangent split) for **collision-spike detection** only.
+
+**Planck 1.4 — `post-solve` callback.** Register once in the adapter constructor
+(alongside the existing `begin-contact` friction hook, `PlanckAdapter.ts:211`):
+- `world.on('post-solve', (contact, impulse: ContactImpulse) => …)`.
+- `impulse.normalImpulses` / `impulse.tangentImpulses` — `number[]` per contact
+  point (allocates per call; read once). Sum across points.
+- `contact.getWorldManifold(wm)` → `wm.normal` (unit, A→B); tangent =
+  `(n.y, −n.x)`. **`force = impulse / dt`.** Fires **mid-step, per contact,
+  possibly multiple per body** → buffer into a per-body map, clear before
+  `world.step()`, read after. Sign via Newton's 3rd law (force on B = `+n·nSum/dt`,
+  on A = `−`); attribute only to dynamic bodies. Coexists cleanly with the
+  `begin-contact` Max-combine hook (different event; the Max override actually
+  makes reported tangent impulses match GIST's Rapier-parity friction).
+
+**Adapter seam.** Expose a normalized `{ normalForce: Vec2, frictionForce: Vec2 }`
+per body per frame so the FBD renderer stays engine-agnostic (invariant #4).
+Rapier gives impulses via manifolds (divide by dt); Planck gives impulses via
+post-solve (divide by dt) — the seam hides both.
+
+### The pedagogy tension — analytical display vs engine readback
+
+External research (PhET, myPhysicsLab, Physics Classroom, oPhysics, Algodoo,
+Physion + PER on FBDs) surfaced a finding that **complicates the Path-B choice
+and must be recorded**:
+
+- **The best FBD *pedagogy* is overwhelmingly analytical-display.** PhET runs
+  **no general rigid-body engine** — each sim is a hand-authored closed-form
+  Newton's-law model (per-sim `doc/model.md`; Scenery is draw-only). Friction has
+  an explicit static/kinetic branch; net = clean signed sum. Physics Classroom,
+  oPhysics, Physlets: same analytical camp. They are the quality bar we target.
+- **Engine-readback tools trade FBD cleanliness for sandbox generality.**
+  myPhysicsLab draws its solver's *actual* forces (`SHOW_FORCES`) — but gets
+  clean contact arrows only because it solves a proper **LCP** for static contact
+  forces, not impulses. Algodoo/Physion/Interactive Physics read engine forces
+  and inherit the jitter.
+- **Why impulse-engine readback fights the FBD promise.** Impulse solvers
+  (Rapier, Box2D/Planck) produce contact normal/friction values that **jitter
+  frame-to-frame** at resting contacts and are recovered as `J/dt` — so component
+  arrows **shimmer** and **do not cleanly sum to a stable net**. The core FBD
+  teaching promise ("component arrows close head-to-tail onto the net; equilibrium
+  = exact cancellation") is exactly what impulse readback cannot guarantee without
+  heavy smoothing.
+
+**Synthesis / recommended architecture (reframes Path B, does not discard it).**
+Both representations have a home, and building the engine path *first* serves the
+testing goal:
+
+1. **Analytical display model = the clean student FBD** (default). Gravity `m·g`,
+   normal (balancing component on the known surface / `m·g·cosθ` on an incline),
+   friction `µN` with a static/kinetic branch, drag from the *same* quadratic
+   formula already on `userData.dragForce`, applied from the (coming) applied-force
+   field, net = exact vector sum. Stable, closes by construction, full control of
+   labels/scaling/decomposition. Lives above the adapter (invariants #4/#5) — the
+   same altitude as the collider-observation overlay vs. taught representation
+   split we already run.
+2. **Engine contact-force readback = the ground-truth instrument** (Path B). Its
+   natural roles: (a) an opt-in **"engine-actual forces" debug overlay** (raw/
+   noisy, clearly labeled — mirrors `?colliders=1`), and (b) the **validator** the
+   diagnostic bus checks the analytical model against (analytical N vs engine N
+   should agree within tolerance on flat ground; a divergence is a bus diagnostic).
+   This is precisely the "extensive testing" substrate Bill flagged.
+
+The reframe: Path B is still built — it's the correct engine-truth/verification
+layer and the thing that makes the analytical model *trustworthy* — but the
+representation students see is analytical, matching the PhET-quality bar.
+
+**This is the one open decision that changes the build** (Bill's call): is the
+primary FBD representation **(A) analytical-display** (research recommendation) or
+**(B) engine-readback-primary** (his initial pick)? The plan below is written for
+the hybrid; the sequencing is nearly identical either way (engine readback is
+built early regardless), so this can be resolved after step 2.
+
+> **DISPOSITION (Bill, 2026-07-19): DEFERRED — decide after a spike.** Build the
+> diagnostic bus + engine contact-force seam first (steps 1 + 3), drive a real
+> sim with both representations, and judge jitter/closure empirically before
+> committing the student-facing path. The spike is the decision trigger. This
+> workstream is at **analysis-recorded** stage — R/Y/G audited, both engine APIs
+> grounded, education research done, plan sequenced; **no build started this
+> session** (Bill: "just the analysis for now").
+
+### Other design gates (from the research)
+
+- **Center-of-mass origin** for all arrows by default (makes the sum honest);
+  contact-point placement is an advanced/torque mode.
+- **Capped-linear scale + minimum-visible floor**, the *identical* scale on every
+  arrow incl. net (or the sum won't visually close); consider per-scene
+  auto-normalize to the largest force present. **Length-only** magnitude encoding
+  (constant arrowhead/shaft width — area distorts perception).
+- **Layered independent toggles** (PhET model): Show Forces / Values (numeric N) /
+  Sum-of-Forces / Components (incline decomposition).
+- **Incline**: normal ⟂ surface (not vertical); gravity decomposition into
+  ramp-parallel/perpendicular as a *toggle* (PER: decomposition is a major novice
+  error source — opt-in, axes rotated to the surface).
+- **Static/kinetic**: pre-breakaway, friction drawn exactly equal-and-opposite so
+  equilibrium reads as visible cancellation; kinetic magnitude + net arrow appear
+  at breakaway. (Dovetails with the `frictionDemo` Phase 2.5 mode above.)
+- Add a **`normal` kind** to `vectorTheme.ts` (currently absent).
+
+### Sequenced plan
+
+1. **Build the diagnostic bus first** (🟡→🟢). Shovel-ready, producers already
+   exist, and it's the instrument both goals are tested with. Low-risk warm-up.
+2. **Un-stub gravity + drag arrows + a "Show force vectors" toggle** (🟢).
+   Immediate visible FBD progress; exercises the render path; forces the
+   legibility-scale and net-closure decisions into the open on real sims.
+3. **Build the engine contact-force adapter seam** (Path B) — Rapier manifold
+   reads + Planck post-solve → normalized `{normalForce, frictionForce}` per body.
+   Wire it as the engine-actual overlay AND feed the bus validator.
+4. **Resolve the primary-representation decision** (analytical-display vs
+   engine-primary) with steps 2–3 in hand.
+5. **Land the analytical normal + friction** (with the `normal` kind), validated
+   against step 3's engine truth. Incline decomposition + static/kinetic as
+   follow-on toggles.
+6. **Three-places** for FBD authoring (schema `normal` kind + prompt + docs) once
+   the debug-first phase proves out.
+
+### Sources (Goal-1 research, 2026-07-19)
+
+- Rapier: [rapier.js narrow_phase.ts](https://raw.githubusercontent.com/dimforge/rapier.js/master/src.ts/geometry/narrow_phase.ts) · [event_queue.ts](https://raw.githubusercontent.com/dimforge/rapier.js/master/src.ts/pipeline/event_queue.ts) · [Advanced collision detection (JS)](https://rapier.rs/docs/user_guides/javascript/advanced_collision_detection_js/)
+- Planck/Box2D: [planck Solver.ts (ContactImpulse)](https://github.com/piqnt/planck.js/blob/master/src/dynamics/Solver.ts) · [Contact.ts](https://github.com/piqnt/planck.js/blob/master/src/dynamics/Contact.ts) · [iforce2d: impulse = force×dt](https://www.iforce2d.net/b2dtut/forces) · [Box2D jitter docs](https://box2d.org/documentation/md_simulation.html)
+- Education: [PhET Forces and Motion: Basics](https://phet.colorado.edu/en/simulations/forces-and-motion-basics) · [phetsims repo](https://github.com/phetsims/forces-and-motion-basics) · [myPhysicsLab RigidBodySim SHOW_FORCES](https://www.myphysicslab.com/develop/docs/classes/lab_engine2D_RigidBodySim.RigidBodySim.html) · [myPhysicsLab contact forces (LCP)](https://www.myphysicslab.com/engine2D/contact-en.html) · [Physics Classroom FBD Interactive](https://www.physicsclassroom.com/Physics-Interactives/Newtons-Laws/Free-Body-Diagrams)
+- PER: [Vector-representation difficulties](https://www.researchgate.net/publication/329882720) · [Why not to decompose forces](https://www.researchgate.net/publication/290476611) · [OpenStax 5.7 Drawing FBDs](https://courses.lumenlearning.com/suny-osuniversityphysics/chapter/5-7-drawing-free-body-diagrams/)
+
+### Findings 2026-07-20 — sequenced-plan step 1 DONE: diagnostic bus shipped
+
+Step 1 of the plan above (build the diagnostic bus, 🟡→🟢) shipped and was
+drive-confirmed the next day — full ship record in
+[Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md)
+→ Findings 2026-07-20 (`src/lib/diagnosticsBus.ts`; `reportDiagnostic()` =
+console.warn passthrough + keyed session store; amber badge on the debug
+panel; two initial producers wired).
+
+**Constraint the ship added for THIS workstream's future producer** (the
+step-3 analytical-vs-engine force validator): the bus's ratified semantic is
+**live config-state truth, never past events** — the store is cleared on
+every config re-expansion and producers must re-derive from current state.
+The force-delta validator fits (a divergence IS live state while the sim
+runs), but it will fire per-frame: the bus dedupes by key and coalesces
+notifications, yet the console.warn passthrough is NOT rate-limited — the
+validator needs its own thresholding/throttling (e.g. report once per
+body+run via key design, or gate on tolerance-exceeded transitions), decided
+when step 3 builds.
+
+Next up per the plan: step 2 — un-stub gravity + drag arrows + a "Show force
+vectors" debug toggle.
