@@ -16,11 +16,15 @@
  * truncation cap by construction). See
  * Notes_on_Concave_Colliders_Refactor.md, Findings 2026-07-10.
  *
- * Deliberately NOT LLM-authorable: the schema/prompt landing is deferred
- * (Phase 4, three-places rule). Consumers are hand-authored local sims via
- * the asLocalSimConfig static path. Because registration is session-only, a
- * SAVED sim referencing a factory container falls back to a rectangle
- * collider on reload — same caveat as the Import Object debug tool.
+ * Two consumers since Phase 4 landed (2026-07-18, three places moved
+ * together): (1) hand-authored local TSX sims calling this factory directly
+ * (WagonStop, BoxCatch), and (2) the JSON `container` field on ObjectConfig,
+ * expanded at the ingestion seam by src/lib/containerExpansion.ts — the path
+ * LLM-generated and DB-saved sims ride. For JSON-authored containers the old
+ * session-only reload caveat is gone: the saved JSON carries the params and
+ * every load re-expands. (A TSX sim passing `cup.object` into a SAVED sim
+ * still hits the caveat — the JSON then carries the derived svg name, whose
+ * registration dies with the session.)
  *
  * Unlike hand-authored sprites, the collider spans the FULL viewBox, so the
  * object's width/height box IS the physical extent — seating needs no

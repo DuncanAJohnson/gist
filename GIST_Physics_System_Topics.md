@@ -343,12 +343,32 @@ vertex-count label, **red above this Planck build's silent truncate+hull cap of 
 `debugParts` mode + `synthesizeColliderDebugRenderable`. **Deferred:** the optional
 engine-actual-fixture overlay (Planck `fixture.getShape().m_vertices` / Rapier collider
 verts) that would expose truncation/hull discrepancies — the intended-vs-engine diff.
+Its **first live justification** landed 2026-07-18 (baseball on Planck: rehulled
+collider bulged past the drawn sprite, invisible to this overlay's intended-parts
+view) — deferral **re-affirmed 2026-07-19** (Bill: upstream census cleanup should
+make the specimen class rare; revisit if over-cap colliders keep reaching drives).
 **Framed as an observation instrument** — gather data on real objects first, defer
 threshold/heuristic decisions. Confirmed by Bill 2026-07-03; same day it also became
 a debug-panel **"Show colliders" checkbox** (live toggle; `?colliders=1` now sets the
 initial state). Full spec + build record:
 [Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md) →
 "Collider debug / observation mode" + Findings 2026-07-03.
+
+### 🔵 Seam diagnostics bus + visible badge — SCOPED 2026-07-19, not built
+Load-time authoring warnings (over-cap colliders, container-expansion drops,
+future ingestion-boundary checks) currently reach only the dev console — a
+pull channel. First live miss 2026-07-18: the CC2 >12-vert warn fired
+correctly for `baseball` on Planck but Bill diagnosed the invisible rehulled
+collider by physics-reasoning, not the console. **Decided (Bill 2026-07-19):**
+a `reportDiagnostic()` helper at the gist-owned seams (console.warn + keyed
+module-level session store; keys dedupe StrictMode double-fires) with an
+**amber badge + expandable list on the debug panel**. Dev-gated; three-places
+intentionally untouched (nothing LLM-authorable). One mechanism, many
+producers — also the future UI surface for the parked dup-id warning and
+ingestion-boundary checks (they stay parked; the bus is the surface, not the
+fix). Full scope + alternatives considered:
+[Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md)
+→ Findings 2026-07-19.
 
 ### 🔴 No automated test for setter idempotency / cross-engine parity
 The Rapier mass-setter bug was caught by hand. A small test harness that pumps each public `PhysicsBody` setter twice with the same value and diffs the resulting state across both engines would catch a whole class of regressions. Same for "after restore, every setter returns to a documented baseline."

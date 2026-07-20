@@ -1,5 +1,5 @@
 import { SIMULATION_WIDTH, SIMULATION_HEIGHT, WALL_THICKNESS } from '../../BaseSimulation';
-import type { ObjectConfig } from '../objects/types';
+import type { ExpandedObjectConfig } from '../objects/types';
 import type { ExperimentalDataConfig } from '../ExperimentalDataModal';
 import type { PixelRenderable, DataPositionResolver } from './types';
 import { interpolate } from './positionSources';
@@ -74,7 +74,7 @@ export function synthesizeWallRenderables(
  * physics object gets one — the `svg` field on ObjectConfig is the single
  * source of truth for both collider and visual.
  */
-export function synthesizeBodyRenderable(obj: ObjectConfig): PixelRenderable {
+export function synthesizeBodyRenderable(obj: ExpandedObjectConfig): PixelRenderable {
   return {
     id: `__default_${obj.id}`,
     source: { type: 'body', bodyId: obj.id, followAngle: true },
@@ -91,7 +91,7 @@ export function synthesizeBodyRenderable(obj: ObjectConfig): PixelRenderable {
  * directly. The BodyOutline drawer handles per-part palette colors and the
  * vertex-count readout (red above Planck's silent 12-vertex truncation cap).
  */
-export function synthesizeColliderDebugRenderable(obj: ObjectConfig): PixelRenderable {
+export function synthesizeColliderDebugRenderable(obj: ExpandedObjectConfig): PixelRenderable {
   return {
     id: `__collider_${obj.id}`,
     source: { type: 'body', bodyId: obj.id, followAngle: true },
@@ -147,7 +147,7 @@ export function synthesizeGridRenderable(
  * arrows of the same kind on one body (rare but valid — e.g. two F_app pulls
  * at different anchors) don't collide.
  */
-export function synthesizeVectorArrowRenderables(obj: ObjectConfig): PixelRenderable[] {
+export function synthesizeVectorArrowRenderables(obj: ExpandedObjectConfig): PixelRenderable[] {
   // Back-compat for sims loaded outside the Zod parse path (Supabase JSON,
   // raw paste). The schema's `z.preprocess` shim translates legacy
   // `showForceArrows: true` → `showVectors: ["force-net"]`, but only when the
@@ -155,7 +155,7 @@ export function synthesizeVectorArrowRenderables(obj: ObjectConfig): PixelRender
   // from Supabase by `DynamicSimulation` skip that step, so we honor the
   // legacy field here as a runtime fallback. New authoring should use
   // `showVectors` directly.
-  const legacy = (obj as ObjectConfig & { showForceArrows?: boolean }).showForceArrows;
+  const legacy = (obj as ExpandedObjectConfig & { showForceArrows?: boolean }).showForceArrows;
   const showVectors = obj.showVectors ?? (legacy === true ? ['force-net' as const] : undefined);
   if (!showVectors || showVectors.length === 0) return [];
   return showVectors.map((entry, i) => {

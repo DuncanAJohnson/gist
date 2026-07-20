@@ -374,7 +374,9 @@ auto-rename in 1):
    (controls/outputs/graphs target objects by id) resolving to the first —
    matches "first wins" intuition; a silent rename with no warning would be
    worse than rejecting, since bindings meant for the renamed object now
-   point elsewhere.
+   point elsewhere. *The "visible warning" surface now has a decided home:
+   the seam diagnostics bus + debug-panel badge (SCOPED 2026-07-19 —
+   GIST_Physics_System_Topics.md + concave note Findings 2026-07-19).*
 2. **Error boundary around the sim canvas.** Any adapter/renderer throw
    degrades to an inline error card instead of a dead page. Broader payoff:
    catches the whole class, not just this instance.

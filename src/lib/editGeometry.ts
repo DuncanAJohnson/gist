@@ -1,5 +1,5 @@
 import { WorldToCanvas } from './worldToCanvas';
-import type { ObjectConfig } from '../schemas/simulation';
+import type { ExpandedObjectConfig } from '../schemas/simulation';
 
 export type CornerKey = 'tl' | 'tr' | 'bl' | 'br';
 export type EdgeKey = 't' | 'r' | 'b' | 'l';
@@ -56,7 +56,7 @@ export type DragState =
 const HANDLE_HIT_RADIUS = 9;
 
 export function getObjectAABBPx(
-  obj: Pick<ObjectConfig, 'x' | 'y' | 'width' | 'height'>,
+  obj: Pick<ExpandedObjectConfig, 'x' | 'y' | 'width' | 'height'>,
   w2c: WorldToCanvas,
   unitScale: number,
 ): ObjectAABBPx {
@@ -156,7 +156,7 @@ const EDGE_OPPOSITE_SI: Record<EdgeKey, { sx: -1 | 0 | 1; sy: -1 | 0 | 1 }> = {
 };
 
 export function getCornerAnchorSI(
-  obj: Pick<ObjectConfig, 'x' | 'y' | 'width' | 'height'>,
+  obj: Pick<ExpandedObjectConfig, 'x' | 'y' | 'width' | 'height'>,
   corner: CornerKey,
   unitScale: number,
 ): { x: number; y: number } {
@@ -170,7 +170,7 @@ export function getCornerAnchorSI(
 }
 
 export function getEdgeAnchorSI(
-  obj: Pick<ObjectConfig, 'x' | 'y' | 'width' | 'height'>,
+  obj: Pick<ExpandedObjectConfig, 'x' | 'y' | 'width' | 'height'>,
   edge: EdgeKey,
   unitScale: number,
 ): { x: number; y: number } {

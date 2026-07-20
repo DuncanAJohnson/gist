@@ -87,6 +87,24 @@ export type VectorArrowEntry = z.infer<typeof VectorArrowEntrySchema>;
 // Object Config Schema
 // ============================================
 
+// Open-container synthesis params (concave-colliders Phase 4, landed
+// 2026-07-18). When an object carries `container`, the runtime derives its
+// sprite, concave collider, width, height, and svg from these parameters via
+// makeOpenContainer at the ingestion seam (src/lib/containerExpansion.ts) —
+// the authored JSON stays compact and re-expands on every load.
+export const ContainerConfigSchema = z.object({
+  innerWidth: z.number().positive().describe('Inner cavity width in configured units — the open mouth a payload falls into. Diorama-size it like any object (containers are usually the largest body in the scene) and make it at least 1.5× the payload\'s width so the catch reads cleanly.'),
+  wallHeight: z.number().positive().describe('Inner depth, floor top to rim, in configured units. Roughly equal to innerWidth for a cup that keeps its catch; smaller for a shallow tray.'),
+  wallThickness: z.number().positive().optional().describe('Wall thickness in configured units. Default: 12% of innerWidth, clamped to a visible diorama minimum. Usually omit.'),
+  floorThickness: z.number().positive().optional().describe('Floor slab thickness in configured units. Default: equal to wall thickness. Usually omit.'),
+  walls: z.enum(['both', 'left', 'right']).optional().describe('"both" (default) = U profile (cup / open box). "left" / "right" = keep only that wall (L profile) — e.g. a cart with just a back wall so the payload slides off the open side (Newton\'s first law demos).'),
+  mode: z.enum(['free', 'grounded']).optional().describe('"grounded" (default) spawn-seats the container exactly on the floor — requires environment.walls to include "bottom"; the object\'s authored y is ignored (author y: 0). "free" places the center at the authored (x, y).'),
+  fill: z.string().optional().describe('CSS color for the synthesized sprite\'s fill. Optional.'),
+  stroke: z.string().optional().describe('CSS color for the synthesized sprite\'s outline. Optional.'),
+}).describe('Open-container synthesis parameters (cup / open box / wagon — a U or L profile that can CATCH and CARRY other bodies). When present, the runtime derives this object\'s sprite, concave collider, width, height, and svg from these parameters — OMIT width/height/svg on this object. All other physics fields (mass, friction, restitution, velocity, isStatic, showVectors) stay top-level as usual. Container-specific defaults: mass 2, restitution 0.1, friction 0.7 (grounded) / 0.5 (free).');
+
+export type ContainerConfig = z.infer<typeof ContainerConfigSchema>;
+
 // Back-compat shim: legacy sims authored `showForceArrows: true` (Phase 1 of
 // the vector-arrows refactor). Translate to `showVectors: ["force-net"]` before
 // validation. Legacy sims with `showForceArrows: false` (or unset) get the
@@ -106,10 +124,11 @@ export const ObjectConfigSchema = z.preprocess(
   z.object({
   id: z.string().describe('Unique identifier for this object (e.g., "ball", "boxA", "platform"). Used by controls, outputs, and graphs to reference this object.'),
   x: z.number().describe('Initial X position of the object\'s center, in configured units. With default settings (pixelsPerUnit=10, unit="m"), canvas is 80m wide. X=0 is left edge.'),
-  y: z.number().describe('Initial Y position of the object\'s center, in configured units. With default settings, canvas is 60m tall. Y=0 is bottom edge, Y increases upward.'),
-  width: z.number().describe('Bounding-box width in configured units. DIORAMA-SIZED, not real-world: pick from the SKELETON\'s scene_dimension so the largest object is ~10% of the smaller scene dimension and the smallest stays ≥ 4%. A "real" soccer ball is 0.22 m, but at a 30 m scene that\'s invisible — emit ~3 m instead. The actual collider shape (rectangle, circle, or convex hull) is looked up from the SVG manifest by `svg` and scaled into this box.'),
-  height: z.number().describe('Bounding-box height in configured units. DIORAMA-SIZED, not real-world: pick to match the SVG\'s natural aspect ratio given `width`. The actual collider shape is looked up from the SVG manifest by `svg` and scaled into this box.'),
-  svg: z.string().describe('Name of a renderable from public/renderables/manifest.json (e.g., "soccer_ball", "brick_block", "boat"). Drives both the visual sprite and the physical collider shape, scaled to width × height.'),
+  y: z.number().describe('Initial Y position of the object\'s center, in configured units. With default settings, canvas is 60m tall. Y=0 is bottom edge, Y increases upward. For container objects with mode "grounded" (the default), y is derived from ground seating — author 0 as a placeholder.'),
+  width: z.number().optional().describe('Bounding-box width in configured units. REQUIRED unless `container` is present (then derived from the container parameters — omit it). DIORAMA-SIZED, not real-world: pick from the SKELETON\'s scene_dimension so the largest object is ~10% of the smaller scene dimension and the smallest stays ≥ 4%. A "real" soccer ball is 0.22 m, but at a 30 m scene that\'s invisible — emit ~3 m instead. The actual collider shape (rectangle, circle, or polygon) is looked up from the SVG manifest by `svg` and scaled into this box.'),
+  height: z.number().optional().describe('Bounding-box height in configured units. REQUIRED unless `container` is present (then derived — omit it). DIORAMA-SIZED, not real-world: pick to match the SVG\'s natural aspect ratio given `width`. The actual collider shape is looked up from the SVG manifest by `svg` and scaled into this box.'),
+  svg: z.string().optional().describe('Name of a renderable from public/renderables/manifest.json (e.g., "soccer_ball", "brick_block", "boat"). REQUIRED unless `container` is present (then the sprite and collider are synthesized — omit it). Drives both the visual sprite and the physical collider shape, scaled to width × height.'),
+  container: ContainerConfigSchema.optional(),
   velocity: Vector2DInputSchema.optional().describe('Initial linear velocity, authored either as components {x, y} or as polar {magnitude, angle} — e.g. a projectile launched at 20 units/s, 45° above horizontal: {"magnitude": 20, "angle": 45}. Components and magnitude are in units/second; angle is in the environment angleUnit (default degrees), counter-clockwise from +X. Positive Y = upward motion. Use ONE form per value — never mix x/y with magnitude/angle. Typical speed range: -30 to 30 m/s (magnitude ≥ 0).'),
   acceleration: Vector2DSchema.optional().describe('Additional constant linear acceleration {x, y} in units/s², applied ON TOP OF environment gravity each frame via velocity integration (v += a·dt). NOT a gravity override — environment.gravity continues to act on this body. Use for non-gravity constant accelerations: rocket thrust ({x:0, y:15}), constant braking deceleration ({x:-3, y:0} on a body moving +x), conveyor-belt push, a constant horizontal wind, etc. Leave unset (or {x:0, y:0}) for plain gravity-only motion. Typical range: -20 to 20 m/s².'),
   restitution: z.number().optional().describe('Bounciness (0-1). 0 = no bounce, 1 = perfect bounce, 0.8 = realistic. Default: 0.8'),
@@ -126,6 +145,18 @@ export const ObjectConfigSchema = z.preprocess(
 );
 
 export type ObjectConfig = z.infer<typeof ObjectConfigSchema>;
+
+/**
+ * An ObjectConfig after container expansion (src/lib/containerExpansion.ts) —
+ * width/height/svg guaranteed present. Everything below the expansion seam
+ * (scaleObjectToSI, renderers, edit overlay) consumes this strict variant;
+ * only the authoring layer sees the optionality.
+ */
+export type ExpandedObjectConfig = ObjectConfig & {
+  width: number;
+  height: number;
+  svg: string;
+};
 
 // ============================================
 // Control Config Schemas (discriminated union)
@@ -266,7 +297,8 @@ SCENE SCALE:
 
 OBJECTS:
 - Each object is described by its center (x, y), bounding-box width and height, and an svg name from the public manifest.
-- The svg name drives BOTH the visual sprite AND the collider shape (rectangle / circle / convex hull). The collider is scaled to fit within width × height.
+- The svg name drives BOTH the visual sprite AND the collider shape (rectangle / circle / polygon). The collider is scaled to fit within width × height.
+- EXCEPTION: an object may instead carry a "container" field (open cup / box / wagon — a U or L profile that can catch and carry other bodies). Its sprite, concave collider, and bounding box are synthesized from the container parameters — omit width/height/svg on that object.
 - Width/height are DIORAMA-SIZED, NOT real-world sizes. Rule: let D = the smaller scene dimension in configured units. Largest object ≈ 10% of D. Smallest object ≥ 4% of D. Preserve real-world ordering (bowling ball > feather) but compress extreme ratios (use ~2-3:1 visual ratio, not the real 5:1+).
 - Aspect ratio per object: match the svg's natural ratio (a boat is wider than tall, a person is taller than wide).
 - Always pass the same configured unit; do not mix.
@@ -288,7 +320,7 @@ export const SimulationConfigSchema = z.object({
   title: z.string().describe('Short, clear title for the simulation. Should indicate the physics concept. Examples: "Toss Ball", "Two Boxes Collision", "Pendulum Motion"'),
   description: z.string().describe('Brief educational description for students explaining what they can learn or observe. Keep it engaging.'),
   environment: EnvironmentConfigSchema,
-  objects: z.array(ObjectConfigSchema).optional().default([]).describe('Array of physics objects in the simulation. 1-3 objects recommended. Each object\'s collider shape and visual sprite both come from its `svg` manifest entry, scaled to width × height.'),
+  objects: z.array(ObjectConfigSchema).optional().default([]).describe('Array of physics objects in the simulation. 1-3 objects recommended. Each object\'s collider shape and visual sprite both come from its `svg` manifest entry, scaled to width × height — except container objects, whose sprite and concave collider are synthesized from their `container` parameters.'),
   controls: z.array(ControlConfigSchema).optional().default([]).describe('Interactive controls (sliders, toggles) for students to adjust parameters. Include at least one for interactivity.'),
   outputs: z.array(OutputGroupConfigSchema).optional().default([]).describe('Real-time value displays. Group by object. Show velocity, acceleration, position as relevant.'),
   graphs: z.array(GraphConfigSchema).optional().default([]).describe('Time-series graphs to visualize property changes. Great for comparing related quantities.'),

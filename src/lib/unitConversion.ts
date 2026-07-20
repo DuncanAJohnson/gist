@@ -1,4 +1,4 @@
-import type { ObjectConfig, Vector2D, Vector2DInput, PolarVector2D } from '../schemas/simulation';
+import type { ExpandedObjectConfig, Vector2D, Vector2DInput, PolarVector2D } from '../schemas/simulation';
 
 /**
  * Supported unit types for the simulation. These are display labels only —
@@ -110,9 +110,11 @@ export function isPolarVector(v: Vector2DInput): v is PolarVector2D {
 /**
  * An ObjectConfig whose vector fields are guaranteed cartesian — what
  * scaleObjectToSI returns. Everything below the config→SI boundary consumes
- * this, never the authoring-side polar union.
+ * this, never the authoring-side polar union. Built on ExpandedObjectConfig
+ * (width/height/svg required): container expansion precedes this boundary, so
+ * the SI layer never sees an incomplete object.
  */
-export type SIObjectConfig = Omit<ObjectConfig, 'velocity'> & { velocity?: Vector2D };
+export type SIObjectConfig = Omit<ExpandedObjectConfig, 'velocity'> & { velocity?: Vector2D };
 
 /**
  * The config→SI boundary. Besides length scaling, this is where polar-authored
@@ -120,9 +122,11 @@ export type SIObjectConfig = Omit<ObjectConfig, 'velocity'> & { velocity?: Vecto
  * env.unit-per-second (like components) and authored angle is in env.angleUnit,
  * so polar → SI is magnitude·scale at angle·angleScale radians. This runs on
  * every ingestion path (static cast, LLM, DB load) — none of them Zod-parse,
- * so this is the ONE place normalization is guaranteed to happen.
+ * so this is the ONE place normalization is guaranteed to happen. Input is the
+ * post-expansion object (expandContainerObjects runs first — it derives
+ * width/height/svg for `container` objects and drops incomplete ones).
  */
-export function scaleObjectToSI(obj: ObjectConfig, scale: number, angleScale: number): SIObjectConfig {
+export function scaleObjectToSI(obj: ExpandedObjectConfig, scale: number, angleScale: number): SIObjectConfig {
   let velocity: Vector2D | undefined;
   if (obj.velocity) {
     if (isPolarVector(obj.velocity)) {

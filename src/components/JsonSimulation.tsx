@@ -34,6 +34,7 @@ import ExperimentalDataModal, { type ExperimentalDataConfig, type ModalFormState
 // Debug "Import Object" (test SVG-generator exports in a live sim)
 import ImportObjectModal, { type ImportCandidate, type ImportControlPreset } from './simulation_components/ImportObjectModal';
 import { registerImportedRenderable, MANIFEST_VIEWBOX } from '../lib/renderableManifest';
+import { expandContainerObjects } from '../lib/containerExpansion';
 // Render Layer
 import RenderLayer from './simulation_components/renderables/RenderLayer';
 // Edit overlay + unsaved-changes indicator
@@ -217,9 +218,27 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   const siGravityMagnitude = gravityMagnitude * unitScale;
   const gravityVec: Vec2 = useMemo(() => ({ x: 0, y: -siGravityMagnitude }), [siGravityMagnitude]);
 
+  // Container expansion — the JSON-authoring seam for open containers
+  // (concave-colliders Phase 4). Objects carrying a `container` field get
+  // their sprite + concave collider synthesized (session-side registration)
+  // and width/height/svg (+ grounded y) derived here; ordinary objects pass
+  // through. Pure derived layer: NEVER written back to editedConfig, so
+  // saves round-trip the compact `container` field and reload re-expands.
+  // Must precede scaleObjectToSI (which requires width/height/svg). Render-
+  // time on purpose — registration must precede ObjectRenderer mount; the
+  // module's signature cache makes re-renders and StrictMode no-ops.
+  const expandedObjects = useMemo(
+    () =>
+      expandContainerObjects(objects, {
+        sceneMin: Math.min(SIMULATION_WIDTH, SIMULATION_HEIGHT) / configPixelsPerUnit,
+        hasBottomWall: (environment.walls ?? []).includes('bottom'),
+      }),
+    [objects, configPixelsPerUnit, environment.walls],
+  );
+
   const siObjects = useMemo(
-    () => objects.map((obj) => scaleObjectToSI(obj, unitScale, angleScale)),
-    [objects, unitScale, angleScale],
+    () => expandedObjects.map((obj) => scaleObjectToSI(obj, unitScale, angleScale)),
+    [expandedObjects, unitScale, angleScale],
   );
 
   const [showJsonEditor, setShowJsonEditor] = useState(false);
@@ -251,7 +270,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     // WorldToCanvas.dimension (m → px), so config-unit values would render
     // wrong for any unit but meters.
     const sprites = siObjects.map(synthesizeBodyRenderable);
-    const vectorArrows = objects.flatMap(synthesizeVectorArrowRenderables);
+    const vectorArrows = expandedObjects.flatMap(synthesizeVectorArrowRenderables);
     const walls = synthesizeWallRenderables(environment.walls ?? [], configPixelsPerMeter);
     const experimental = experimentalData
       ? [synthesizeExperimentalRenderable(experimentalData)]
@@ -262,12 +281,12 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
       ? [synthesizeGridRenderable(pixelsPerUnit, UNIT_ABBREV[environment.unit ?? 'm'], zoomFactor)]
       : [];
     const colliderOutlines = showColliders
-      ? objects.map(synthesizeColliderDebugRenderable)
+      ? expandedObjects.map(synthesizeColliderDebugRenderable)
       : [];
     return [...grid, ...walls, ...sprites, ...vectorArrows, ...experimental, ...colliderOutlines].sort(
       (a, b) => a.zIndex - b.zIndex
     );
-  }, [objects, siObjects, environment.walls, environment.unit, experimentalData, configPixelsPerMeter, pixelsPerUnit, showGrid, showColliders, zoomFactor]);
+  }, [expandedObjects, siObjects, environment.walls, environment.unit, experimentalData, configPixelsPerMeter, pixelsPerUnit, showGrid, showColliders, zoomFactor]);
 
   const dataSources = useMemo<Record<string, DataPositionResolver>>(() => {
     const sources: Record<string, DataPositionResolver> = {};
@@ -452,7 +471,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   // launches along the authored angle. Non-degenerate vectors refresh held
   // state on every polar write, so this seed only decides the degenerate case.
   useEffect(() => {
-    objects.forEach((obj) => {
+    expandedObjects.forEach((obj) => {
       if (obj.velocity && isPolarVector(obj.velocity)) {
         heldVectorStateRef.current[`${obj.id}.velocity`] = {
           angle: obj.velocity.angle * angleScale,
@@ -460,7 +479,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
         };
       }
     });
-  }, [objects, unitScale, angleScale]);
+  }, [expandedObjects, unitScale, angleScale]);
 
   // Load-time authoring check (a seed of the future ingestion boundary — see
   // parking_lot.md): a ".magnitude" slider authored with min < 0 can't behave
@@ -600,7 +619,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     const deltaTime = time - prevTimeRef.current;
     const airMode = airResistanceModeRef.current;
     if (deltaTime > 0) {
-      objects.forEach((objectConfig) => {
+      expandedObjects.forEach((objectConfig) => {
         const body = objRefs.current[objectConfig.id];
         if (!body) return;
 
@@ -718,7 +737,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     }
 
     if (isRecording && recordingBufferRef.current) {
-      const bodies: FrameBodySnap[] = objects
+      const bodies: FrameBodySnap[] = expandedObjects
         .map((objectConfig) => {
           const body = objRefs.current[objectConfig.id];
           if (!body) return null;
@@ -744,7 +763,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
         graphPoints: perFrameGraphPoints,
       });
     }
-  }, [outputs, graphs, objects, readDisplayValue]);
+  }, [outputs, graphs, expandedObjects, readDisplayValue]);
 
   // All three save paths (AI remix, JSON tweak, direct-manipulation edits)
   // persist via createSimulation. For a local example sim (localJsonEdit, no
@@ -1014,7 +1033,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
 
       // Unique id computed from the current objects (not inside the state
       // updater) because the preset control labels below need the final id.
-      const ids = new Set(objects.map((o) => o.id));
+      const ids = new Set(expandedObjects.map((o) => o.id));
       let id = registered.name;
       for (let n = 2; ids.has(id); n++) id = `${registered.name}_${n}`;
       const newObject: ObjectConfig = {
@@ -1071,7 +1090,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
       prevTimeRef.current = 0;
       pendingRecaptureRef.current = true;
     },
-    [configPixelsPerUnit, objects, environment.angleUnit],
+    [configPixelsPerUnit, expandedObjects, environment.angleUnit],
   );
 
   const handleSaveEdits = useCallback(async () => {
@@ -1103,10 +1122,10 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   // races, or future features that remove objects).
   useEffect(() => {
     if (!selectedObjectId) return;
-    if (!objects.some((o) => o.id === selectedObjectId)) {
+    if (!expandedObjects.some((o) => o.id === selectedObjectId)) {
       setSelectedObjectId(null);
     }
-  }, [selectedObjectId, objects]);
+  }, [selectedObjectId, expandedObjects]);
 
   // Select + Delete: remove an object and every control/output/graph binding
   // that references it (commitObjectEdit's re-sync concerns in reverse —
@@ -1525,7 +1544,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
           canvasContainer={canvasContainer}
           editModeActive={editModeActive}
           clickShowsResetPrompt={!editModeActive && !pickingPosition && (isRunning || simIsDirty)}
-          editedObjects={objects}
+          editedObjects={expandedObjects}
           selectedObjectId={selectedObjectId}
           onSelect={setSelectedObjectId}
           onCommitEdit={commitObjectEdit}

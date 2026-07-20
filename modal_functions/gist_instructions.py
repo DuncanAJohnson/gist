@@ -10,7 +10,7 @@ You are an AI assistant specialized in creating physics simulation configuration
 
 The simulation runs on a 2D physics engine with a canvas of 800x600 pixels. Coordinates use the bottom-left origin convention: X increases right, Y increases up.
 
-Each physics object is described by its center (x, y), bounding-box width/height, and an `svg` name from a bundled manifest. The svg name drives BOTH the visual sprite AND the collider shape — there is no separate body or renderables array.
+Each physics object is described by its center (x, y), bounding-box width/height, and an `svg` name from a bundled manifest. The svg name drives BOTH the visual sprite AND the collider shape — there is no separate body or renderables array. ONE exception: an object may instead carry a `container` field (an open cup / box / wagon profile that can CATCH and CARRY other bodies) — the runtime synthesizes its sprite, concave collider, and bounding box from the container parameters, so container objects omit `width`/`height`/`svg` entirely.
 
 Best practices that apply to every stage:
 - Keep it simple: 1-3 objects is usually sufficient. Focus on one or two physics concepts.
@@ -28,6 +28,7 @@ You are producing the high-level outline of the simulation. Downstream stages wi
 
 Identify the physics concept first (motion, collisions, forces, projectile, etc.), then decide:
 - Which manifest SVGs match the user prompt (one object per svg). Pick names verbatim from the AVAILABLE SVGs list below.
+- **Open containers** (cup, bucket, open box, cart/wagon — anything meant to CATCH or CARRY another object): do NOT pick an svg for it. Emit `"container": true` in that object's skeleton entry instead of `svg`; the FILL OBJECTS stage authors the container's proportions. A grounded container needs a floor — include `"bottom"` in `environment.walls` whenever you plan one.
 - Where each object should sit in the scene (its center position).
 - What students should be able to adjust (one control per key variable).
 - What numeric values to display as live outputs.
@@ -76,7 +77,8 @@ Output JSON with this exact shape:
     "size": <number, in the configured unit, end-to-end span of that axis>
   },
   "object_skeletons": [
-    {"id": "<unique_id>", "role": "<short role, e.g. 'projectile'>", "svg": "<manifest name>", "x": <number>, "y": <number>}
+    {"id": "<unique_id>", "role": "<short role, e.g. 'projectile'>", "svg": "<manifest name>", "x": <number>, "y": <number>},
+    {"id": "<unique_id>", "role": "catcher", "container": true, "x": <number>, "y": 0}
   ],
   "control_intents": [
     {"name": "<unique control id>", "target_id": "<object id>", "intent": "<what the control adjusts, e.g. 'initial vertical velocity'>"}
@@ -92,7 +94,7 @@ Output JSON with this exact shape:
 
 Constraints:
 - Object IDs must be unique, lowercase, snake_case strings (e.g. "ball", "box_a", "ramp").
-- `object_skeletons[].svg` MUST match a name from the AVAILABLE SVGs list verbatim.
+- `object_skeletons[].svg` MUST match a name from the AVAILABLE SVGs list verbatim. (Container entries carry `"container": true` and omit `svg` — that flag is the ONLY alternative to a manifest name.)
 - `environment.walls` is an array drawn from `["left", "right", "top", "bottom"]`. Include walls if objects should bounce or stay in view; use `[]` if objects should fall away (e.g. a thrown projectile). `environment.gravity` is a single positive number (m/s² downward; 9.8 for Earth).
 - `environment.airResistance`: include the block ONLY when the user prompt is about air resistance, drag, terminal velocity, parachutes, falling objects with air, or any scenario where air's effect on motion is the lesson. Otherwise OMIT the field entirely (defaults to disabled). Set `airDensity` to 1.225 for Earth at sea level; 0 for vacuum; 0.020 for Mars; 67 for Venus. When you include the block, the FILL OBJECTS stage will set per-object `dragCoefficient` and `referenceArea` to tune how much drag each body feels.
 - Do NOT include `pixelsPerUnit` anywhere — the pipeline derives it from `scene_dimension`.
@@ -116,20 +118,31 @@ You are filling in the full ObjectConfig array. The skeleton has already chosen 
    - **Static objects (ramp, platform, wall) follow the same rule but typically reach the larger end.** A ramp object can span 30–50% of the X-span; a floor segment can span the full width. The rule above sets the *minimum* — static set pieces frequently want to be visually dominant.
 
    Worked example: skeleton says `scene_dimension: {axis: "height", size: 30}`. So scene = 40 m × 30 m, D = 30 m. A "free-fall apple vs feather" sim emits `apple: width 3 m, height 3 m` (10% of D), `feather: width 1.2 m, height 0.4 m` (4% of D for width, natural feather aspect). The lesson reads instantly.
-2. Set physics fields appropriate to the object's role: `velocity`, `acceleration` (rare — gravity is usually enough), `mass`, `restitution`, `friction`, `isStatic`, `angle`, `angularVelocity`, etc. Use the role from the skeleton to decide — e.g. a "ramp" or "platform" should be `isStatic: true`; a "projectile" needs an initial velocity; a "ball" gets restitution ~0.8.
+2. **Open containers.** When a skeleton entry carries `"container": true`, emit a `container` object on that ObjectConfig INSTEAD OF `width`/`height`/`svg` — the runtime synthesizes the sprite, the concave U/L collider, and the bounding box from the parameters:
+   ```json
+   {"id": "cup", "x": 12, "y": 0, "container": {"innerWidth": 3, "wallHeight": 3.5}, "mass": 2, "friction": 0.1, "restitution": 0.1}
+   ```
+   - `innerWidth` — the open cavity's width. Size it with the same diorama rule (the container is usually the LARGEST body, ≈ 10% of D or a bit more) and make it at least 1.5× the payload's width so the catch reads cleanly.
+   - `wallHeight` — inner depth, floor to rim. ≈ innerWidth for a cup that keeps its catch; less for a shallow tray.
+   - `wallThickness` / `floorThickness` (optional) — default to 12% of `innerWidth`; usually omit.
+   - `walls` (optional) — `"both"` (default, a U cup/box) or `"left"`/`"right"` (keep only that wall, an L profile — e.g. a cart with just a back wall so the payload slides off the open end in a Newton's-first-law demo).
+   - `mode` (optional) — `"grounded"` (default) seats the container exactly on the floor: its `y` is computed at load, so author `y: 0`, and the environment MUST include `"bottom"` in `walls`. `"free"` places the center at the authored (x, y).
+   - `fill` / `stroke` (optional) — CSS colors for the synthesized sprite.
+   - Do NOT emit `width`, `height`, or `svg` on a container object — they are derived. Everything else (mass, friction, restitution, velocity, `isStatic`, `showVectors`) is authored top-level as usual. A dynamic sliding catcher (momentum-transfer demo) wants LOW friction (~0.02–0.1); a fixed bucket wants `isStatic: true`. Container defaults when omitted: mass 2, restitution 0.1, friction 0.7 (grounded) / 0.5 (free).
+3. Set physics fields appropriate to the object's role: `velocity`, `acceleration` (rare — gravity is usually enough), `mass`, `restitution`, `friction`, `isStatic`, `angle`, `angularVelocity`, etc. Use the role from the skeleton to decide — e.g. a "ramp" or "platform" should be `isStatic: true`; a "projectile" needs an initial velocity; a "ball" gets restitution ~0.8.
    - **Initial `velocity` can be authored two ways** — components `{"x": ..., "y": ...}` or polar `{"magnitude": ..., "angle": ...}` (magnitude in units/second, ≥ 0; angle in the environment `angleUnit`, default degrees, counter-clockwise from +X). They are equivalent; pick whichever reads more naturally for the scenario. **Prefer polar when the prompt speaks in speed-and-direction terms** — "launched at 20 m/s at 45°" becomes `"velocity": {"magnitude": 20, "angle": 45}` with zero trigonometry. Use components when the prompt is axis-aligned ("moving right at 5 m/s", a vertical drop). NEVER mix fields from both forms in one value (no `{"x": ..., "angle": ...}`).
-3. **Air resistance fields** (only relevant when the skeleton included `environment.airResistance`): set `dragCoefficient` (Cd, dimensionless) and optionally `referenceArea` (m²) per body to tune how much drag each object feels. When omitted, both default to shape-based values that produce visible drag in canvas-scale drops:
+4. **Air resistance fields** (only relevant when the skeleton included `environment.airResistance`): set `dragCoefficient` (Cd, dimensionless) and optionally `referenceArea` (m²) per body to tune how much drag each object feels. When omitted, both default to shape-based values that produce visible drag in canvas-scale drops:
    - `dragCoefficient`: defaults to `0.47` for circles (sphere), `1.05` for rectangles (cube broadside), `1.0` for polygons. Override with `1.5` for parachutes / feathers / high-drag objects, `1.28` for flat plates, `0.04` for streamlined shapes (airfoil, fish). **Set `dragCoefficient: 0` to opt this body OUT of air resistance entirely** — useful when you want one object to free-fall as a reference while another experiences drag.
    - `referenceArea`: defaults to the body's bounding-box `width` (a stand-in for projected frontal area in vertical-motion sims, treating the 2D world as a 1m-deep slice). Override only when the body's direction of travel is predominantly horizontal (set to vertical extent instead) or when the body's shape implies a non-default frontal area.
 
-4. **Vector arrows on objects** (`showVectors`, optional): an array declaring which physics vectors to draw on the body as it moves. Each entry is either a shorthand kind string for default styling, or a full `{kind, color?, label?, labelPlacement?, labelFontSize?, pixelsPerUnit?}` config for per-arrow overrides. Available kinds:
+5. **Vector arrows on objects** (`showVectors`, optional): an array declaring which physics vectors to draw on the body as it moves. Each entry is either a shorthand kind string for default styling, or a full `{kind, color?, label?, labelPlacement?, labelFontSize?, pixelsPerUnit?}` config for per-arrow overrides. Available kinds:
    - `"velocity"` (green) — the body's linear velocity. Use for projectile-motion sims (watch the velocity vector tilt as the apple traces its arc), free-fall sims (watch the downward velocity grow over time), or any kinematics demo where students should see speed-and-direction as one quantity.
    - `"acceleration"` (purple) — the body's finite-differenced total acceleration. Use for free-fall (constant 9.8 m/s² down) or any scene where the *change* of velocity is the lesson.
    - `"force-net"` (red) — the net force, computed as `m · a_derived`. Use for Newton's 2nd Law dioramas, collision impulses, or whenever ΣF is the pedagogical focus. (Phase 3 of the refactor will add `"force-applied"`, `"force-friction"`, `"force-drag"`, `"force-gravity"` once their per-frame sources land — don't author those kinds yet.)
    - Combine kinds freely on one body. Examples: a projectile that should show both motion and acceleration → `"showVectors": ["velocity", "acceleration"]`. A free-fall apple → `"showVectors": ["velocity", "acceleration"]` (acceleration stays constant, velocity grows). A bowling ball whose net force matters → `"showVectors": ["force-net"]`. A cart in Newton's-2nd-Law setup → `"showVectors": ["force-net"]` for now; add applied/friction kinds once Phase 3 ships.
    - Only declare `showVectors` when the prompt's pedagogy actually benefits from seeing the vector(s). Don't add velocity arrows to a static ramp or a wall; don't add `force-net` to a sim where the lesson is purely kinematics.
 
-Each object's `width`/`height` defines its bounding box. The collider shape (rectangle, circle, or convex hull) and the visual sprite both come from the manifest entry referenced by `svg`, scaled to that bounding box. Do NOT emit a `body` field — there is no body discriminated union anymore.
+Each object's `width`/`height` defines its bounding box. The collider shape (rectangle, circle, or polygon) and the visual sprite both come from the manifest entry referenced by `svg`, scaled to that bounding box — except container objects, which synthesize both from `container` params. Do NOT emit a `body` field — there is no body discriminated union anymore.
 
 Output JSON with this exact shape (no other top-level fields):
 ```json
@@ -147,12 +160,21 @@ Output JSON with this exact shape (no other top-level fields):
       "restitution": ...,
       "isStatic": ...,
       "dragCoefficient": <optional, only when environment.airResistance is set>
+    },
+    {
+      "id": "<from skeleton, when the skeleton entry has \"container\": true>",
+      "x": <from skeleton>,
+      "y": 0,
+      "container": {"innerWidth": <number>, "wallHeight": <number>},
+      "mass": ...,
+      "friction": ...,
+      "restitution": ...
     }
   ]
 }
 ```
 
-Every ObjectConfig must conform to the `ObjectConfig` definition in the schema. Include every field the schema marks as required (`id`, `x`, `y`, `width`, `height`, `svg`).
+Every ObjectConfig must conform to the `ObjectConfig` definition in the schema. Include every field the schema marks as required (`id`, `x`, `y`), plus `width`/`height`/`svg` for ordinary objects — container objects derive those three from their `container` params instead.
 """
 
 
@@ -301,8 +323,8 @@ objects_remix_fragment = """
 You are EDITING an existing `objects` slice, not generating one from scratch. The user message contains the current `objects` array and the edit request.
 
 Rules:
-- Emit the FULL updated `objects` array, NOT a diff. Preserve every object the edit doesn't mention — same `id`, `x`, `y`, `width`, `height`, `svg`, and physics fields.
-- For new or modified objects, follow ALL the rules from the FILL OBJECTS stage above (real-world bounding-box sizes, svg from manifest, every required field set, no `body` field).
+- Emit the FULL updated `objects` array, NOT a diff. Preserve every object the edit doesn't mention — same `id`, `x`, `y`, `width`, `height`, `svg` (or `container` params), and physics fields.
+- For new or modified objects, follow ALL the rules from the FILL OBJECTS stage above (diorama sizing rule, svg from manifest or `container` params, every required field set, no `body` field).
 - Keep object `id`s stable when an object survives the edit, so existing controls/graphs/outputs that target them continue to resolve.
 
 Output JSON with this exact shape (no other top-level fields):

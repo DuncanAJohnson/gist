@@ -121,7 +121,12 @@ Cup, open box, and wagon are the **same construction problem**: 3–4 convex box
 - **Graph:** G8 (p(t) flat, KE(t) step).
 - [x] implemented — SHIPPED 2026-07-15 (`/simulation/cup-catch`, local sim via
       `makeOpenContainer`; ship-gate drive passed — twin vx traces converge to
-      u/3; not yet LLM-authorable, schema/prompt = Phase 4)
+      u/3). LLM-authorability (Phase 4) SHIPPED 2026-07-19: JSON `container`
+      field on ObjectConfig + expansion seam + prompt-pipeline teaching;
+      cup-catch converted to the JSON-authored form as the living exhibit.
+      Gate passed in full (drives, tweak round trip, `modal serve` generate +
+      remix, deployed, prod web-app validated) — an LLM prompt now yields a
+      working catch-the-ball container sim end-to-end.
 
 ### S2.2 Open box / ballistic pendulum — *momentum then energy* ⭐
 - **Physics:** thrown mass embeds in box; box+mass swing together. The canonical "two conservation laws, in sequence, only one valid per phase."

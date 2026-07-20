@@ -2,7 +2,7 @@ import { useEffect, useRef, type RefObject } from 'react';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, WALL_THICKNESS } from '../BaseSimulation';
 import { WorldToCanvas } from '../../lib/worldToCanvas';
 import { getManifestItem } from '../../lib/renderableManifest';
-import type { ObjectConfig } from '../../schemas/simulation';
+import type { ExpandedObjectConfig } from '../../schemas/simulation';
 import type { PhysicsBody } from '../../physics/types';
 import {
   computeCornerCommit,
@@ -31,7 +31,7 @@ interface EditOverlayProps {
    * "reset the sim to move objects" prompt while running or paused mid-sim.
    */
   clickShowsResetPrompt: boolean;
-  editedObjects: ObjectConfig[];
+  editedObjects: ExpandedObjectConfig[];
   selectedObjectId: string | null;
   onSelect: (id: string | null) => void;
   onCommitEdit: (id: string, partial: ObjectEditCommit) => void;
@@ -187,13 +187,13 @@ function EditOverlay({
       );
     };
 
-    const findObject = (id: string): ObjectConfig | undefined =>
+    const findObject = (id: string): ExpandedObjectConfig | undefined =>
       editedObjectsRef.current.find((o) => o.id === id);
 
     // Return obj with x/y substituted from the live physics body, so the
     // overlay tracks the engine pose (which a slider on position.x/y can move
     // independently of editedConfig). Falls back to editedConfig if no body.
-    const liveObj = (obj: ObjectConfig, unit: number): ObjectConfig => {
+    const liveObj = (obj: ExpandedObjectConfig, unit: number): ExpandedObjectConfig => {
       const body = objRefs.current?.[obj.id];
       if (!body) return obj;
       return { ...obj, x: body.position.x / unit, y: body.position.y / unit };
@@ -454,7 +454,7 @@ function EditOverlay({
                 // Always render outline + handles at the live body position so
                 // the overlay tracks any motion (drag or position slider).
                 const body = objRefs.current?.[selId];
-                const drawObj: ObjectConfig = body
+                const drawObj: ExpandedObjectConfig = body
                   ? { ...obj, x: body.position.x / unit, y: body.position.y / unit }
                   : obj;
                 const aabb = getObjectAABBPx(drawObj, w2c, unit);
@@ -485,7 +485,7 @@ function EditOverlay({
                     drag.kind === 'dragging-corner'
                       ? computeCornerCommit(drag, lastPointerRef.current, w2c, unit, minSizeSI)
                       : computeEdgeCommit(drag, lastPointerRef.current, w2c, unit, minSizeSI);
-                  const ghostObj: ObjectConfig = { ...obj, ...commit };
+                  const ghostObj: ExpandedObjectConfig = { ...obj, ...commit };
                   const ghostAABB = getObjectAABBPx(ghostObj, w2c, unit);
                   drawAABB(ctx, ghostAABB, true);
                 }

@@ -1,25 +1,21 @@
 import JsonSimulation from '../components/JsonSimulation';
 import { asLocalSimConfig } from './localSimConfig';
-import { makeOpenContainer } from '../lib/openContainer';
 
 // S2.1 U-cup — inelastic capture (PHYSICS_SHAPES.md, Rung 2). A ball arcs
 // into a free-to-slide cup; horizontal momentum is conserved across the
 // catch, KE is not: m·u = (m + M)·v → with m=1, M=2 the pair slides at u/3.
 // Cup friction is overridden near zero so ground friction doesn't eat the
 // momentum before it can be read off the graph.
-const cup = makeOpenContainer({
-  id: 'cup',
-  innerWidth: 0.6,
-  wallHeight: 0.7,
-  mode: 'grounded',
-  x: 2.5,
-  sceneMin: 6,
-  mass: 2,
-  friction: 0.02,
-  restitution: 0.05,
-  showVectors: ['velocity'],
-});
-
+//
+// Since 2026-07-18 (concave-colliders Phase 4) this sim is the living
+// exhibit of the JSON-authored `container` field: the cup object below
+// carries params only, and JsonSimulation's expansion seam
+// (src/lib/containerExpansion.ts) synthesizes sprite + concave collider and
+// derives width/height/svg + the grounded seat at load — the same path
+// LLM-generated and DB-saved sims ride. (WagonStop/BoxCatch still call
+// makeOpenContainer directly — the factory API remains a supported
+// consumer.) sceneMin derives from the scene: 600 px / 100 px-per-unit = 6,
+// identical to the value this sim used to hand-pass.
 const config = {
   title: 'Cup Catch — Inelastic Capture (S2.1)',
   description:
@@ -35,7 +31,16 @@ const config = {
     physicsEngine: 'rapier',
   },
   objects: [
-    cup.object,
+    {
+      id: 'cup',
+      x: 2.5,
+      y: 0, // placeholder — grounded mode derives the seated center at load
+      container: { innerWidth: 0.6, wallHeight: 0.7, mode: 'grounded' },
+      mass: 2,
+      friction: 0.02,
+      restitution: 0.05,
+      showVectors: ['velocity'],
+    },
     {
       id: 'ball',
       x: 1.0,

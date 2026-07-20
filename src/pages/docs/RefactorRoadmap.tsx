@@ -163,7 +163,7 @@ flowchart LR
     subgraph CCGATED["gated"]
       direction TB
       CC4["4 · inertia override — hoop<br/>collide circle, set I = mr²"]
-      CC5["5 · Phase-4 three-places landing<br/>(schema + prompt; manifest tag<br/>rename shipped with 6)"]
+      CC5["5 · Phase-4 three-places landing<br/>container field + expansion seam<br/>+ prompt pipeline · <b>SHIPPED 2026-07-19</b><br/>gate passed + deployed + prod-validated"]
       CC8["8 · CCD + catch detection<br/>sensors / events · lower priority"]
     end
     CCP0 --> CC1
@@ -174,8 +174,8 @@ flowchart LR
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#92400e;
   classDef pending fill:#dbeafe,stroke:#2563eb,color:#1e40af;
 
-  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,CCP0,CC2,CC3,CC6,RP0,VECP1 done;
-  class APPP1,APPP2,APPP25,APPP3,APPP4,VECP2,VECP3,VAP3,VAP4,VAP5,CC4,CC5,CC8,RP1,RP2,RP3,RP4,RP5,RP6 pending;
+  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,CCP0,CC2,CC3,CC5,CC6,RP0,VECP1 done;
+  class APPP1,APPP2,APPP25,APPP3,APPP4,VECP2,VECP3,VAP3,VAP4,VAP5,CC4,CC8,RP1,RP2,RP3,RP4,RP5,RP6 pending;
   class CC1,CC7 proposed;
 `;
 
@@ -317,7 +317,12 @@ function RefactorRoadmap() {
           regressions, both engines): it lives in gist (factory code +
           hand-authored local sims at <code>/simulation/cup-catch</code>,{' '}
           <code>box-catch</code>, <code>wagon-stop</code>; the schema/prompt landing
-          stays Phase 4), synthesizes the concave U outline from parameters and
+          — Phase 4 — <b>SHIPPED 2026-07-19</b>: an optional <code>container</code>{' '}
+          field on ObjectConfig, expanded at the ingestion seam by{' '}
+          <code>containerExpansion.ts</code> into the same factory path, plus the
+          full prompt-pipeline teaching; gate passed in full — local drives,
+          tweak round trip, <code>modal serve</code> generate + remix, deployed,
+          prod web-app validated), synthesizes the concave U outline from parameters and
           feeds the proven <code>decomposePolygonShape</code> path (parts ≤4 verts,
           Planck-safe by construction), draws a flat-fill visual for v1 (SVG skins
           later), and supports <code>mode: free | grounded</code> — both{' '}

@@ -2,8 +2,10 @@
 
 Each object is described by id, x, y, width, height, svg + physics fields. The
 skeleton already chose `svg`, `x`, `y` and the environment's `pixelsPerUnit`;
-this stage chooses the bounding-box `width`/`height` (using world knowledge of
-typical real-world object sizes for the chosen svg) and the physics tuning.
+this stage chooses the bounding-box `width`/`height` (via the fragment's
+diorama sizing rule) and the physics tuning. Skeleton entries flagged
+`"container": true` have no svg — this stage authors their `container`
+parameters instead of width/height/svg.
 """
 
 import json
@@ -49,13 +51,15 @@ class ObjectsFillStage(JsonStage):
                 f"The scene's canvas spans 0 to {canvas_w_si:g} {unit} "
                 f"horizontally and 0 to {canvas_h_si:g} {unit} vertically "
                 "(origin at bottom-left, Y up). This was sized for the "
-                "scene's dominant axis already — the largest object in the "
-                "scene should naturally fit this canvas. Pick each object's "
-                "`width` and `height` to match the typical real-world "
-                "bounding-box of the chosen svg (e.g. soccer_ball "
-                "~0.22 m, brick_block ~0.5 m, boat ~5 m, person ~1.8 m tall, "
-                "airplane ~30 m wingspan). Emit `width` and `height` in the "
-                f"configured unit ({unit}).\n\n"
+                "scene's dominant axis already — size each object's `width` "
+                "and `height` with the DIORAMA rule from the FILL OBJECTS "
+                "instructions (largest body ≈ 10% of the smaller canvas "
+                "dimension, smallest ≥ 4%; keep the svg's natural aspect "
+                "ratio), NOT real-world sizes. Emit `width` and `height` in "
+                f"the configured unit ({unit}). Skeleton entries carrying "
+                '`"container": true` have no svg — author their `container` '
+                "parameters per the FILL OBJECTS instructions instead of "
+                "width/height/svg.\n\n"
                 f"```json\n{json.dumps(skeleton, indent=2)}\n```"
             ),
         }

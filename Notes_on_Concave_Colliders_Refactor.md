@@ -1186,6 +1186,209 @@ external TODO). NB: `basketball` here carries a real 20-vert polygon — the
 2026-07-03 "basketball has `collider: null`" note is now STALE (superseded by
 the v2 manifest re-bake 2026-07-16).
 
+### 2026-07-18 — Phase 4 BUILT: `container` field lands the open container for LLM/JSON authoring (CC5)
+
+The three-places landing deferred since Phase 0. Sim JSON (LLM-generated,
+DB-saved, or hand-authored) can now declare a container by params; the runtime
+synthesizes sprite + concave collider at load. All three places moved
+together:
+
+1. **Schema** — `ContainerConfigSchema` (`{innerWidth, wallHeight,
+   wallThickness?, floorThickness?, walls?: both|left|right, mode?:
+   free|grounded, fill?, stroke?}`) as optional `ObjectConfig.container`;
+   `width`/`height`/`svg` became `.optional()` ("REQUIRED unless `container`
+   present — then derived, omit"); `y` stays required (grounded derives it —
+   author 0; describe() says so honestly). Regenerated
+   `simulation_schema.json`: ObjectConfig `required` is now `[id, x, y]`.
+   Same pass: stale "convex hull" describe()/preamble wording → "polygon"
+   (v2 rename drift).
+2. **Runtime** — new `src/lib/containerExpansion.ts`
+   (`expandContainerObjects`), wired as a derived `useMemo` in JsonSimulation
+   between the `editedConfig` destructure and the `siObjects` memo. Pure
+   derived layer: NEVER written back to `editedConfig`, so every save path
+   persists the compact `container` field and reload re-expands — **the
+   Phase-1 session-only-registration reload caveat is dead** for
+   JSON-authored containers. Key design points:
+   - Type strategy: authoring-side `ObjectConfig` gained the optionality; a
+     new `ExpandedObjectConfig` (width/height/svg required) keeps everything
+     below the seam strict (`SIObjectConfig` now builds on it — zero
+     behavioral change downstream).
+   - Param-signature cache (per id): repeat renders/StrictMode reuse the
+     factory result with no re-registration → stable blob URLs, warm
+     imageCache. Warns fire on cache miss only (no per-render spam).
+   - Derived-wins precedence: authored width/height/svg alongside
+     `container` are ignored (warn). Grounded without a bottom wall expands
+     anyway + warns. Factory throw (e.g. free without y) → warn + drop.
+     Ordinary objects missing width/height/svg → warn + DROP (deliberate
+     behavior change — replaces silent NaN poisoning through
+     `scaleObjectToSI`; another exhibit for the parked ingestion-boundary
+     item, where this check should eventually live).
+   - `isStatic: obj.isStatic ?? false` — authored wins over the factory's
+     dynamic default (fixed-bucket case).
+   - Expansion env derives `sceneMin = min(800,600)/configPixelsPerUnit`
+     (never LLM-exposed) and `hasBottomWall` from `environment.walls`.
+3. **Prompt** — full pipeline: `shared_preamble` one-exception sentence;
+   `skeleton_fragment` plans containers via `"container": true` INSTEAD of an
+   svg name (protects the svg-verbatim invariant — no sentinel manifest
+   name) + bottom-wall rule + example skeleton entry; `objects_fill_fragment`
+   new item 2 (param guidance: innerWidth diorama-sized ≥1.5× payload,
+   walls/mode semantics, y: 0 for grounded, low-friction sliding catcher vs
+   isStatic bucket, never emit width/height/svg) + container variant in the
+   output example + required-fields line reworded; `objects_remix_fragment`
+   preserve-line covers `container` params (remix inherits the fill teaching
+   by composition). `objects_fill.py`'s inline user message got the container
+   sentence + a drive-by fix of its stale "real-world bounding-box" sizing
+   wording (contradicted the fragment's diorama rule — pre-existing).
+
+**CupCatchSimulation converted to the JSON-authored form** — the living
+exhibit; WagonStop/BoxCatch deliberately stay on the direct factory path
+(regression coverage + the factory API remains a supported consumer).
+
+**Headless-verified** (real expansion → registration → manifest lookup →
+scale → decompose): derived svg `container-cup`, width/height 0.744/0.772,
+seated y = 0.386 exact; 3-part compound `[4,4,4]`; L-profile → 2 quads;
+cache hit returns the identical ManifestItem (no re-registration); param
+change re-synthesizes; all four defensive drop/warn cases fire. tsc/lint/
+build clean (known baselines only). Bonus hardening: CC2's dev-gate is now
+`(import.meta as any).env?.DEV` — outside Vite (headless tsx) `env` is
+undefined and the old form THREW, killing any harness that reached
+`decomposePolygonShape`.
+
+**SHIP GATE — PASSED IN FULL 2026-07-19 (Bill), see ⛴️ below:** (1) drive `/simulation/cup-catch` w/ and w/o
+`?colliders=1` — 3 colored parts, exact seating, vx traces converge on u/3,
+no rectangle-fallback warnings; Planck spot-check. (2) Tweak-JSON round trip:
+edit `container.innerWidth` live → clean re-synthesis; saved JSON carries
+compact `container` only; save → reload → real collider. (3) WagonStop/
+BoxCatch regression (factory path). (4) EditOverlay on the cup: x-drag
+commits, y-drag/resize snap back (derived-wins; v1-accepted). (5) `modal
+serve` + a container-inviting prompt ("a ball is launched and lands in a cup
+that slides") → skeleton plans `"container": true` + bottom wall; objects
+stage emits container params sans width/height/svg; sim loads and catches;
+remix "make the cup deeper" preserves the container form. (6) On pass:
+`modal deploy` (invariant #11), flip CC5 → done, PHYSICS_SHAPES S2.1 note →
+shipped.
+
+### ⛴️ 2026-07-19 — PHASE 4 SHIPPED: gate passed in full, deployed, prod-validated (CC5 → done)
+
+Every gate leg passed across the two drive sessions:
+- **Local drives:** cup-catch — snap-backs exactly as designed (Bill: "good
+  UI experience while we maintain one-truth JSON through V1"); wagon-stop —
+  factory-path objects keep normal drag/resize (correct: no `container`
+  field → expansion pass-through; snap-back is container-field-only).
+- **Tweak-JSON round trip:** parent config loaded live, payload swapped
+  (baseball→cannonball), masses edited — cup re-expanded from compact params
+  every time, and **tipped correctly under mass-ratio changes** (bonus
+  dynamics validation: the expansion-built compound behaves right in the
+  historically engine-sensitive tipping regime, on Rapier).
+- **`modal serve` generate:** "ball launched into a sliding cup" → skeleton
+  planned `"container": true` + `"bottom"` wall; objects stage emitted
+  `container: {innerWidth: 4.0, wallHeight: 4.0}` with NO width/height/svg;
+  sizing pedagogy followed (innerWidth 2.2× payload; wallHeight ≈
+  innerWidth; low friction 0.12; bonus cup-velocity slider).
+- **`modal serve` remix:** "make the cup deeper" → structural diff vs parent
+  = exactly `objects[1].container.wallHeight: 4.0 → 6.0` — container form
+  preserved, correct param, nothing else touched. Router routed correctly
+  despite its container-blind parent summary (confirmed cosmetic-only).
+- **Deployed** (`modal deploy` × generate + remix, Bill's apps) and
+  **prod-validated in the web app**: fresh prompt → cannonball + sliders +
+  cup, worked; remix "taller and wider cup" → worked.
+
+The exhibit pair from the serve tests is preserved at
+`modal_functions/testing_prompt_change/parent.json` (first LLM-authored
+container) and `remix.json` (its one-field remix diff). Statuses flipped:
+roadmap CC5 → done; PHYSICS_SHAPES S2.1 → shipped; CLAUDE.md invariant #1
+gains the expansion pre-pass as part of the ingestion seam. Observations for
+later, already recorded elsewhere: LLM naturally picks `baseball` (census
+over-cap — raises upstream circle-collider priority); default trajectory
+landed short of the cup (LLM placement quality, sliders carry the pedagogy).
+
+### 2026-07-19 — SCOPED: seam diagnostics bus + visible badge (decision from the first Phase-4 drive)
+
+**The specimen that forced the question.** Bill's cup-catch drive on Planck:
+the payload was `baseball` — a census-listed over-cap collider (18-vert
+outline → parts `[3,17]`, part 1 = 17 verts). Planck's silent truncate+rehull
+built an effective collider whose boundary sits outside the *drawn* ball
+(hulling fills the outline's concave region), so the cup started moving on a
+contact nobody could see. The CC2 dev-warn fired **correctly** in the console
+— but Bill wasn't watching the console, and diagnosed it only by
+physics-reasoning (raise launch height → cup moves later → invisible
+boundary). Verdict: **the guard worked; the channel failed.** The payload was
+swapped to `cannonball` (census-clean) and the sim behaves.
+
+**DECISION (Bill, 2026-07-19): build option A — a seam diagnostics bus with a
+visible badge.** Scope (documented now, build later):
+- A `reportDiagnostic(...)` helper at the gist-owned seams that still
+  `console.warn`s AND pushes a keyed entry into a module-level session store
+  (same singleton pattern as `registerImportedRenderable`). Keyed entries
+  dedupe the React StrictMode double-fire for free.
+- UI: an **amber badge on the debug panel** with a count, expandable to the
+  message list. Dev-gated, like the warns it surfaces.
+- Initial producers: the CC2 over-cap warn (`warnOnOverCapParts`,
+  [shapeHelpers.ts](src/physics/shapeHelpers.ts)) and the container-expansion
+  seam's four warn/drop cases
+  ([containerExpansion.ts](src/lib/containerExpansion.ts)).
+- **Why A over the alternatives:** console interception (B) inherits all dev
+  noise — rejected; badging the overlay checkbox (C) points at an instrument
+  that can't show engine-actual geometry — complement, not substitute. A is
+  one mechanism with many future producers: the parked **dup-id visible
+  warning** and the parked **ingestion-boundary checks** both independently
+  called for exactly this surface — the bus is their future UI home (they
+  stay parked; the bus is the surface, not the fix). It is, in effect, the UI
+  face of the parse-don't-validate boundary.
+- **Three-places: intentionally untouched** — pure dev/observation tooling,
+  nothing LLM-authorable.
+
+**Engine-actual fixture readback (option D / the deferred CC1 layer) stays
+DEFERRED — explicit decision.** The baseball drive is its **first live
+justification** (with readback, "cup moved early" would have been a
+five-second visual diagnosis: Planck's true hull drawn over the sprite), and
+that is now on record — but Bill is about to dramatically reduce failing SVGs
+upstream (icon-repo census cleanup), so the specimen class should get rare.
+Revisit if over-cap colliders keep reaching drives after the upstream
+cleanup.
+
+**Upstream remains the cure:** baseball's correct fix is a `type:"circle"`
+collider in the icon repo (round-object pattern, census 2026-07-18) — neither
+the bus nor gist geometry work.
+
+### 2026-07-19 — FUTURE FEATURE (wishlist-stage): `container.angle` as a seating-aware pose, not a raw initial condition
+
+Bill's framing from the first Phase-4 drive session: **`grounded` is a
+quality-of-life seating solver, and a future container angle option must
+compose WITH it** — which is exactly why it is NOT the same thing as plain
+`ObjectConfig.angle` (a raw center-rotation that leaves the author to
+hand-solve a non-intersecting, non-floating pose against the ground).
+
+Two regimes, both "grounded means in contact":
+
+1. **Slope-following (derived angle).** When ground can slope (gated on the
+   future sloped-ground work — env-shapes charter / parked ground-semantics
+   item), a `grounded` container on a θ-incline inherits θ automatically:
+   seating = flush contact, both bottom corners on the surface line. The
+   author writes nothing; angle becomes a consequence of `grounded` exactly
+   as y is today.
+2. **Authored tip angle (corner seating).** For start-at-tipping-angle demos,
+   `grounded` degrades gracefully from edge-contact to **corner-contact**:
+   the sign of the authored angle φ picks the bottom corner on the tip side,
+   and the solver computes the pose so that corner touches the ground
+   exactly — for the current rectangular envelope, center height above
+   ground = `(w/2)·|sin φ| + (h/2)·cos φ`. Zero placement arithmetic for the
+   author, same QoL contract.
+
+Implementation notes recorded now so the future slice starts smart:
+- **Regime 2 needs no sloped ground** — pure seating math on today's flat
+  y=0 floor; it can land first, independently of the ground work.
+- **Neither regime touches collider geometry** — the synthesized shape is
+  unchanged; only the spawn-pose solver grows (angle joins y as a derived
+  output of `grounded`; `free` mode would presumably pass angle through raw
+  like any object).
+- This is the **second concrete case of the "seat object on surface"
+  placement-helper seed** (Findings 2026-07-10, grounded decision #4:
+  "generalizes to angled ramps") — when this feature is picked up, that seed
+  and this entry are the same workstream.
+- Three-places: nothing landed — wishlist-stage note only; schema/prompt
+  untouched until the slice is scoped.
+
 ## Pipeline & engine-parity checks (Phase 1/4 prerequisites)
 
 Two things to verify before concave colliders are real beyond a hand-authored

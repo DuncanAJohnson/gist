@@ -72,7 +72,9 @@ export function decomposePolygonShape(
   }));
   // Dev-build only. `(import.meta as any).env` matches the codebase idiom for
   // reading Vite env without wiring in vite/client types (no vite-env.d.ts).
-  if ((import.meta as any).env.DEV) {
+  // Optional-chained: outside Vite (headless tsx harnesses) `env` is
+  // undefined — the guard silently no-ops there instead of throwing.
+  if ((import.meta as any).env?.DEV) {
     warnOnOverCapParts(parts, vertices.length, label);
   }
   return parts.length === 1 ? parts[0] : { type: 'compound', parts };
