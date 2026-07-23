@@ -554,3 +554,70 @@ when step 3 builds.
 
 Next up per the plan: step 2 — un-stub gravity + drag arrows + a "Show force
 vectors" debug toggle.
+
+### Findings 2026-07-22 — vector component decomposition SHIPPED (Path B); remix-router gap found + fixed
+
+New capability on the vector-arrows renderable: **component decomposition**. A
+`showVectors` full-config entry with `components: true` draws a vector as its two
+axis-aligned legs (vₓ / v_y) instead of the single resultant. Requested for
+projectile motion — seeing constant vₓ and ramping v_y during flight.
+
+**Approach chosen — Path B (a `components` modifier), NOT Path A (new per-kind
+enum members like `velocity-x`).** Path A would multiply `VECTOR_KINDS` (and
+every `Record<VectorKind, …>` map) by every kind we'd ever decompose; Path B is
+one boolean that generalizes across all kinds and matches how the decomposition
+is actually taught. Bill picked the display style: **both legs from the body**
+(PhET "show components" style), resultant composed by ALSO listing the plain
+kind — `["velocity", { "kind": "velocity", "components": true }]` — not
+tip-to-tail, not auto-drawn-with-resultant.
+
+**Three-places — all landed:**
+1. Schema: `components?: boolean` on `VectorArrowConfigSchema`
+   ([simulation.ts:67](src/schemas/simulation.ts#L67)); JSON schema regenerated.
+2. Prompt: §5 of `objects_fill_fragment` in `gist_instructions.py` +
+   `router_fragment` fix (below); generate + remix redeployed 2026-07-22.
+3. Design doc: `/docs/vector-arrows` (`VectorArrows.tsx`) — new "Velocity
+   components" test scene, Schema-additions prose, Geometry-conventions dash +
+   anchor bullets. This note = the dated record.
+
+**Implementation touchpoints.** `synthesize.ts` fans a `components: true` entry
+into two visuals carrying an internal `axis: 'x' | 'y'` discriminator (schema-
+invisible); `VectorArrow.ts` zeroes the off-axis component, dashes the shaft, and
+derives the subscript from the kind's default label (v → vₓ/v_y; F_net →
+F_net,x/,y); `types.ts` carries `axis`. Dash pattern is theme-owned:
+`VECTOR_GEOMETRY.componentDash = [7, 5]` in `vectorTheme.ts` (one knob).
+Local exhibit route: `/simulation/projectile-velocity-components`.
+
+**Rotated-basis door LEFT OPEN (deferred, not built).** Bare-boolean schema is
+additively forward-compatible; the internal `axis: 'x' | 'y'` generalizes to
+`'parallel' | 'perp'` + a basis angle (leg directions become
+(cosθ,sinθ)/(−sinθ,cosθ) dot-products; axis-aligned = θ=0). The undecided fork —
+whether the incline basis lives **per-arrow** (`componentAxisAngle`) or
+**env-level** (a tilted global coordinate frame, DRY across a whole incline
+scene; current lean) — is parked in `parking_lot.md` ("Rotated coordinate basis
+for component decomposition", 2026-07-22).
+
+**Remix-router gap (found via a live remix that failed, then fixed).** Bill's
+remix "I see the components but also need to see the full velocity vector" did
+NOT add the resultant. Root cause was upstream of the objects stage: the remix
+**router** (`router_fragment`, consumed by `sim_pipeline_remix/router.py`)
+described the "objects" slice as physics/geometry only and had no notion of
+`showVectors`, so a display-only arrow edit routed to no slice (or toward
+graphs/outputs, where velocity is *plotted*) and the objects stage — the only one
+that can touch `showVectors` — never ran. Two prompt fixes: (a) the router now
+explicitly routes vector-arrow edits ("show/hide/add an arrow, show components,
+also show the full/whole/resultant vector") to **objects**; (b) §5 adds a
+terminology bridge — "full/whole/total velocity vector" = the plain `"velocity"`
+resultant entry; when a sim shows only components and the user wants the
+resultant too, APPEND the plain kind and KEEP the components entry. Both apps
+share `gist_instructions.py`; both redeployed; **remix acceptance re-run
+CONFIRMED working**. General lesson for this workstream: the remix router's slice
+descriptions must enumerate *display-only* object fields, not just physics — the
+FBD "Show force vectors" toggle (sequenced-plan step 2) will hit the exact same
+router seam.
+
+**Tie-in to Goal-1 (FBD).** Component decomposition is the same rendering
+primitive the force-vector display will want (decomposing weight along/perpendic-
+ular to an incline). Shipping it now means step 5's "incline decomposition"
+follow-on reuses this axis-lock machinery rather than reinventing it — and it's
+the concrete first customer for the rotated-basis work when that lands.

@@ -135,10 +135,12 @@ flowchart LR
     VAP1B["Phase 1b: drop gravity<br/>double-count in F_net<br/><b>SHIPPED</b>"]
     VAP1C["Phase 1c-rev:<br/>kinematics in Frame<br/><b>SHIPPED</b>"]
     VAP2["Phase 2: velocity + accel<br/>+ showVectors schema<br/><b>SHIPPED</b>"]
+    VACOMP["Component decomposition<br/>components:true → dashed vₓ/v_y legs<br/>rotated basis door open (parked)<br/><b>SHIPPED 2026-07-22</b>"]
     VAP3["Phase 3: applied / friction /<br/>drag / gravity kinds"]
     VAP4["Phase 4: legend + presets"]
     VAP5["Phase 5: auto-scale calib"]
     VAP1A --> VAP1B --> VAP1C --> VAP2 --> VAP3 --> VAP4 --> VAP5
+    VAP2 --> VACOMP
   end
 
   subgraph AIRPHASES["1. Air resistance"]

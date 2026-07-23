@@ -8,6 +8,7 @@ import TossBallSimulation from './simulations/TossBallSimulation'
 import BallIntoCupDropSimulation from './simulations/BallIntoCupDropSimulation'
 import BallIntoCupArcSimulation from './simulations/BallIntoCupArcSimulation'
 import ProjectileLaunchPolarSimulation from './simulations/ProjectileLaunchPolarSimulation'
+import ProjectileVelocityComponentsSimulation from './simulations/ProjectileVelocityComponentsSimulation'
 import PolarAuthoredVelocitySimulation from './simulations/PolarAuthoredVelocitySimulation'
 import CupCatchSimulation from './simulations/CupCatchSimulation'
 import BoxCatchSimulation from './simulations/BoxCatchSimulation'
@@ -47,6 +48,7 @@ function AppContent() {
         <Route path="/simulation/ball-into-cup-drop" element={<BallIntoCupDropSimulation />} />
         <Route path="/simulation/ball-into-cup-arc" element={<BallIntoCupArcSimulation />} />
         <Route path="/simulation/projectile-launch-polar" element={<ProjectileLaunchPolarSimulation />} />
+        <Route path="/simulation/projectile-velocity-components" element={<ProjectileVelocityComponentsSimulation />} />
         <Route path="/simulation/polar-authored-velocity" element={<PolarAuthoredVelocitySimulation />} />
         <Route path="/simulation/cup-catch" element={<CupCatchSimulation />} />
         <Route path="/simulation/box-catch" element={<BoxCatchSimulation />} />

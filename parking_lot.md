@@ -444,3 +444,107 @@ duplicate-object-ids entry above (whose fix-path 3 is the same tie-in).
 **Diagnostic.** The 2026-07-18 census script (real `poly-decomp` over the whole
 manifest, error-trapped) re-runs headlessly; it is both CC2's re-author
 worklist and this guard's future test corpus.
+
+## Initial-overlap contact coupling between dynamic bodies (2026-07-22)
+
+**What it is.** When two DYNAMIC bodies are authored so they interpenetrate at
+t=0, the physics engine's contact solver couples their motion in ways that look
+like an invisible joint — one body "drags" the other, trajectories get
+corrupted, and the effect is position-sensitive and sometimes non-reproducible.
+Observed by Bill 2026-07-22 in a "Cannon Projectile Motion" sim: a `cannonball`
+(mass 5, launched 20 m/s @ 45°) authored overlapping the lower-right corner of a
+`dynamics_cart` `launcher` (mass 50). AABB check confirms the overlap at spawn
+(ball x≈6.37→9.37, y≈24.25→27.25 vs cart x≈3.08→9.08, y≈24.75→27.75 — ~1.2 m × 2 m
+into the cart's corner).
+
+**Mechanism (not a bug — expected engine behavior).** At t=0 the bodies are
+interpenetrating, so Rapier applies penetration-recovery (position correction /
+Baumgarte) impulses to push them apart, PLUS normal + frictional contact
+impulses through the persistent contact manifold. A 20 m/s ball embedded in a
+50 kg body launches INTO a stiff contact, so momentum + friction couple the two.
+That is the "attached with a joint" feel — a stiff contact, not a constraint.
+
+**Why the position-sensitivity fits.**
+- Ball centered above the wheels, NO overlap → no initial contact → ball flies
+  free (correct projectile motion). ✓
+- Ball dropped slightly → shallow overlap → intermittent, shallow contact →
+  "dragged," and NON-reproducibly. ✓ Shallow penetration makes contact-manifold
+  generation and the recovery impulse hypersensitive to exact depth and
+  first-few-frame timing (the observed non-determinism is real, not imagined).
+
+**Why it matters (authoring footgun).** Nothing — LLM generation, remix, or
+hand-authoring — currently prevents spawning visually-touching dynamic bodies,
+and the coupling surprise is invisible in the JSON. A "cannon + cannonball"
+prompt naturally wants the ball AT the cannon's muzzle, i.e. overlapping.
+
+**Where the fix lives — the diagnostics bus (strong fit).** Dynamic–dynamic
+overlap at load is exactly "LIVE config-state truth" (a property of the loaded
+config, cleared on every re-expansion) — the ratified diagnostics-bus semantic
+([diagnosticsBus.ts](src/lib/diagnosticsBus.ts), shipped 2026-07-20). Natural
+future fix: an ingestion-seam AABB (or collider) overlap check that fires an
+amber diagnostic at load ("projectile overlaps launcher at spawn — expect
+contact coupling"). Same choke point as the parked "runtime ingestion boundary"
+item (`scaleObjectToSI` / container expansion), same live-truth home as the
+grounded-without-floor and >12-vert diagnostics.
+
+**Systematic exploration to do before deciding the fix.** Build a small matrix
+and drive it: overlap depth (none → deep) × mass ratio (light-into-heavy vs
+heavy-into-light) × friction (both engines mix differently — Rapier default 0.5,
+Planck begin-contact max rule) × engine (rapier vs planck; #4 says Planck is
+more energetic). Open questions: (a) is a WARN enough, or should the seam nudge
+bodies apart (unsanctioned reinterpretation of authored positions — cf. invariant
+#10, probably NO)? (b) should the prompt carry an authoring rule "don't spawn
+overlapping dynamic bodies; place the projectile just clear of the launcher"?
+(c) does a muzzle-placed projectile need a spawn-offset convention instead?
+
+**Trigger to un-park.** Returning to cannon/launcher-style sims (projectile
+emerging from a body), or the FBD workstream surfacing contact forces (the same
+initial-overlap impulses would pollute an engine-readback FBD validator).
+
+## Rotated coordinate basis for component decomposition — incline-plane sims (2026-07-22)
+
+**What it is.** Component decomposition (`components: true` on a `showVectors`
+entry, SHIPPED 2026-07-22 — see `Notes_on_Applied_Forces_Refactor.md` Findings
+2026-07-22) currently splits a vector along HORIZONTAL/VERTICAL only. Incline-
+plane physics wants the basis rotated to along-incline (∥) and perpendicular-to-
+incline (⊥) — decompose weight into the component that drives sliding vs. the
+component the normal force cancels. This is the natural next increment.
+
+**Why it's already half-designed (the door was left open on purpose).** The
+shipped schema field is a BARE boolean, which is additively forward-compatible
+(no break to widen or add a sibling). The renderer's internal discriminator is
+`axis: 'x' | 'y'` ([VectorArrow.ts](src/components/simulation_components/renderables/visuals/VectorArrow.ts),
+[types.ts](src/components/simulation_components/renderables/types.ts)); it
+generalizes to `'parallel' | 'perp'` + a basis angle, with leg directions
+becoming (cosθ, sinθ) / (−sinθ, cosθ) dot-products. Axis-aligned is exactly the
+θ=0 case, so nothing shipped precludes this.
+
+**The open fork (NOT decided — this is why it's parked, not built).** Where does
+the basis angle live?
+- **Per-arrow** (`componentAxisAngle` on the config entry): most flexible, but
+  verbose and the author/LLM must repeat it on every decomposed arrow in the
+  scene.
+- **Env-level** (a tilted global coordinate frame on `environment`): DRY — an
+  incline defines ONE basis the whole scene shares; matches the physics ("tilt
+  the coordinate system"). But it's a bigger feature: a rotated basis probably
+  also wants rotated grid lines and rotated `.x`/`.y` readouts/graphs to stay
+  coherent, and it brushes invariant #10 (units/frames describe the diorama —
+  a global frame rotation is a description change, migrate don't reinterpret).
+  **Current lean: env-level**, since an incline tilts the whole coordinate system
+  — but this needs scoping against the grid/readout ripple before committing.
+
+**Suggested fix paths, ranked.**
+1. Decide the fork as part of scoping the first incline-plane sim (curriculum:
+   PHYSICS_SHAPES ramp/incline rungs; `WagonStop`'s ramp-seating seed is a
+   nearby anchor). Don't decide it in the abstract — let a real incline sim force
+   the grid/readout coherence questions into the open.
+2. If env-level: prototype a `environment.coordinateAngle` (name TBD) that a
+   single ingestion-seam knows about, and have component decomposition read it —
+   one source of truth, same seam as the other frame/unit knowledge (parked
+   "runtime ingestion boundary" item).
+3. If per-arrow: add `componentAxisAngle?` (env angleUnit, CCW from +X, default
+   0) next to `components`; smallest change, revisit DRY later.
+
+**Trigger to un-park.** Scoping the first incline-plane / ramp sim, or the FBD
+workstream (`Notes_on_Applied_Forces_Refactor.md` Goal 1) reaching step 5's
+"incline decomposition" follow-on — whichever comes first. Both want ∥/⊥ legs.

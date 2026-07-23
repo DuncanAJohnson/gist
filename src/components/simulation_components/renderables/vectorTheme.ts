@@ -72,6 +72,12 @@ export const VECTOR_GEOMETRY = {
   headLength: 12,
   headAngleRad: Math.PI / 6,
   /**
+   * Canvas dash pattern (px on, px off) for component-leg shafts. Component
+   * arrows (vₓ / v_y from a `components: true` entry) are drawn dashed to
+   * distinguish them from the solid resultant; the arrowhead stays filled.
+   */
+  componentDash: [7, 5] as number[],
+  /**
    * Arrows shorter than this are suppressed. Tuned so that after the shaft is
    * shortened by `headLength · cos(headAngle) ≈ 10.4 px` (so the line stops at
    * the head's base), a visible shaft stub still remains.

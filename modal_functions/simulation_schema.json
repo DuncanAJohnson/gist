@@ -327,6 +327,10 @@
                         "force-gravity"
                       ]
                     },
+                    "components": {
+                      "description": "When true, draw this vector decomposed into its two axis-aligned component arrows (e.g. vₓ horizontal and v_y vertical) instead of the single resultant arrow. Both legs originate at the object. The full resultant is NOT drawn — to show it alongside the components, add the plain kind as a separate entry, e.g. [\"velocity\", {\"kind\": \"velocity\", \"components\": true}]. Ideal for projectile motion (constant vₓ, ramping v_y). Decomposition is along horizontal/vertical; a rotated basis (incline plane) is not yet supported.",
+                      "type": "boolean"
+                    },
                     "pixelsPerUnit": {
                       "description": "Override the kind's default pixels-per-SI-unit scale.",
                       "type": "number",

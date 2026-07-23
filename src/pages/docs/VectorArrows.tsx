@@ -38,6 +38,8 @@ interface VectorArrowDemoProps {
   label?: string | VectorLabelDef | null;
   labelPlacement?: 'tail' | 'midpoint' | 'head';
   labelFontSize?: number;
+  /** Dash the shaft (component legs are drawn dashed to read distinctly from the solid resultant). */
+  dashed?: boolean;
 }
 
 function VectorArrowDemo({
@@ -50,6 +52,7 @@ function VectorArrowDemo({
   label,
   labelPlacement = VECTOR_LABEL_DEFAULTS.placement,
   labelFontSize,
+  dashed = false,
 }: VectorArrowDemoProps) {
   const scale = pixelsPerUnit ?? VECTOR_DEFAULT_SCALES[kind];
   const magnitude = Math.hypot(vectorPhysX, vectorPhysY);
@@ -116,6 +119,7 @@ function VectorArrowDemo({
         stroke={color}
         strokeWidth={VECTOR_GEOMETRY.lineWidth}
         strokeLinecap="round"
+        strokeDasharray={dashed ? VECTOR_GEOMETRY.componentDash.join(' ') : undefined}
       />
       <polygon points={`${ex},${ey} ${hx1},${hy1} ${hx2},${hy2}`} fill={color} />
       {labelDef !== null && (
@@ -249,6 +253,26 @@ function ProjectileScene() {
         <RenderableSprite src="apple.svg" cx={70} cy={70} size={36} />
         <VectorArrowDemo kind="velocity" vectorPhysX={3} vectorPhysY={2} tailX={70} tailY={70} />
         <VectorArrowDemo kind="acceleration" vectorPhysX={0} vectorPhysY={-9.8} tailX={70} tailY={70} />
+      </svg>
+    </SceneCard>
+  );
+}
+
+function ComponentsScene() {
+  // Same projectile, decomposed: solid resultant + dashed vₓ / v_y legs, all from the body.
+  return (
+    <SceneCard
+      title="Velocity components (vₓ / v_y)"
+      caption='components: true fans one vector into its two axis-aligned legs (dashed, both from the body), auto-subscripted vₓ / v_y. The resultant is NOT drawn by that entry — compose it by also listing the plain kind: ["velocity", {"kind": "velocity", "components": true}]. Canonical projectile view: vₓ constant, v_y ramps down through zero at the apex.'
+    >
+      <svg viewBox="0 0 320 180" className="w-full h-auto bg-gray-50" role="img" aria-label="Velocity component-decomposition vectors">
+        <Ground y={170} />
+        <RenderableSprite src="cannonball.svg" cx={90} cy={90} size={36} />
+        {/* Solid resultant (plain "velocity" entry) */}
+        <VectorArrowDemo kind="velocity" vectorPhysX={4} vectorPhysY={3} tailX={90} tailY={90} />
+        {/* Dashed component legs (components: true fans into these two) */}
+        <VectorArrowDemo kind="velocity" vectorPhysX={4} vectorPhysY={0} tailX={90} tailY={90} dashed label={{ main: 'v', sub: 'x' }} />
+        <VectorArrowDemo kind="velocity" vectorPhysX={0} vectorPhysY={3} tailX={90} tailY={90} dashed label={{ main: 'v', sub: 'y' }} />
       </svg>
     </SceneCard>
   );
@@ -604,6 +628,7 @@ function VectorArrows() {
         <VelocityScene />
         <AccelerationScene />
         <ProjectileScene />
+        <ComponentsScene />
         <AppliedForceScene />
         <FrictionScene />
         <DragScene />
@@ -620,7 +645,15 @@ function VectorArrows() {
         <li>
           <strong>Tail anchor:</strong> body centroid (in canvas pixels), unless an explicit{' '}
           <code>anchor</code> override is supplied. Force arrows traditionally come from the
-          centroid; component-decomposition diagrams may want edge anchors.
+          centroid; component legs (<code>components: true</code>) also originate at the centroid —
+          both vₓ and v_y share the body's tail (PhET-style), rather than being drawn tip-to-tail.
+        </li>
+        <li>
+          <strong>Component-leg dash:</strong> shafts of component arrows (the vₓ / v_y legs from a{' '}
+          <code>components: true</code> entry) are dashed —{' '}
+          <code>VECTOR_GEOMETRY.componentDash = [7, 5]</code> px on/off — with a filled head, so they
+          read distinctly from the solid resultant. The dash pattern lives in{' '}
+          <code>vectorTheme.ts</code> (the one knob) alongside the other geometry constants.
         </li>
         <li>
           <strong>Line width:</strong> 3 px. <strong>Head length:</strong> 12 px.{' '}
@@ -693,10 +726,33 @@ function VectorArrows() {
     { "kind": "acceleration", "color": "#7e57c2" },
     { "kind": "force-net", "label": "ΣF", "labelPlacement": "head" }
   ]
+
+  // Component decomposition: draw the two axis-aligned legs
+  // (dashed vₓ / v_y from the body) instead of the resultant.
+  // List the plain kind too to show the resultant alongside them.
+  "showVectors": ["velocity", { "kind": "velocity", "components": true }]
 }]`}</pre>
       <p>
         The legacy <code>showForceArrows: true</code> normalizes to{' '}
         <code>showVectors: ["force-net"]</code> for one release, then is dropped.
+      </p>
+      <p>
+        <strong>
+          Component decomposition (<code>components: true</code>, SHIPPED 2026-07-22).
+        </strong>{' '}
+        A full-config entry with <code>components: true</code> is fanned — at synthesis time in{' '}
+        <code>synthesize.ts</code> — into <em>two</em> axis-locked arrows (an internal{' '}
+        <code>axis: 'x' | 'y'</code> discriminator on the visual), one per component. The renderer
+        zeroes the off-axis component, dashes the shaft, and derives the subscript from the kind's
+        default label (<code>v → vₓ / v_y</code>, <code>F_net → F_net,x / F_net,y</code>). Both legs
+        originate at the body; the resultant is <em>not</em> drawn by that entry, so composing{' '}
+        <code>["velocity", {`{ "kind": "velocity", "components": true }`}]</code> shows the solid
+        resultant with its dashed legs (the "Velocity components" scene above). Decomposition is
+        horizontal/vertical only for now — the bare-boolean field and the internal axis
+        discriminator are the extension points for a future <strong>rotated basis</strong>{' '}
+        (incline-plane sims: <code>'parallel' | 'perp'</code> + a basis angle, axis-aligned being
+        the θ=0 case). Where that basis angle should live — per-arrow vs. an env-level tilted
+        coordinate frame — is an open fork parked in <code>parking_lot.md</code>.
       </p>
 
       <h2>Runtime modes &amp; what they mean for vector arrows</h2>

@@ -59,6 +59,12 @@ function drawVectorArrow(drawCtx: DrawContext, visual: PixelVisual) {
     return;
   }
 
+  // Component decomposition: an axis-locked visual zeroes the off-axis
+  // component so only the vₓ or v_y leg is drawn (both originate at the body).
+  // synthesize.ts fans a `components: true` entry into two of these.
+  if (visual.axis === 'x') vy = 0;
+  else if (visual.axis === 'y') vx = 0;
+
   const scale = visual.pixelsPerUnit ?? VECTOR_DEFAULT_SCALES[kind];
   const magnitude = Math.hypot(vx, vy);
   const arrowLen = magnitude * scale;
@@ -90,11 +96,14 @@ function drawVectorArrow(drawCtx: DrawContext, visual: PixelVisual) {
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  // Shaft (ends at head base).
+  // Shaft (ends at head base). Component legs are dashed to read distinctly
+  // from the solid resultant; the arrowhead below stays filled either way.
+  if (visual.axis) ctx.setLineDash(VECTOR_GEOMETRY.componentDash);
   ctx.beginPath();
   ctx.moveTo(cx, cy);
   ctx.lineTo(sx, sy);
   ctx.stroke();
+  if (visual.axis) ctx.setLineDash([]);
 
   // Filled arrowhead (apex at the true endpoint).
   ctx.beginPath();
@@ -105,8 +114,20 @@ function drawVectorArrow(drawCtx: DrawContext, visual: PixelVisual) {
   ctx.fill();
 
   // Label.
-  const labelDef: VectorLabelDef | string | null =
-    visual.label === null ? null : (visual.label ?? VECTOR_LABELS[kind]);
+  // Label. For a component leg with no explicit override, derive a subscripted
+  // label from the kind's default by appending the axis (v → vₓ / v_y;
+  // F_net → F_net,x / F_net,y). An author-supplied label is respected verbatim.
+  let labelDef: VectorLabelDef | string | null;
+  if (visual.label === null) {
+    labelDef = null;
+  } else if (visual.label !== undefined) {
+    labelDef = visual.label;
+  } else if (visual.axis) {
+    const base = VECTOR_LABELS[kind];
+    labelDef = { main: base.main, sub: base.sub ? `${base.sub},${visual.axis}` : visual.axis };
+  } else {
+    labelDef = VECTOR_LABELS[kind];
+  }
   if (labelDef !== null) {
     const fontSize = visual.labelFontSize ?? VECTOR_LABEL_DEFAULTS.fontSize;
     const placement = visual.labelPlacement ?? VECTOR_LABEL_DEFAULTS.placement;

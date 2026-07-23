@@ -64,6 +64,7 @@ const VectorLabelDefSchema = z.object({
 
 export const VectorArrowConfigSchema = z.object({
   kind: VectorKindSchema,
+  components: z.boolean().optional().describe('When true, draw this vector decomposed into its two axis-aligned component arrows (e.g. vₓ horizontal and v_y vertical) instead of the single resultant arrow. Both legs originate at the object. The full resultant is NOT drawn — to show it alongside the components, add the plain kind as a separate entry, e.g. ["velocity", {"kind": "velocity", "components": true}]. Ideal for projectile motion (constant vₓ, ramping v_y). Decomposition is along horizontal/vertical; a rotated basis (incline plane) is not yet supported.'),
   pixelsPerUnit: z.number().positive().optional().describe('Override the kind\'s default pixels-per-SI-unit scale.'),
   color: z.string().optional().describe('Override the kind\'s standard color (any CSS color string).'),
   label: z.union([z.string(), VectorLabelDefSchema, z.null()]).optional().describe('Override the kind\'s standard label. A plain string is rendered as-is; {main, sub} renders the sub as a subscript; `null` suppresses the label entirely.'),

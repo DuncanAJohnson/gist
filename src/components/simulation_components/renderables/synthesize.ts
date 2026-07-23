@@ -158,15 +158,20 @@ export function synthesizeVectorArrowRenderables(obj: ExpandedObjectConfig): Pix
   const legacy = (obj as ExpandedObjectConfig & { showForceArrows?: boolean }).showForceArrows;
   const showVectors = obj.showVectors ?? (legacy === true ? ['force-net' as const] : undefined);
   if (!showVectors || showVectors.length === 0) return [];
-  return showVectors.map((entry, i) => {
+  return showVectors.flatMap((entry, i) => {
     const cfg = typeof entry === 'string' ? { kind: entry } : entry;
-    return {
-      id: `__vector_arrow_${obj.id}__${cfg.kind}__${i}`,
-      source: { type: 'body', bodyId: obj.id, followAngle: false },
-      visual: { type: 'vector-arrow', ...cfg },
+    // `components` is an authoring convenience: strip it from the visual and
+    // fan the entry out into one axis-locked arrow per component. The plain
+    // (non-component) path stays a single resultant arrow.
+    const { components, ...visualCfg } = cfg;
+    const axes: Array<'x' | 'y' | undefined> = components ? ['x', 'y'] : [undefined];
+    return axes.map((axis) => ({
+      id: `__vector_arrow_${obj.id}__${cfg.kind}__${i}${axis ? `__${axis}` : ''}`,
+      source: { type: 'body' as const, bodyId: obj.id, followAngle: false },
+      visual: { type: 'vector-arrow' as const, ...visualCfg, ...(axis ? { axis } : {}) },
       opacity: 0.9,
       zIndex: 20,
-    };
+    }));
   });
 }
 

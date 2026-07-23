@@ -1,0 +1,75 @@
+{
+  "title": "Projectile — Velocity Components (vₓ / v_y)",
+  "description": "Path-B component-decomposition acceptance test. The ball's showVectors lists BOTH the plain \"velocity\" resultant AND {kind:velocity, components:true}, so three arrows ride the body: the green resultant tilting along the arc, a horizontal vₓ leg (constant), and a vertical v_y leg (ramps down through zero at the apex, then grows negative). Acceleration is likewise shown as components so you can confirm aₓ≈0 and a_y≈-9.8 throughout. Both component legs originate at the ball; labels auto-subscript (vₓ, v_y, aₓ, a_y).",
+  "environment": {
+    "walls": ["bottom"],
+    "gravity": 9.8,
+    "unit": "m",
+    "angleUnit": "deg",
+    "pixelsPerUnit": 12,
+    "physicsEngine": "rapier"
+  },
+  "objects": [
+    {
+      "id": "ball",
+      "x": 4,
+      "y": 4,
+      "width": 3,
+      "height": 3,
+      "svg": "baseball",
+      "velocity": { "magnitude": 24, "angle": 65 },
+      "mass": 1,
+      "restitution": 0.4,
+      "showVectors": [
+        "velocity",
+        { "kind": "velocity", "components": true },
+        { "kind": "acceleration", "components": true }
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "type": "slider",
+      "label": "Launch Speed (m/s)",
+      "targetObj": "ball",
+      "property": "velocity.magnitude",
+      "min": 0,
+      "max": 40,
+      "step": 1,
+      "defaultValue": 24
+    },
+    {
+      "type": "slider",
+      "label": "Launch Angle (°)",
+      "targetObj": "ball",
+      "property": "velocity.angle",
+      "min": 0,
+      "max": 90,
+      "step": 1,
+      "defaultValue": 65
+    }
+  ],
+  "outputs": [
+    {
+      "title": "Velocity components (the two legs you see on the ball)",
+      "values": [
+        { "label": "Vx", "targetObj": "ball", "property": "velocity.x", "unit": "m/s" },
+        { "label": "Vy", "targetObj": "ball", "property": "velocity.y", "unit": "m/s" },
+        { "label": "Speed |v|", "targetObj": "ball", "property": "velocity.magnitude", "unit": "m/s" }
+      ]
+    }
+  ],
+  "graphs": [
+    {
+      "type": "line",
+      "title": "Velocity components over time (Vx flat, Vy linear)",
+      "yAxisRange": { "min": -25, "max": 30 },
+      "yAxisLabel": "Velocity (m/s)",
+      "lines": [
+        { "label": "Vx", "color": "#2563eb", "targetObj": "ball", "property": "velocity.x" },
+        { "label": "Vy", "color": "#db2777", "targetObj": "ball", "property": "velocity.y" },
+        { "label": "Speed |v|", "color": "#16a34a", "targetObj": "ball", "property": "velocity.magnitude" }
+      ]
+    }
+  ]
+}

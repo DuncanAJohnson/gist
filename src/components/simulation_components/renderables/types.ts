@@ -81,6 +81,15 @@ export interface BodyOutlineVisual {
 export interface VectorArrowVisual {
   type: 'vector-arrow';
   kind: VectorKind;
+  /**
+   * Component decomposition. Absent → draw the single resultant arrow (the
+   * default). `'x'` / `'y'` → draw only that axis-aligned leg (the off-axis
+   * component is zeroed before rendering). synthesize.ts expands an authored
+   * `components: true` entry into two visuals, one per axis. This internal
+   * discriminator is the extension point for a future rotated basis
+   * ('parallel' | 'perp' + a basis angle) — see the vector-arrows docs.
+   */
+  axis?: 'x' | 'y';
   /** Override the kind's default scale. */
   pixelsPerUnit?: number;
   /** Override the kind's standard color. */
