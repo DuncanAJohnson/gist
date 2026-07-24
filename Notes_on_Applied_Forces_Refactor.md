@@ -621,3 +621,98 @@ primitive the force-vector display will want (decomposing weight along/perpendic
 ular to an incline). Shipping it now means step 5's "incline decomposition"
 follow-on reuses this axis-lock machinery rather than reinventing it — and it's
 the concrete first customer for the rotated-basis work when that lands.
+
+### Findings 2026-07-24 — sequenced-plan step 2 SHIPPED: gravity + drag arrows, "Show force vectors" toggle, freefall-with-drag exhibit (+ a replay-restore fix)
+
+Step 2 of the Goal-1 sequenced plan (un-stub the two data-ready force kinds +
+a debug toggle) is built and drive-confirmed. This is the first *visible* FBD
+progress. **Debug-first and deliberately NOT three-places-landed** (that's step
+6) — see the three-places status below.
+
+**2a — un-stubbed `force-gravity` + `force-drag`**
+([VectorArrow.ts:53-80](src/components/simulation_components/renderables/visuals/VectorArrow.ts#L53-L80)).
+The audited ~3-line un-stubs, exactly as the R/Y/G predicted:
+- `force-gravity` = `body.mass · drawCtx.gravity`. `DrawContext.gravity` is the
+  SI Y-up vector `{x:0, y:−g}` (fed from `JsonSimulation.tsx:221`
+  `gravityVec`), so it already points down — no sign handling needed.
+- `force-drag` = `body.userData.dragForce`, the `−k·|v|·v` already vectorized
+  each frame at [JsonSimulation.tsx:700](src/components/JsonSimulation.tsx#L700).
+  Non-zero only in quadratic air-resistance mode; `{0,0}` (→ suppressed by the
+  min-length floor) otherwise.
+- `force-applied` / `force-friction` still early-return — they await the engine
+  contact-force seam (step 3). No adapter changes; stayed above the boundary
+  (#4/#5).
+
+**2b — "Show force vectors" debug toggle / `?forces=1`.** New
+`synthesizeForceDebugRenderables`
+([synthesize.ts](src/components/simulation_components/renderables/synthesize.ts))
+draws `[force-gravity, force-drag, force-net]` on every DYNAMIC body regardless
+of authored `showVectors` — a debug instrument mirroring the collider overlay
+exactly (`showColliders` pattern: `FORCE_DEBUG_INITIAL` const, session-local
+`showForces` state, debug-panel checkbox, `?forces=1` URL preset). Static bodies
+get nothing. Wired through `AdvancedDebugPanel` with the same prop shape as
+`showColliders`.
+
+**2c — the exhibit.** `src/simulations/freefallWithDrag.json` + wrapper + route
+`/simulation/freefall-with-drag`. Mass-5 baseball, `Cd 0.8`, `referenceArea 0.5`,
+air resistance on → terminal ≈ 14 m/s. Authors the three force arrows directly
+(so the FBD shows on load); a `velocity.y` slider launches it downward *faster*
+than terminal, flipping net upward (drag > gravity). Drive-confirmed by Bill:
+gravity constant, net → 0, velocity converges to terminal. **The closure
+property held** — because gravity + drag are the only forces, the two component
+arrows sum exactly onto net (`m·a = m·g + F_drag`); the 🟡 closure gate does not
+bite until contact forces enter (step 5). Confirms the deferral is sound.
+
+**Bug found + fixed on the drive — `force-drag` invisible in REPLAY (a
+frame-capture gap, not a compute bug).** Bill saw gravity/net/terminal-velocity
+but no drag arrow. Root cause: `dragForce` lives on `body.userData`, which the
+engine doesn't restore; the precompute→replay loop rebuilds each frame from a
+recorded `FrameBodySnap`, which carried `ax/ay` (so acceleration + net animate
+in replay) but **not** drag. So replay read a stale/zero `userData.dragForce` →
+suppressed. Fix = the identical pattern acceleration already uses: added
+`dragFx/dragFy` to `FrameBodySnap`
+([JsonSimulation.tsx:126-134](src/components/JsonSimulation.tsx#L126-L134)),
+captured at frame-record time
+([~788](src/components/JsonSimulation.tsx#L788)), restored in
+`handleReplayFrame` alongside `derivedAcceleration`
+([~467](src/components/JsonSimulation.tsx#L467)). In-memory frames only — no
+serialization/schema surface touched. **General lesson for this workstream:**
+any future `userData`-sourced force arrow (`appliedForce`, `frictionForce`,
+`normalForce` from step 3) MUST ride along in the Frame or it will be invisible
+in replay — the engine restores engine state, not userData. This is a standing
+gotcha for steps 3 + 5.
+
+**Three-places status (deliberately partial — debug-first).**
+- **Schema** ✅ — `force-gravity`/`force-drag` already enumerated in the
+  `showVectors` describe string; no change needed.
+- **Prompt** 🔴 *by design* — [gist_instructions.py:141](modal_functions/gist_instructions.py#L141)
+  still lumps all four force kinds as "Phase 3 … don't author those kinds yet."
+  Now inaccurate for gravity/drag (their sources HAVE landed), but **holding the
+  prompt is the correct debug-first call**: promoting them to LLM authoring is
+  step 6, gated behind the step-4 primary-representation decision. **Open
+  decision for Bill:** promote `force-gravity` + `force-drag` to LLM-authorable
+  now (split them out of the Phase-3 "don't author" line), or hold to step 6?
+  Recommendation: hold — but the doc third-place below must not claim they're
+  unwired.
+- **Design docs** ✅ (reconciled this session) — fixed the now-false line in the
+  new `/docs/authoring-json` page (gravity/drag render today; only applied/
+  friction await the seam). `/docs/vector-arrows` already carries force-drag +
+  force-gravity demo scenes and their sources.
+
+**Step-2d observations (the gates step 2 was meant to surface).**
+1. **Legibility scale** — NOT stressed by this sim: forces here are ~49 N →
+   ~98 px at the SI-anchored 2 px/N, so they read large. The small-force
+   suppression problem (a 1.5 N friction → 3 px) waits for friction (step 5);
+   the per-diorama auto-scale decision can wait with it.
+2. **Color separation** — `force-drag` (blue-grey `#455a64`) and `force-gravity`
+   (navy `#34495e`) are close in hue when both point vertically. Minor theme
+   legibility note, not blocking; revisit when the full force palette is on one
+   body.
+
+**Where step 2 leaves the plan:** (1) ✅ diagnostic bus; (2) ✅ gravity+drag
+arrows + toggle + exhibit **[this entry]**; (3) NEXT — engine contact-force
+adapter seam (Rapier manifolds / Planck post-solve → normalized
+`{normalForce, frictionForce}`), feeding both the engine-actual overlay and the
+bus validator; (4) resolve primary-representation after the step-3 spike;
+(5) analytical normal + friction + the `normal` kind; (6) three-places for FBD
+authoring (incl. the prompt decision parked above).

@@ -1,0 +1,67 @@
+{
+  "title": "Free Fall with Air Resistance — Free-Body Diagram",
+  "description": "Goal-1 FBD step-2 exhibit. The ball carries three authored force arrows: weight (force-gravity, m·g, constant), air resistance (force-drag, −k·|v|·v, grows with speed), and the net force (force-net, m·a). Drop it from rest and watch drag grow upward until it exactly cancels gravity — net shrinks to zero and the ball coasts at terminal velocity (~14 m/s). Because gravity and drag are the ONLY forces here, the two component arrows close exactly onto net (m·a = m·g + F_drag) — the FBD closure property. Drag the slider to launch it DOWNWARD faster than terminal: now drag exceeds gravity, so net points UP and the ball decelerates back to terminal. (You can also flip 'Show force vectors' in the ?simdebug panel to overlay these same arrows on any sim.)",
+  "environment": {
+    "walls": ["bottom"],
+    "gravity": 9.8,
+    "unit": "m",
+    "angleUnit": "deg",
+    "pixelsPerUnit": 12,
+    "physicsEngine": "rapier",
+    "airResistance": {
+      "enabled": true,
+      "airDensity": 1.225
+    }
+  },
+  "objects": [
+    {
+      "id": "ball",
+      "x": 33,
+      "y": 46,
+      "width": 3,
+      "height": 3,
+      "svg": "baseball",
+      "mass": 5,
+      "dragCoefficient": 0.8,
+      "referenceArea": 0.5,
+      "restitution": 0.2,
+      "showVectors": [
+        "force-gravity",
+        "force-drag",
+        "force-net"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "type": "slider",
+      "label": "Initial downward speed (m/s)",
+      "targetObj": "ball",
+      "property": "velocity.y",
+      "min": -25,
+      "max": 0,
+      "step": 1,
+      "defaultValue": 0
+    }
+  ],
+  "outputs": [
+    {
+      "title": "Ball motion",
+      "values": [
+        { "label": "Vy", "targetObj": "ball", "property": "velocity.y", "unit": "m/s" },
+        { "label": "Speed |v|", "targetObj": "ball", "property": "velocity.magnitude", "unit": "m/s" }
+      ]
+    }
+  ],
+  "graphs": [
+    {
+      "type": "line",
+      "title": "Vertical velocity approaching terminal",
+      "yAxisRange": { "min": -20, "max": 5 },
+      "yAxisLabel": "Velocity Y (m/s)",
+      "lines": [
+        { "label": "Vy", "color": "#2563eb", "targetObj": "ball", "property": "velocity.y" }
+      ]
+    }
+  ]
+}

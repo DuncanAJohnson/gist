@@ -32,6 +32,8 @@ interface AdvancedDebugPanelProps {
   onShowGridChange: (v: boolean) => void;
   showColliders: boolean;
   onShowCollidersChange: (v: boolean) => void;
+  showForces: boolean;
+  onShowForcesChange: (v: boolean) => void;
   onTweakJSON?: () => void;
   onImportObject?: () => void;
 }
@@ -93,6 +95,8 @@ function AdvancedDebugPanel({
   onShowGridChange,
   showColliders,
   onShowCollidersChange,
+  showForces,
+  onShowForcesChange,
   onTweakJSON,
   onImportObject,
 }: AdvancedDebugPanelProps) {
@@ -251,6 +255,20 @@ function AdvancedDebugPanel({
               type="checkbox"
               checked={showColliders}
               onChange={(e) => onShowCollidersChange(e.target.checked)}
+              className="cursor-pointer"
+            />
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span
+              className="text-xs text-gray-600"
+              title="Force-vector observation overlay: draws the data-ready FBD force arrows — gravity (m·g), drag (−k·|v|·v, air-resistance mode only), and net (m·a) — on every dynamic body, regardless of its authored showVectors. In a gravity+drag-only scene the three visibly close. Also available as ?forces=1."
+            >
+              Show force vectors
+            </span>
+            <input
+              type="checkbox"
+              checked={showForces}
+              onChange={(e) => onShowForcesChange(e.target.checked)}
               className="cursor-pointer"
             />
           </div>

@@ -9,6 +9,7 @@ import BallIntoCupDropSimulation from './simulations/BallIntoCupDropSimulation'
 import BallIntoCupArcSimulation from './simulations/BallIntoCupArcSimulation'
 import ProjectileLaunchPolarSimulation from './simulations/ProjectileLaunchPolarSimulation'
 import ProjectileVelocityComponentsSimulation from './simulations/ProjectileVelocityComponentsSimulation'
+import FreefallWithDragSimulation from './simulations/FreefallWithDragSimulation'
 import PolarAuthoredVelocitySimulation from './simulations/PolarAuthoredVelocitySimulation'
 import CupCatchSimulation from './simulations/CupCatchSimulation'
 import BoxCatchSimulation from './simulations/BoxCatchSimulation'
@@ -27,6 +28,7 @@ const RefactorRoadmap = lazy(() => import('./pages/docs/RefactorRoadmap'))
 const VectorArrows = lazy(() => import('./pages/docs/VectorArrows'))
 const RecordingsAndCameras = lazy(() => import('./pages/docs/RecordingsAndCameras'))
 const DesignPhilosophy = lazy(() => import('./pages/docs/DesignPhilosophy'))
+const AuthoringJson = lazy(() => import('./pages/docs/AuthoringJson'))
 
 function DocsFallback() {
   return (
@@ -49,6 +51,7 @@ function AppContent() {
         <Route path="/simulation/ball-into-cup-arc" element={<BallIntoCupArcSimulation />} />
         <Route path="/simulation/projectile-launch-polar" element={<ProjectileLaunchPolarSimulation />} />
         <Route path="/simulation/projectile-velocity-components" element={<ProjectileVelocityComponentsSimulation />} />
+        <Route path="/simulation/freefall-with-drag" element={<FreefallWithDragSimulation />} />
         <Route path="/simulation/polar-authored-velocity" element={<PolarAuthoredVelocitySimulation />} />
         <Route path="/simulation/cup-catch" element={<CupCatchSimulation />} />
         <Route path="/simulation/box-catch" element={<BoxCatchSimulation />} />
@@ -90,6 +93,10 @@ function AppContent() {
         <Route
           path="/docs/design-philosophy"
           element={<Suspense fallback={<DocsFallback />}><DesignPhilosophy /></Suspense>}
+        />
+        <Route
+          path="/docs/authoring-json"
+          element={<Suspense fallback={<DocsFallback />}><AuthoringJson /></Suspense>}
         />
       </Routes>
     </>

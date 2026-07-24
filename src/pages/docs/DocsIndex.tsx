@@ -42,6 +42,11 @@ const diagrams = [
     title: '8. Design philosophy',
     blurb: 'Diorama-scoped physics — why GIST sims are teaching dioramas rather than physics oracles. The principle behind every coefficient, default, and schema choice. First worked example: the linear-in-A air-resistance scoping.',
   },
+  {
+    to: '/docs/authoring-json',
+    title: '9. Authoring sim JSON',
+    blurb: 'Soup-to-nuts developer guide to hand-writing the simulation JSON: the local workflow, the coordinate system, and a field-by-field tour of environment / objects / container / showVectors / controls / outputs / graphs, with a full worked example.',
+  },
 ];
 
 const docFiles = [

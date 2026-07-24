@@ -2,6 +2,7 @@ import { SIMULATION_WIDTH, SIMULATION_HEIGHT, WALL_THICKNESS } from '../../BaseS
 import type { ExpandedObjectConfig } from '../objects/types';
 import type { ExperimentalDataConfig } from '../ExperimentalDataModal';
 import type { PixelRenderable, DataPositionResolver } from './types';
+import type { VectorKind } from './vectorTheme';
 import { interpolate } from './positionSources';
 
 const WALL_COLOR = '#666';
@@ -173,6 +174,34 @@ export function synthesizeVectorArrowRenderables(obj: ExpandedObjectConfig): Pix
       zIndex: 20,
     }));
   });
+}
+
+/**
+ * Debug force-overlay renderables — the "Show force vectors" toggle / `?forces=1`
+ * (Goal-1 FBD step 2, 2026-07-24). Draws the data-ready FBD force kinds on every
+ * DYNAMIC body, independent of the body's authored `showVectors`, so any sim can
+ * be inspected without editing its JSON — mirroring the collider observation
+ * overlay. The kinds:
+ *   - `force-gravity` (m·g) — always present on a dynamic body.
+ *   - `force-drag` (−k·|v|·v) — only non-zero in air-resistance mode.
+ *   - `force-net` (m·a) — the measured resultant.
+ * In a gravity+drag-only scene these three visibly close (m·a = m·g + F_drag);
+ * once contact forces enter, net will diverge from the shown parts until normal/
+ * friction land (Goal-1 steps 3+5). Static bodies (floors/walls) get nothing;
+ * zero-length arrows (drag at rest, net in equilibrium) are suppressed by the
+ * renderer's min-length floor.
+ */
+const FORCE_DEBUG_KINDS: readonly VectorKind[] = ['force-gravity', 'force-drag', 'force-net'];
+
+export function synthesizeForceDebugRenderables(obj: ExpandedObjectConfig): PixelRenderable[] {
+  if (obj.isStatic) return [];
+  return FORCE_DEBUG_KINDS.map((kind) => ({
+    id: `__force_debug_${obj.id}__${kind}`,
+    source: { type: 'body' as const, bodyId: obj.id, followAngle: false },
+    visual: { type: 'vector-arrow' as const, kind },
+    opacity: 0.9,
+    zIndex: 20,
+  }));
 }
 
 /**

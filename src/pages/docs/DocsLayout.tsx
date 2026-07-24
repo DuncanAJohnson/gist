@@ -10,6 +10,8 @@ const sections = [
   { to: '/docs/refactor-roadmap', label: '5. Refactor roadmap' },
   { to: '/docs/vector-arrows', label: '6. Vector arrows' },
   { to: '/docs/recordings-and-cameras', label: '7. Recordings & cameras' },
+  { to: '/docs/design-philosophy', label: '8. Design philosophy' },
+  { to: '/docs/authoring-json', label: '9. Authoring sim JSON' },
 ];
 
 interface DocsLayoutProps {

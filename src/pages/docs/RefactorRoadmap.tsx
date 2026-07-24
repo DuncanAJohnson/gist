@@ -136,11 +136,13 @@ flowchart LR
     VAP1C["Phase 1c-rev:<br/>kinematics in Frame<br/><b>SHIPPED</b>"]
     VAP2["Phase 2: velocity + accel<br/>+ showVectors schema<br/><b>SHIPPED</b>"]
     VACOMP["Component decomposition<br/>components:true → dashed vₓ/v_y legs<br/>rotated basis door open (parked)<br/><b>SHIPPED 2026-07-22</b>"]
-    VAP3["Phase 3: applied / friction /<br/>drag / gravity kinds"]
+    FBD2["FBD step 2: gravity + drag arrows<br/>+ Show-force-vectors toggle (?forces=1)<br/>+ freefall-with-drag exhibit<br/><b>SHIPPED 2026-07-24</b>"]
+    VAP3["Phase 3: applied / friction kinds<br/>(gravity + drag done via FBD step 2;<br/>await engine contact seam — FBD step 3)"]
     VAP4["Phase 4: legend + presets"]
     VAP5["Phase 5: auto-scale calib"]
     VAP1A --> VAP1B --> VAP1C --> VAP2 --> VAP3 --> VAP4 --> VAP5
     VAP2 --> VACOMP
+    VAP2 --> FBD2
   end
 
   subgraph AIRPHASES["1. Air resistance"]
@@ -176,7 +178,7 @@ flowchart LR
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#92400e;
   classDef pending fill:#dbeafe,stroke:#2563eb,color:#1e40af;
 
-  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,CCP0,CC2,CC3,CC5,CC6,RP0,VECP1 done;
+  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,VACOMP,FBD2,CCP0,CC2,CC3,CC5,CC6,RP0,VECP1 done;
   class APPP1,APPP2,APPP25,APPP3,APPP4,VECP2,VECP3,VAP3,VAP4,VAP5,CC4,CC8,RP1,RP2,RP3,RP4,RP5,RP6 pending;
   class CC1,CC7 proposed;
 `;

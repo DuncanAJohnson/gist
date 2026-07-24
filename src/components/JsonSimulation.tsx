@@ -48,6 +48,7 @@ import {
   synthesizeBodyRenderable,
   synthesizeColliderDebugRenderable,
   synthesizeVectorArrowRenderables,
+  synthesizeForceDebugRenderables,
   synthesizeExperimentalRenderable,
   synthesizeGridRenderable,
   buildExperimentalDataResolver,
@@ -64,6 +65,15 @@ import type { PixelRenderable, DataPositionResolver } from './simulation_compone
 const COLLIDER_DEBUG_INITIAL =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).has('colliders');
+
+// Force-vector observation overlay (Goal-1 FBD step 2). Draws the data-ready
+// FBD force kinds (gravity, drag, net) on every dynamic body, independent of
+// authored showVectors — the debug instrument for eyeballing forces on any sim.
+// Toggled live via the debug panel; `?forces=1` (same pattern as `?colliders=1`)
+// sets the initial state.
+const FORCE_DEBUG_INITIAL =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).has('forces');
 
 export interface SimulationConfig {
   title?: string;
@@ -116,6 +126,12 @@ type FrameBodySnap = {
   ax: number;
   ay: number;
   alpha: number;
+  // Per-frame drag force (−k·|v|·v), captured so the `force-drag` arrow renders
+  // in REPLAY. Like ax/ay, this lives on userData (not engine state), so it must
+  // ride along in the Frame or replay reads a stale/zero value (Goal-1 FBD
+  // step 2, 2026-07-24). Zero when air resistance is off.
+  dragFx: number;
+  dragFy: number;
 };
 
 type Frame = {
@@ -271,6 +287,10 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   // the bake cache, so toggling mid-replay is safe.
   const [showColliders, setShowColliders] = useState<boolean>(COLLIDER_DEBUG_INITIAL);
 
+  // Force-vector observation overlay. Session-local like showColliders; doesn't
+  // affect the bake cache, so toggling mid-replay is safe.
+  const [showForces, setShowForces] = useState<boolean>(FORCE_DEBUG_INITIAL);
+
   // Experimental data overlay state
   const [showExperimentalModal, setShowExperimentalModal] = useState(false);
   const [experimentalData, setExperimentalData] = useState<ExperimentalDataConfig | null>(null);
@@ -300,10 +320,13 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     const colliderOutlines = showColliders
       ? expandedObjects.map(synthesizeColliderDebugRenderable)
       : [];
-    return [...grid, ...walls, ...sprites, ...vectorArrows, ...experimental, ...colliderOutlines].sort(
+    const forceArrows = showForces
+      ? expandedObjects.flatMap(synthesizeForceDebugRenderables)
+      : [];
+    return [...grid, ...walls, ...sprites, ...vectorArrows, ...forceArrows, ...experimental, ...colliderOutlines].sort(
       (a, b) => a.zIndex - b.zIndex
     );
-  }, [expandedObjects, siObjects, environment.walls, environment.unit, experimentalData, configPixelsPerMeter, pixelsPerUnit, showGrid, showColliders, zoomFactor]);
+  }, [expandedObjects, siObjects, environment.walls, environment.unit, experimentalData, configPixelsPerMeter, pixelsPerUnit, showGrid, showColliders, showForces, zoomFactor]);
 
   const dataSources = useMemo<Record<string, DataPositionResolver>>(() => {
     const sources: Record<string, DataPositionResolver> = {};
@@ -449,6 +472,9 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
         body.angularVelocity = snap.omega;
         body.userData.derivedAcceleration = { x: snap.ax, y: snap.ay };
         body.userData.derivedAngularAcceleration = snap.alpha;
+        // Restore per-frame drag so the force-drag arrow animates in replay
+        // (see FrameBodySnap.dragFx note).
+        body.userData.dragForce = { x: snap.dragFx, y: snap.dragFy };
       }
     });
 
@@ -760,6 +786,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
           if (!body) return null;
           const derived = (body.userData.derivedAcceleration as Vec2 | undefined) ?? { x: 0, y: 0 };
           const alpha = (body.userData.derivedAngularAcceleration as number | undefined) ?? 0;
+          const drag = (body.userData.dragForce as Vec2 | undefined) ?? { x: 0, y: 0 };
           return {
             id: objectConfig.id,
             x: body.position.x,
@@ -771,6 +798,8 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
             ax: derived.x,
             ay: derived.y,
             alpha,
+            dragFx: drag.x,
+            dragFy: drag.y,
           };
         })
         .filter((b): b is FrameBodySnap => b !== null);
@@ -1444,6 +1473,8 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
             onShowGridChange={setShowGrid}
             showColliders={showColliders}
             onShowCollidersChange={setShowColliders}
+            showForces={showForces}
+            onShowForcesChange={setShowForces}
             onTweakJSON={canPersist ? handleTweakJSON : undefined}
             onImportObject={() => setShowImportObjectModal(true)}
           />

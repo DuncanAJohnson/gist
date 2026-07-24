@@ -16,8 +16,13 @@ import {
  * Phase 1 wired `force-net`. Phase 2 adds `velocity` and `acceleration` (both
  * read directly from the body — kinematic state is on `body.velocity` and on
  * `body.userData.derivedAcceleration` in any mode, since Phase 1c-rev moved
- * kinematics into the Frame schema). Phase 3 adds the decomposed force kinds
- * once `JsonSimulation.onUpdate` writes their userData fields.
+ * kinematics into the Frame schema). FBD step 2 (Goal-1, 2026-07-24) un-stubs
+ * the two data-ready force kinds: `force-gravity` (= m·g, from
+ * `DrawContext.gravity`, an SI Y-up vector already pointing down) and
+ * `force-drag` (the per-frame quadratic drag already vectorized onto
+ * `body.userData.dragForce = −k·|v|·v`, populated only in air-resistance mode).
+ * The remaining force kinds (`force-applied`, `force-friction`, and the
+ * normal force) await the engine contact-force seam (Goal-1 step 3).
  *
  * For `force-net`, the source is Newton's 2nd Law:
  *   F_net = m · a_derived
@@ -54,8 +59,23 @@ function drawVectorArrow(drawCtx: DrawContext, visual: PixelVisual) {
     const derived = (body.userData.derivedAcceleration as Vec2 | undefined) ?? { x: 0, y: 0 };
     vx = body.mass * derived.x;
     vy = body.mass * derived.y;
+  } else if (kind === 'force-gravity') {
+    // Weight, m·g. drawCtx.gravity is the SI Y-up gravity vector ({x:0, y:-g}),
+    // so this already points down. In a gravity+drag-only scene, force-gravity +
+    // force-drag close exactly onto force-net (m·a = m·g + F_drag) — the FBD
+    // closure property that holds until contact forces enter (Goal-1 step 5).
+    vx = body.mass * drawCtx.gravity.x;
+    vy = body.mass * drawCtx.gravity.y;
+  } else if (kind === 'force-drag') {
+    // Quadratic air resistance, already vectorized every frame as −k·|v|·v by
+    // JsonSimulation's onUpdate. Only populated when airResistance.enabled; a
+    // body at rest or in vacuum reads {0,0} and the arrow is suppressed below.
+    const drag = (body.userData.dragForce as Vec2 | undefined) ?? { x: 0, y: 0 };
+    vx = drag.x;
+    vy = drag.y;
   } else {
-    // Phase 3: force-applied, force-friction, force-drag, force-gravity.
+    // force-applied, force-friction: await the engine contact-force seam
+    // (Goal-1 step 3). Not wired yet.
     return;
   }
 
