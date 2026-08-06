@@ -34,7 +34,12 @@ import ExperimentalDataModal, { type ExperimentalDataConfig, type ModalFormState
 // Debug "Import Object" (test SVG-generator exports in a live sim)
 import ImportObjectModal, { type ImportCandidate, type ImportControlPreset } from './simulation_components/ImportObjectModal';
 import { registerImportedRenderable, MANIFEST_VIEWBOX } from '../lib/renderableManifest';
-import { expandContainerObjects } from '../lib/containerExpansion';
+import {
+  expandObjects,
+  applyEditCommitToObject,
+  applyRampControlOverrides,
+  type RampControlParam,
+} from '../lib/objectExpansion';
 import { clearDiagnostics } from '../lib/diagnosticsBus';
 import { dedupeObjectIds } from '../lib/objectIdGuard';
 // Render Layer
@@ -245,6 +250,39 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   // Must precede scaleObjectToSI (which requires width/height/svg). Render-
   // time on purpose — registration must precede ObjectRenderer mount; the
   // module's signature cache makes re-renders and StrictMode no-ops.
+  // Control values (declared ahead of the expansion memo — ramp-dimension
+  // sliders feed the seam as param overrides, so expansion depends on them).
+  const [controlValues, setControlValues] = useState<Record<string, number>>(() => {
+    const initialValues: Record<string, number> = {};
+    controls.forEach((control) => {
+      if (control.type === 'slider') {
+        initialValues[control.label] = (control as SliderConfig).defaultValue;
+      } else if (control.type === 'toggle') {
+        initialValues[control.label] = (control as ToggleConfig).defaultValue ? 1 : 0;
+      }
+    });
+    return initialValues;
+  });
+
+  // Ramp-dimension slider overrides ("ramp.angle" / ".rise" / ".run" /
+  // ".slopeLength" property paths): collected here and applied to the
+  // authored params AHEAD of expansion — these sliders never touch a physics
+  // body; re-expansion re-synthesizes the triangle and re-seats riders. The
+  // slider value is in config units / env angleUnit, exactly like the
+  // authored param it replaces.
+  const rampOverrides = useMemo(() => {
+    const out: Record<string, Partial<Record<RampControlParam, number>>> = {};
+    controls.forEach((c) => {
+      if (c.type !== 'slider' || !c.property?.startsWith('ramp.')) return;
+      const param = c.property.slice('ramp.'.length) as RampControlParam;
+      if (!['angle', 'rise', 'run', 'slopeLength'].includes(param)) return;
+      const v = controlValues[c.label];
+      if (typeof v !== 'number') return;
+      (out[c.targetObj] ??= {})[param] = v;
+    });
+    return out;
+  }, [controls, controlValues]);
+
   const expandedObjects = useMemo(() => {
     // Re-expansion = a new config generation: clear the seam diagnostics bus
     // so the debug-panel badge reflects THIS config, not a fixed (or newly
@@ -263,11 +301,15 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     // carries duplicates) so such sims render best-effort instead of
     // white-paging on the adapter's (correct) duplicate-id throw. Derived-
     // only, like the expansion itself — never written back to editedConfig.
-    return expandContainerObjects(dedupeObjectIds(objects), {
-      sceneMin: Math.min(SIMULATION_WIDTH, SIMULATION_HEIGHT) / configPixelsPerUnit,
-      hasBottomWall: (environment.walls ?? []).includes('bottom'),
-    });
-  }, [objects, configPixelsPerUnit, environment.walls]);
+    return expandObjects(
+      applyRampControlOverrides(dedupeObjectIds(objects), rampOverrides),
+      {
+        sceneMin: Math.min(SIMULATION_WIDTH, SIMULATION_HEIGHT) / configPixelsPerUnit,
+        hasBottomWall: (environment.walls ?? []).includes('bottom'),
+        angleScale,
+      },
+    );
+  }, [objects, configPixelsPerUnit, environment.walls, angleScale, rampOverrides]);
 
   const siObjects = useMemo(
     () => expandedObjects.map((obj) => scaleObjectToSI(obj, unitScale, angleScale)),
@@ -345,18 +387,12 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   const prevAngularVelocitiesRef = useRef<Record<string, number>>({});
   const prevTimeRef = useRef<number>(0);
 
-  // State for control values
-  const [controlValues, setControlValues] = useState<Record<string, number>>(() => {
-    const initialValues: Record<string, number> = {};
-    controls.forEach((control) => {
-      if (control.type === 'slider') {
-        initialValues[control.label] = (control as SliderConfig).defaultValue;
-      } else if (control.type === 'toggle') {
-        initialValues[control.label] = (control as ToggleConfig).defaultValue ? 1 : 0;
-      }
-    });
-    return initialValues;
-  });
+  // Deferred initial-snapshot recapture flag — armed by any path whose
+  // seam-derived result differs from its raw input (edit commits, ramp
+  // sliders, object add/remove); fired by the [siObjects] effect after the
+  // ObjectRenderers rebuild bodies. Declared up here because both
+  // handleControlChange and commitObjectEdit arm it.
+  const pendingRecaptureRef = useRef(false);
 
   // State for output values
   const [outputValues, setOutputValues] = useState<Record<string, number>>({});
@@ -634,24 +670,39 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
 
   // Handle control changes — SI everywhere, Vec2Accessor routes writes through
   // the adapter for velocity/position.
+  // The body-write half of a slider change, shared by live drags
+  // (handleControlChange) and the post-rebuild re-application below. Never
+  // called for ramp.* paths (those are expansion params, not body state).
+  const applyControlToBody = useCallback((control: typeof controls[0], value: number) => {
+    const obj = objRefs.current[control.targetObj];
+    if (!obj || !control.property) return;
+    const siValue = value * unitScaleFor(control.property, unitScale, angleScale);
+    if (control.property.endsWith('.magnitude') || control.property.endsWith('.angle')) {
+      const base = control.property.slice(0, control.property.lastIndexOf('.'));
+      const kind = control.property.endsWith('.angle') ? 'angle' : 'magnitude';
+      writeVectorPolar(obj, `${control.targetObj}.${base}`, base, kind, siValue);
+    } else {
+      setNestedValue(obj, control.property, siValue);
+    }
+  }, [unitScale, angleScale]);
+
   const handleControlChange = useCallback((control: typeof controls[0], value: number) => {
     setControlValues((prev) => ({
       ...prev,
       [control.label]: value,
     }));
 
-    const obj = objRefs.current[control.targetObj];
-    if (obj && control.property) {
-      const siValue = value * unitScaleFor(control.property, unitScale, angleScale);
-      if (control.property.endsWith('.magnitude') || control.property.endsWith('.angle')) {
-        const base = control.property.slice(0, control.property.lastIndexOf('.'));
-        const kind = control.property.endsWith('.angle') ? 'angle' : 'magnitude';
-        writeVectorPolar(obj, `${control.targetObj}.${base}`, base, kind, siValue);
-      } else {
-        setNestedValue(obj, control.property, siValue);
-      }
+    // Ramp-dimension sliders never write to a body — the value flows into
+    // the expansion seam as a param override (rampOverrides memo above), and
+    // re-expansion rebuilds the triangle + re-seats riders. Arm the deferred
+    // recapture so the next Play starts from the rebuilt geometry.
+    if (control.property?.startsWith('ramp.')) {
+      pendingRecaptureRef.current = true;
+      return;
     }
-  }, [unitScale, angleScale]);
+
+    applyControlToBody(control, value);
+  }, [applyControlToBody]);
 
   // Update loop: compute finite-difference acceleration, collect outputs, graphs.
   const handleUpdate = useCallback((_adapter: PhysicsAdapter, time: number) => {
@@ -1010,8 +1061,12 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   const commitObjectEdit = useCallback(
     (id: string, partial: ObjectEditCommit) => {
       setEditedConfig((prev) => {
+        // applyEditCommitToObject routes the commit through the seam's edit
+        // back-feed: ramp-field objects get their authoring params rewritten
+        // (resize → run/rise, move → x only) instead of raw width/height/y,
+        // which the next expansion's derived-wins would otherwise revert.
         const newObjects = (prev.objects ?? []).map((o) =>
-          o.id === id ? { ...o, ...partial } : o,
+          o.id === id ? applyEditCommitToObject(o, partial) : o,
         );
         const newControls = (prev.controls ?? []).map((c) => {
           if (c.type !== 'slider' || c.targetObj !== id) return c;
@@ -1036,6 +1091,14 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
         body.position.y = partial.y * unitScale;
       }
       simulationControlsRef.current?.recaptureInitialSnapshot();
+      // The immediate recapture above catches the raw committed pose, but the
+      // seam may still transform it (seatOn riders re-seat, ramps re-derive)
+      // on the re-render this commit triggers — so arm the deferred recapture
+      // too, which fires AFTER siObjects change and the ObjectRenderers
+      // rebuild bodies at the seam-derived poses. Without it, play/reset
+      // restored the raw dragged pose while the display showed the seated one
+      // (SO-B drive finding, 2026-08-06).
+      pendingRecaptureRef.current = true;
       setHasUnsavedChanges(true);
       frameCacheRef.current = null;
       recordingBufferRef.current = null;
@@ -1046,17 +1109,31 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     [unitScale, controls],
   );
 
-  // Deferred initial-snapshot recapture for object add/remove. Mirrors
-  // commitObjectEdit's cache invalidation — but the recapture must be DEFERRED
-  // one commit: an added body only exists after the new ObjectRenderer's mount
+  // Deferred initial-snapshot recapture for object add/remove AND for edit
+  // commits whose seam-derived pose differs from the raw commit (seatOn
+  // riders, ramp resizes). The recapture must be DEFERRED one commit: an
+  // added/rebuilt body only exists after the new ObjectRenderer's mount
   // effect runs, and a removed body is only destroyed after the old one's
   // cleanup runs (both happen before this parent effect on the same commit).
-  const pendingRecaptureRef = useRef(false);
   useEffect(() => {
     if (!pendingRecaptureRef.current) return;
     pendingRecaptureRef.current = false;
+    // Re-apply slider values to the rebuilt bodies BEFORE recapturing: a
+    // seam-driven rebuild spawns bodies from config state, which drops any
+    // slider-held state (e.g. a speed-along-incline slider's magnitude).
+    // For seatOn riders the held polar direction has just re-seeded to the
+    // CURRENT surface (the [expandedObjects] effect above runs first), so
+    // re-application aims the kept speed down the NEW slope — the velocity
+    // angle rides with a ramp-angle slider (drive finding 2026-08-06).
+    // ramp.* sliders are skipped: their values are already inside the
+    // expansion that caused this pass (re-applying would re-arm the flag).
+    controls.forEach((c) => {
+      if (c.type !== 'slider' || c.property?.startsWith('ramp.')) return;
+      const v = controlValues[c.label];
+      if (typeof v === 'number') applyControlToBody(c, v);
+    });
     simulationControlsRef.current?.recaptureInitialSnapshot();
-  }, [siObjects]);
+  }, [siObjects, controls, controlValues, applyControlToBody]);
 
   // Debug "Import Object": inject an SVG-generator export as a new object at
   // the center of the play area, sized to ~20% of the smaller scene dimension
@@ -1250,11 +1327,19 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     setSelectedObjectId(null);
     setSimIsDirty(true);
 
+    // The cache-key invariant: EVERY physics-affecting input belongs in this
+    // key — cached frames may replay only when all of them match. Air mode and
+    // solver iterations were missing until 2026-08-06 (drive finding): flipping
+    // the air toggle after a run silently replayed the stale frames computed
+    // under the old mode.
     const currentKey = JSON.stringify({
       controls: controlValues,
       duration: maxDuration,
       engine: activeEngine,
       timestepHz: precomputeTimestepHz,
+      airResistance: airResistanceMode,
+      solverIterations,
+      positionIterations,
     });
 
     if (frameCacheRef.current && frameCacheRef.current.key === currentKey) {
@@ -1469,6 +1554,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
             positionIterationsDisabled={isRunning || precomputeState === 'precomputing'}
             airResistanceMode={airResistanceMode}
             onAirResistanceModeChange={setAirResistanceMode}
+            airResistanceDisabled={isRunning || precomputeState === 'precomputing'}
             showGrid={showGrid}
             onShowGridChange={setShowGrid}
             showColliders={showColliders}

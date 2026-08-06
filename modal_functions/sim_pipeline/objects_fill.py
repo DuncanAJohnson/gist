@@ -57,9 +57,10 @@ class ObjectsFillStage(JsonStage):
                 "dimension, smallest ≥ 4%; keep the svg's natural aspect "
                 "ratio), NOT real-world sizes. Emit `width` and `height` in "
                 f"the configured unit ({unit}). Skeleton entries carrying "
-                '`"container": true` have no svg — author their `container` '
-                "parameters per the FILL OBJECTS instructions instead of "
-                "width/height/svg.\n\n"
+                '`"container": true` or `"ramp": true` have no svg — author '
+                "their `container` / `ramp` parameters per the FILL OBJECTS "
+                "instructions instead of width/height/svg (and seat a rider "
+                "on a ramp via its `seatOn` field).\n\n"
                 f"```json\n{json.dumps(skeleton, indent=2)}\n```"
             ),
         }

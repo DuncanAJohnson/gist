@@ -28,6 +28,7 @@ interface AdvancedDebugPanelProps {
   positionIterationsDisabled: boolean;
   airResistanceMode: AirResistanceMode;
   onAirResistanceModeChange: (mode: AirResistanceMode) => void;
+  airResistanceDisabled: boolean;
   showGrid: boolean;
   onShowGridChange: (v: boolean) => void;
   showColliders: boolean;
@@ -91,6 +92,7 @@ function AdvancedDebugPanel({
   positionIterationsDisabled,
   airResistanceMode,
   onAirResistanceModeChange,
+  airResistanceDisabled,
   showGrid,
   onShowGridChange,
   showColliders,
@@ -224,7 +226,8 @@ function AdvancedDebugPanel({
             <select
               value={airResistanceMode}
               onChange={(e) => onAirResistanceModeChange(e.target.value as AirResistanceMode)}
-              className="px-2 py-1 rounded-md border border-gray-300 bg-white text-xs text-gray-700 focus:outline-none cursor-pointer"
+              disabled={airResistanceDisabled}
+              className={`px-2 py-1 rounded-md border border-gray-300 bg-white text-xs text-gray-700 focus:outline-none cursor-pointer disabled:cursor-not-allowed ${airResistanceDisabled ? 'opacity-50' : ''}`}
             >
               <option value="off">Off</option>
               <option value="quadratic">Quadratic (v²)</option>

@@ -1388,6 +1388,15 @@ Implementation notes recorded now so the future slice starts smart:
   and this entry are the same workstream.
 - Three-places: nothing landed — wishlist-stage note only; schema/prompt
   untouched until the slice is scoped.
+- **Forward link (2026-08-06): the seed's RAMP half is REALIZED** — the
+  `seatOn` field (Notes_on_Ramps_and_Tracks_Refactor.md, decisions SO1–SO7)
+  seats any object flush on an incline, y + angle derived from authored x at
+  the expansion seam, drag-snap included. THIS entry's container half
+  (slope-following `grounded`, authored tip angle) remains future — when it
+  is picked up, the ramps note's seatOn machinery (`seatAtX`,
+  surface-frame math in `src/lib/objectExpansion.ts`) is the starting
+  point, and the two regimes here should be reconciled with `seatOn`'s
+  start-pose-only semantic.
 
 ### 🟢 2026-07-20 — seam diagnostics bus SHIPPED (scoped → shipped in one day) + a ratified semantic: the bus reports LIVE truth, never past events
 

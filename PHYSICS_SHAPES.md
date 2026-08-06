@@ -34,7 +34,7 @@ Lock the per-shape analytical-vs-numerical harness here before touching concave 
 - **Analytical:** breakaway at `tan θ = µ_s`; once sliding `a = g(sin θ − µ_k cos θ)`; slide time over length L: `t = √(2L / a)`.
 - **Variant — stopping distance (flat ground):** box launched at v₀ on horizontal surface, friction only: `d = v₀² / (2 µ_k g)`. Plot d vs v₀² → straight line, slope `1/(2µ_k g)` (→ G7). Canon item (Physics Classroom "Stopping Distance").
 - **Graph:** G1 (v–t slope = a), G7 (d vs v² linearization).
-- [ ] implemented
+- [x] implemented — 2026-08-06, ramp generator + `seatOn` (`/simulation/ramp-slide`, drive-passed SO-B; a = g(sinθ − µcosθ) exact on both engines; LLM authoring landed via the `ramp`/`seatOn` schema fields, SO-C). Stopping-distance variant not yet built. Canonical doc: Notes_on_Ramps_and_Tracks_Refactor.md.
 
 ### S0.2 Rolling race: hoop vs disk vs sphere — *moment of inertia* ⭐
 - **Shape matters:** the purest "shape *is* the physics" demo on the list. I is a shape integral; the ramp race is iconic and the result is mass- and radius-independent.

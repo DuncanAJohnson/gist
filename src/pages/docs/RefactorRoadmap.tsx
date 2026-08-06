@@ -174,13 +174,24 @@ flowchart LR
     CCP0 --> CC3
   end
 
+  subgraph RAMPPHASES["7. Ramps & tracks (env shapes)"]
+    direction TB
+    RT1["R1 · ramp factory (makeRamp)<br/>+ seatOnRamp flush-pose helper<br/>+ ramp-slide / ramp-energy exhibits<br/><b>BUILT 2026-08-05</b> · headless-verified"]
+    RT2["R2/SO-B · drive gate<br/>drag-snap + resize re-seat + clamp<br/><b>PASSED 2026-08-06</b> (Bill)"]
+    RT3["R3 · ramp + seatOn (SO1–SO7)<br/>+ ramp-dimension sliders<br/>(expansion-aware controls, tilt-until-slip)<br/>three places <b>LANDED 2026-08-06</b>;<br/>serve rounds 1–2 passed · deploy pending"]
+    RT4["R4 · rotated-basis components<br/>+ FBD normal/friction on incline<br/>(converges w/ FBD steps 3+5)"]
+    RT5["R5 · track generator<br/>chains / hills / coasters<br/>energy-drift harness first"]
+    RT1 --> RT2 --> RT3 --> RT4
+    RT2 --> RT5
+  end
+
   classDef done fill:#dcfce7,stroke:#16a34a,color:#166534;
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#92400e;
   classDef pending fill:#dbeafe,stroke:#2563eb,color:#1e40af;
 
-  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,VACOMP,FBD2,CCP0,CC2,CC3,CC5,CC6,RP0,VECP1 done;
-  class APPP1,APPP2,APPP25,APPP3,APPP4,VECP2,VECP3,VAP3,VAP4,VAP5,CC4,CC8,RP1,RP2,RP3,RP4,RP5,RP6 pending;
-  class CC1,CC7 proposed;
+  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,VACOMP,FBD2,CCP0,CC2,CC3,CC5,CC6,RP0,VECP1,RT1 done;
+  class APPP1,APPP2,APPP25,APPP3,APPP4,VECP2,VECP3,VAP3,VAP4,VAP5,CC4,CC8,RP1,RP2,RP3,RP4,RP5,RP6,RT2,RT3,RT4 pending;
+  class CC1,CC7,RT5 proposed;
 `;
 
 const cameraChart = `
@@ -527,6 +538,7 @@ function RefactorRoadmap() {
         <li><code>Notes_on_Applied_Forces_Refactor.md</code></li>
         <li><code>Notes_on_Vector_Representation_Refactor.md</code></li>
         <li><code>Notes_on_Concave_Colliders_Refactor.md</code></li>
+        <li><code>Notes_on_Ramps_and_Tracks_Refactor.md</code> — the env-shapes doc the 2026-07-10 generator charter promised</li>
       </ul>
 
       <h3>Visualization &amp; runtime refactor proposals (in-app docs)</h3>

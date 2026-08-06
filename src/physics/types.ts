@@ -66,6 +66,10 @@ export interface PhysicsBody {
   isStatic: boolean;
   /** Coefficient of restitution, applied to all of the body's colliders/fixtures. */
   restitution: number;
+  /** Coefficient of friction, applied to all of the body's colliders/fixtures.
+   *  Contacts combine as max-of-the-pair on both engines, so writing 0 on a
+   *  surface lets the other body's µ govern the contact alone. */
+  friction: number;
   userData: Record<string, unknown>;
 
   /**

@@ -1,0 +1,74 @@
+{
+  "title": "Ramp Slide — Tilt Until It Slips (S0.1)",
+  "description": "Tilt-until-slip friction demo (ramp-dimension slider). A fixed-length 5 m board with µ = 0.4 on both surfaces starts at 15° — below the breakaway angle tan θ = µ (θ ≈ 21.8°), so the block holds. Raise the Ramp angle slider: past ~22° the block breaks away and slides with a = g(sin θ − µ cos θ), the straight line in the speed graph. The board keeps its 5 m length as it tilts (angle + slopeLength authored ⇒ slopeLength is the slider's fixed companion); the block re-seats flush at every angle. Reading the breakaway angle IS measuring µ: µ = tan θ_slip.",
+  "environment": {
+    "walls": ["left", "right", "bottom"],
+    "gravity": 9.8,
+    "unit": "m",
+    "pixelsPerUnit": 100,
+    "physicsEngine": "rapier"
+  },
+  "objects": [
+    {
+      "id": "slideRamp",
+      "x": 2.6,
+      "friction": 0.4,
+      "ramp": { "angle": 15, "slopeLength": 5, "highSide": "left" }
+    },
+    {
+      "id": "block",
+      "x": 1.0,
+      "seatOn": "slideRamp",
+      "width": 0.5,
+      "height": 0.5,
+      "svg": "box",
+      "mass": 1,
+      "friction": 0.4,
+      "restitution": 0,
+      "showVectors": ["velocity", { "kind": "velocity", "components": true }]
+    }
+  ],
+  "controls": [
+    {
+      "type": "slider",
+      "label": "Ramp angle (°)",
+      "targetObj": "slideRamp",
+      "property": "ramp.angle",
+      "min": 5,
+      "max": 45,
+      "step": 0.5,
+      "defaultValue": 15
+    },
+    {
+      "type": "slider",
+      "label": "Initial speed down the incline (m/s)",
+      "targetObj": "block",
+      "property": "velocity.magnitude",
+      "min": 0,
+      "max": 6,
+      "step": 0.1,
+      "defaultValue": 0
+    }
+  ],
+  "outputs": [
+    {
+      "title": "Block",
+      "values": [
+        { "label": "Speed", "targetObj": "block", "property": "velocity.magnitude", "unit": "m/s" },
+        { "label": "x", "targetObj": "block", "property": "position.x", "unit": "m" },
+        { "label": "y", "targetObj": "block", "property": "position.y", "unit": "m" }
+      ]
+    }
+  ],
+  "graphs": [
+    {
+      "type": "line",
+      "title": "Speed on the incline — flat below breakaway, slope = g(sinθ − µcosθ) above",
+      "yAxisRange": { "min": 0, "max": 6 },
+      "yAxisLabel": "speed (m/s)",
+      "lines": [
+        { "label": "|v|", "targetObj": "block", "property": "velocity.magnitude", "color": "#2ecc71" }
+      ]
+    }
+  ]
+}

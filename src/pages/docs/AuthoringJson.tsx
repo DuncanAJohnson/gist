@@ -431,6 +431,33 @@ function AuthoringJson() {
         ]}
       />
 
+      <h3><code>ramp</code> + <code>seatOn</code> — synthesized inclined planes (SO-C, 2026-08-06)</h3>
+      <p>
+        When an object carries <code>ramp</code>, the runtime synthesizes a static right-triangle
+        sprite + collider and seats it on the floor — <strong>omit <code>svg</code>,{' '}
+        <code>width</code>, <code>height</code>; author <code>y: 0</code></strong> (derived), and{' '}
+        <code>environment.walls</code> must include <code>"bottom"</code>. Give <strong>exactly two</strong>{' '}
+        of the four triangle params. Ramp friction defaults to 0; for friction lessons set the{' '}
+        <em>same</em> µ on ramp and rider (engines take the max of the pair). A rider object declares{' '}
+        <code>seatOn: "&lt;rampId&gt;"</code> and authors only <code>x</code> — y and angle derive as a
+        flush pose on the surface, re-derived on every config change (drag the rider: it snaps back to
+        the surface; resize the ramp: riders re-seat). <code>seatOn</code> is a <strong>start pose,
+        not an attachment</strong> — at t &gt; 0 the rider moves freely.
+      </p>
+      <FieldTable
+        rows={[
+          { name: 'angle', type: 'number', desc: <>Incline angle in the environment <code>angleUnit</code> (default degrees), from horizontal. Diorama-clamped to ≈ [5°, 80°].</> },
+          { name: 'rise, run, slopeLength', type: 'number', desc: 'Vertical height (the h in mgh), horizontal base, and surface length (the d in slide problems). Any two of the four params define the triangle.' },
+          { name: 'highSide', type: "'left'|'right'", desc: '"left" (default): crest at left, riders slide toward +x. "right" mirrors.' },
+          { name: 'fill, stroke', type: 'string (CSS color)', desc: 'Optional sprite colors.' },
+        ]}
+      />
+      <p>
+        Living exhibits: <code>/simulation/ramp-slide</code> (S0.1 friction, a = g(sinθ − µcosθ)) and{' '}
+        <code>/simulation/ramp-energy</code> (frictionless GPE→KE, v = √(2gΔh)). Canonical doc:{' '}
+        <code>Notes_on_Ramps_and_Tracks_Refactor.md</code>.
+      </p>
+
       <h3><code>showVectors</code> — arrows on a body</h3>
       <p>
         An array where each entry is either a <strong>kind string</strong> for default styling, or a{' '}
@@ -475,6 +502,15 @@ function AuthoringJson() {
         slider changes speed while preserving direction; an <code>.angle</code> slider rotates while
         preserving magnitude — the classic launch-speed + launch-angle pair. An{' '}
         <code>acceleration.*</code> slider drives the <em>additive</em> acceleration, not gravity.
+        Scalars: <code>mass</code> · <code>restitution</code> · <code>friction</code> ·{' '}
+        <code>angle</code> · <code>isStatic</code>. <strong>Ramp-dimension paths</strong> (sliders
+        only, target must be a <code>ramp</code> object): <code>ramp.angle</code> ·{' '}
+        <code>ramp.rise</code> · <code>ramp.run</code> · <code>ramp.slopeLength</code> — these
+        bypass the physics body entirely and override the synthesis param ahead of the expansion
+        seam, so the incline rebuilds live and seated riders re-seat. The overridden param&rsquo;s
+        companion is the <em>first-authored</em> remaining param: author{' '}
+        <code>{'{angle, slopeLength}'}</code> + an angle slider for a fixed-length board being
+        tilted (tilt-until-slip: breakaway when tan θ exceeds µ).
       </Callout>
 
       <h2><code>outputs[]</code> — live readouts</h2>

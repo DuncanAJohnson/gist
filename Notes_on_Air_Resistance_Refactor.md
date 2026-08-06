@@ -346,3 +346,37 @@ An earlier draft of this plan proposed a three-way toggle (Off / Linear (v) / Qu
 - Students or teachers report that the v² approach feels unintuitive and would benefit from a side-by-side comparison.
 
 If we revisit, the cleanest re-introduction is: (a) restore the three-state toggle, (b) compute the linear coefficient as `b = k·v_t` (where `v_t = √(mg/k)` is the quadratic terminal velocity) so both modes asymptote to the same terminal — making the comparison about the *shape* of the approach rather than its magnitude.
+
+### Findings 2026-08-06 — replay frame-cache key was missing the air toggle (and solver iters): FIXED + a ratified invariant
+
+Surfaced by Bill's question "how can I be sure the debug panel takes
+effect, and does timing matter?" during the ramps SO-B drive. The
+precompute→replay frame cache in JsonSimulation is keyed so an unchanged
+run replays instead of recomputing — but the key held only
+{controls, duration, engine, timestepHz}. **The air-resistance mode was not
+in it**: precompute a run, flip the toggle, hit Play → key matched → the
+sim silently replayed the stale frames computed under the OLD mode. The
+toggle looked dead until an unrelated cache-invalidating action (drag,
+slider, duration, engine, timestep). Solver/position iterations had the
+same gap; Reset also replays the cache by design, so it never rescued.
+
+**Fix (shipped same day):** the key now includes `airResistance`
+(mode), `solverIterations`, `positionIterations`; and the air select is
+disabled while running/precomputing (it was live mid-precompute — a flip
+would have baked a mode-mixed trajectory into the cached frames, since
+handleUpdate reads the mode per frame through a ref).
+
+**The invariant, stated once:** EVERY physics-affecting input belongs in
+the frame-cache key — cached frames may replay only when all of them
+match. Recorded as a comment at the key construction site; any future
+debug knob that changes trajectories (contact-force seams, pair friction,
+playback-affecting solver options) must join the key when it lands.
+
+**Precedence semantics documented while answering (unchanged, now on
+record):** JSON seeds at load, panel overrides for the session, reload
+restores JSON — for both engine and air mode. Known shadowing gotchas kept
+as-is for now: with a panel engine override set, Tweak-JSON edits to
+environment.physicsEngine are ignored until reload; Tweak-JSON edits to
+airResistance.enabled are ignored after mount (the seed runs once), while
+airDensity and per-body Cd/A DO live-sync. A "latest actor wins" re-seed
+was proposed and left un-adopted — revisit if the asymmetry bites again.

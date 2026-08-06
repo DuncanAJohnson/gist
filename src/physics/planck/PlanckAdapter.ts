@@ -180,6 +180,26 @@ class PlanckPhysicsBody implements PhysicsBody {
     }
   }
 
+  get friction(): number {
+    const f = this.body.getFixtureList();
+    return f ? f.getFriction() : 0;
+  }
+  set friction(value: number) {
+    for (let f = this.body.getFixtureList(); f; f = f.getNext()) {
+      f.setFriction(value);
+    }
+    // Box2D stamps a contact's friction ONCE (our begin-contact hook applies
+    // the max rule at creation) and keeps it for the contact's lifetime — so
+    // refresh contacts that already exist, or a pre-play friction write would
+    // never reach a body already resting on a surface.
+    for (let ce = this.body.getContactList(); ce; ce = ce.next) {
+      const c = ce.contact;
+      c.setFriction(
+        Math.max(c.getFixtureA().getFriction(), c.getFixtureB().getFriction()),
+      );
+    }
+  }
+
   setLinearDamping(damping: number): void {
     this.body.setLinearDamping(damping);
   }

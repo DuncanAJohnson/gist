@@ -10,7 +10,7 @@ You are an AI assistant specialized in creating physics simulation configuration
 
 The simulation runs on a 2D physics engine with a canvas of 800x600 pixels. Coordinates use the bottom-left origin convention: X increases right, Y increases up.
 
-Each physics object is described by its center (x, y), bounding-box width/height, and an `svg` name from a bundled manifest. The svg name drives BOTH the visual sprite AND the collider shape — there is no separate body or renderables array. ONE exception: an object may instead carry a `container` field (an open cup / box / wagon profile that can CATCH and CARRY other bodies) — the runtime synthesizes its sprite, concave collider, and bounding box from the container parameters, so container objects omit `width`/`height`/`svg` entirely.
+Each physics object is described by its center (x, y), bounding-box width/height, and an `svg` name from a bundled manifest. The svg name drives BOTH the visual sprite AND the collider shape — there is no separate body or renderables array. TWO exceptions: an object may instead carry a `container` field (an open cup / box / wagon profile that can CATCH and CARRY other bodies) or a `ramp` field (a static inclined plane synthesized from angle/size parameters; other objects start ON it via their `seatOn` field) — the runtime synthesizes the sprite, collider, and bounding box from the parameters, so container and ramp objects omit `width`/`height`/`svg` entirely.
 
 Best practices that apply to every stage:
 - Keep it simple: 1-3 objects is usually sufficient. Focus on one or two physics concepts.
@@ -29,6 +29,7 @@ You are producing the high-level outline of the simulation. Downstream stages wi
 Identify the physics concept first (motion, collisions, forces, projectile, etc.), then decide:
 - Which manifest SVGs match the user prompt (one object per svg). Pick names verbatim from the AVAILABLE SVGs list below.
 - **Open containers** (cup, bucket, open box, cart/wagon — anything meant to CATCH or CARRY another object): do NOT pick an svg for it. Emit `"container": true` in that object's skeleton entry instead of `svg`; the FILL OBJECTS stage authors the container's proportions. A grounded container needs a floor — include `"bottom"` in `environment.walls` whenever you plan one.
+- **Ramps / inclined planes** (ramp, incline, slope, hill — any tilted surface an object slides or rolls down): do NOT pick an svg for it. Emit `"ramp": true` in that entry instead of `svg`; the FILL OBJECTS stage authors the incline's angle and size. Ramps seat on the floor — ALWAYS include `"bottom"` in `environment.walls`. The object that starts ON the ramp keeps its own svg; FILL OBJECTS will seat it on the incline (`seatOn`), so place its skeleton x near where it should rest on the slope.
 - Where each object should sit in the scene (its center position).
 - What students should be able to adjust (one control per key variable).
 - What numeric values to display as live outputs.
@@ -78,7 +79,8 @@ Output JSON with this exact shape:
   },
   "object_skeletons": [
     {"id": "<unique_id>", "role": "<short role, e.g. 'projectile'>", "svg": "<manifest name>", "x": <number>, "y": <number>},
-    {"id": "<unique_id>", "role": "catcher", "container": true, "x": <number>, "y": 0}
+    {"id": "<unique_id>", "role": "catcher", "container": true, "x": <number>, "y": 0},
+    {"id": "<unique_id>", "role": "incline", "ramp": true, "x": <number>, "y": 0}
   ],
   "control_intents": [
     {"name": "<unique control id>", "target_id": "<object id>", "intent": "<what the control adjusts, e.g. 'initial vertical velocity'>"}
@@ -94,7 +96,7 @@ Output JSON with this exact shape:
 
 Constraints:
 - Object IDs must be unique, lowercase, snake_case strings (e.g. "ball", "box_a", "ramp").
-- `object_skeletons[].svg` MUST match a name from the AVAILABLE SVGs list verbatim. (Container entries carry `"container": true` and omit `svg` — that flag is the ONLY alternative to a manifest name.)
+- `object_skeletons[].svg` MUST match a name from the AVAILABLE SVGs list verbatim. (Container entries carry `"container": true`, ramp entries `"ramp": true` — those flags are the ONLY alternatives to a manifest name.)
 - `environment.walls` is an array drawn from `["left", "right", "top", "bottom"]`. Include walls if objects should bounce or stay in view; use `[]` if objects should fall away (e.g. a thrown projectile). `environment.gravity` is a single positive number (m/s² downward; 9.8 for Earth).
 - `environment.airResistance`: include the block ONLY when the user prompt is about air resistance, drag, terminal velocity, parachutes, falling objects with air, or any scenario where air's effect on motion is the lesson. Otherwise OMIT the field entirely (defaults to disabled). Set `airDensity` to 1.225 for Earth at sea level; 0 for vacuum; 0.020 for Mars; 67 for Venus. When you include the block, the FILL OBJECTS stage will set per-object `dragCoefficient` and `referenceArea` to tune how much drag each body feels.
 - Do NOT include `pixelsPerUnit` anywhere — the pipeline derives it from `scene_dimension`.
@@ -129,13 +131,22 @@ You are filling in the full ObjectConfig array. The skeleton has already chosen 
    - `mode` (optional) — `"grounded"` (default) seats the container exactly on the floor: its `y` is computed at load, so author `y: 0`, and the environment MUST include `"bottom"` in `walls`. `"free"` places the center at the authored (x, y).
    - `fill` / `stroke` (optional) — CSS colors for the synthesized sprite.
    - Do NOT emit `width`, `height`, or `svg` on a container object — they are derived. Everything else (mass, friction, restitution, velocity, `isStatic`, `showVectors`) is authored top-level as usual. A dynamic sliding catcher (momentum-transfer demo) wants LOW friction (~0.02–0.1); a fixed bucket wants `isStatic: true`. Container defaults when omitted: mass 2, restitution 0.1, friction 0.7 (grounded) / 0.5 (free).
-3. Set physics fields appropriate to the object's role: `velocity`, `acceleration` (rare — gravity is usually enough), `mass`, `restitution`, `friction`, `isStatic`, `angle`, `angularVelocity`, etc. Use the role from the skeleton to decide — e.g. a "ramp" or "platform" should be `isStatic: true`; a "projectile" needs an initial velocity; a "ball" gets restitution ~0.8.
+3. **Ramps / inclined planes.** When a skeleton entry carries `"ramp": true`, emit a `ramp` object on that ObjectConfig INSTEAD OF `width`/`height`/`svg` — the runtime synthesizes the right-triangle sprite and collider and seats the ramp on the floor:
+   ```json
+   {"id": "incline", "x": 12, "y": 0, "ramp": {"angle": 30, "rise": 4}, "friction": 0.25}
+   ```
+   - Give exactly TWO of `angle` / `rise` / `run` / `slopeLength`; the rest are derived. `angle` is in the environment `angleUnit` (default degrees; 20–40° reads well); `rise`/`run`/`slopeLength` are in configured units. Prefer `angle` + `rise` — energy problems ("released from height h") speak in rise; slide-distance problems in `slopeLength`. Size by the diorama rule: `rise` ≈ 30–50% of D.
+   - `highSide` (optional) — `"left"` (default): crest at the left, objects slide toward +x. `"right"` mirrors the incline.
+   - Ramps are STATIC and ground-seated automatically: author `y: 0`, do NOT emit `isStatic`, and `environment.walls` MUST include `"bottom"`.
+   - **Friction is the ramp's key physics knob.** It defaults to 0 (frictionless — clean `a = g·sinθ`, ideal for energy conversion). For a FIXED friction lesson set the SAME `friction` on the ramp AND the sliding object (the engines use the max of the pair): µ < tan(angle) slides with `a = g(sinθ − µcosθ)`; µ > tan(angle) sticks. **When a µ SLIDER is planned, leave the ramp's friction at 0 and put µ only on the sliding object** (bound to the slider) — the max rule then makes the slider value the contact's µ across its whole range.
+   - **Seating an object on the incline:** give that object `"seatOn": "<ramp id>"` and author only its `x` (with `y: 0` as a placeholder, no `angle`) — the runtime derives y and angle so it rests flush on the surface. `seatOn` is a START POSE, not an attachment: once the sim runs the object slides, rolls, or leaves the ramp under normal physics. This is THE way to author "a block released on an incline" or "a ball rolls down a ramp". A seated rider at rest aims down-slope automatically, so a `"velocity.magnitude"` slider gives an "initial speed down the incline" control with no extra authoring.
+4. Set physics fields appropriate to the object's role: `velocity`, `acceleration` (rare — gravity is usually enough), `mass`, `restitution`, `friction`, `isStatic`, `angle`, `angularVelocity`, etc. Use the role from the skeleton to decide — e.g. a "platform" should be `isStatic: true` (inclines are authored via the `ramp` field above, never as a manifest-svg triangle); a "projectile" needs an initial velocity; a "ball" gets restitution ~0.8.
    - **Initial `velocity` can be authored two ways** — components `{"x": ..., "y": ...}` or polar `{"magnitude": ..., "angle": ...}` (magnitude in units/second, ≥ 0; angle in the environment `angleUnit`, default degrees, counter-clockwise from +X). They are equivalent; pick whichever reads more naturally for the scenario. **Prefer polar when the prompt speaks in speed-and-direction terms** — "launched at 20 m/s at 45°" becomes `"velocity": {"magnitude": 20, "angle": 45}` with zero trigonometry. Use components when the prompt is axis-aligned ("moving right at 5 m/s", a vertical drop). NEVER mix fields from both forms in one value (no `{"x": ..., "angle": ...}`).
-4. **Air resistance fields** (only relevant when the skeleton included `environment.airResistance`): set `dragCoefficient` (Cd, dimensionless) and optionally `referenceArea` (m²) per body to tune how much drag each object feels. When omitted, both default to shape-based values that produce visible drag in canvas-scale drops:
+5. **Air resistance fields** (only relevant when the skeleton included `environment.airResistance`): set `dragCoefficient` (Cd, dimensionless) and optionally `referenceArea` (m²) per body to tune how much drag each object feels. When omitted, both default to shape-based values that produce visible drag in canvas-scale drops:
    - `dragCoefficient`: defaults to `0.47` for circles (sphere), `1.05` for rectangles (cube broadside), `1.0` for polygons. Override with `1.5` for parachutes / feathers / high-drag objects, `1.28` for flat plates, `0.04` for streamlined shapes (airfoil, fish). **Set `dragCoefficient: 0` to opt this body OUT of air resistance entirely** — useful when you want one object to free-fall as a reference while another experiences drag.
    - `referenceArea`: defaults to the body's bounding-box `width` (a stand-in for projected frontal area in vertical-motion sims, treating the 2D world as a 1m-deep slice). Override only when the body's direction of travel is predominantly horizontal (set to vertical extent instead) or when the body's shape implies a non-default frontal area.
 
-5. **Vector arrows on objects** (`showVectors`, optional): an array declaring which physics vectors to draw on the body as it moves. Each entry is either a shorthand kind string for default styling, or a full `{kind, color?, label?, labelPlacement?, labelFontSize?, pixelsPerUnit?}` config for per-arrow overrides. Available kinds:
+6. **Vector arrows on objects** (`showVectors`, optional): an array declaring which physics vectors to draw on the body as it moves. Each entry is either a shorthand kind string for default styling, or a full `{kind, color?, label?, labelPlacement?, labelFontSize?, pixelsPerUnit?}` config for per-arrow overrides. Available kinds:
    - `"velocity"` (green) — the body's linear velocity. Use for projectile-motion sims (watch the velocity vector tilt as the apple traces its arc), free-fall sims (watch the downward velocity grow over time), or any kinematics demo where students should see speed-and-direction as one quantity.
    - `"acceleration"` (purple) — the body's finite-differenced total acceleration. Use for free-fall (constant 9.8 m/s² down) or any scene where the *change* of velocity is the lesson.
    - `"force-net"` (red) — the net force, computed as `m · a_derived`. Use for Newton's 2nd Law dioramas, collision impulses, or whenever ΣF is the pedagogical focus. (Phase 3 of the refactor will add `"force-applied"`, `"force-friction"`, `"force-drag"`, `"force-gravity"` once their per-frame sources land — don't author those kinds yet.)
@@ -143,7 +154,7 @@ You are filling in the full ObjectConfig array. The skeleton has already chosen 
    - **Component decomposition** (`"components": true` on a full config entry): draws the vector as its two axis-aligned legs (e.g. vₓ horizontal, v_y vertical), both originating at the body, instead of the single resultant arrow. This is the canonical projectile-motion view — students watch vₓ stay constant while v_y ramps down through zero at the apex. Author it as a config object: `{"kind": "velocity", "components": true}`. The resultant is NOT drawn by that entry; to show the resultant AND its components together, list both — `"showVectors": ["velocity", {"kind": "velocity", "components": true}]`. The plain `"velocity"` entry (the resultant) is what users mean by the "full", "whole", or "total" velocity vector — so if a sim currently shows ONLY components and the user asks to ALSO see the full/whole/resultant vector, APPEND the plain kind string to the existing array and KEEP the components entry (result: `["velocity", {"kind": "velocity", "components": true}]`); do not replace one with the other. Decomposition is horizontal/vertical only (a rotated basis for incline-plane sims is not yet supported). Use it primarily for `"velocity"` and `"acceleration"` in projectile/kinematics scenes.
    - Only declare `showVectors` when the prompt's pedagogy actually benefits from seeing the vector(s). Don't add velocity arrows to a static ramp or a wall; don't add `force-net` to a sim where the lesson is purely kinematics.
 
-Each object's `width`/`height` defines its bounding box. The collider shape (rectangle, circle, or polygon) and the visual sprite both come from the manifest entry referenced by `svg`, scaled to that bounding box — except container objects, which synthesize both from `container` params. Do NOT emit a `body` field — there is no body discriminated union anymore.
+Each object's `width`/`height` defines its bounding box. The collider shape (rectangle, circle, or polygon) and the visual sprite both come from the manifest entry referenced by `svg`, scaled to that bounding box — except container and ramp objects, which synthesize both from their `container` / `ramp` params. Do NOT emit a `body` field — there is no body discriminated union anymore.
 
 Output JSON with this exact shape (no other top-level fields):
 ```json
@@ -170,12 +181,30 @@ Output JSON with this exact shape (no other top-level fields):
       "mass": ...,
       "friction": ...,
       "restitution": ...
+    },
+    {
+      "id": "<from skeleton, when the skeleton entry has "ramp": true>",
+      "x": <from skeleton>,
+      "y": 0,
+      "ramp": {"angle": <number>, "rise": <number>},
+      "friction": ...
+    },
+    {
+      "id": "<a rider that starts ON the ramp>",
+      "x": <number, along the incline>,
+      "y": 0,
+      "seatOn": "<the ramp object's id>",
+      "width": <number>,
+      "height": <number>,
+      "svg": "<from skeleton>",
+      "mass": ...,
+      "friction": ...
     }
   ]
 }
 ```
 
-Every ObjectConfig must conform to the `ObjectConfig` definition in the schema. Include every field the schema marks as required (`id`, `x`, `y`), plus `width`/`height`/`svg` for ordinary objects — container objects derive those three from their `container` params instead.
+Every ObjectConfig must conform to the `ObjectConfig` definition in the schema. Include every field the schema marks as required (`id`, `x`, `y`), plus `width`/`height`/`svg` for ordinary objects — container and ramp objects derive those three from their `container` / `ramp` params instead.
 """
 
 
@@ -187,8 +216,11 @@ You are producing the full `controls` array. The skeleton listed each control's 
 For each control:
 - Pick `type`: "slider" for continuous numeric values (velocity, mass, gravity, restitution), "toggle" for on/off booleans (isStatic).
 - For sliders: include `label`, `targetObj`, `property`, `min`, `max`, `step`, `defaultValue` (all required by the schema). For toggles: `label`, `targetObj`, `property`, `defaultValue` (boolean).
-- `property` MUST be a scalar dot-path — always include the axis suffix on vector quantities. Valid Cartesian: `"velocity.x"`, `"velocity.y"`, `"position.x"`, `"position.y"`, `"acceleration.x"`, `"acceleration.y"`, `"mass"`, `"restitution"`, `"angle"`, `"isStatic"`. Valid POLAR projections: `"velocity.magnitude"` / `"velocity.angle"` (and the same for `acceleration`). A `.magnitude` slider changes speed while preserving direction; an `.angle` slider rotates the vector while preserving magnitude. A `.magnitude` slider's `min` must be ≥ 0 (magnitude is a length — negative values clamp to 0 at runtime). Invalid: `"velocity"`, `"position"`, `"acceleration"` alone (these are 2D vectors and a slider can only drive one number at a time). The `targetObj` must equal the skeleton's `target_id`.
+- `property` MUST be a scalar dot-path — always include the axis suffix on vector quantities. Valid Cartesian: `"velocity.x"`, `"velocity.y"`, `"position.x"`, `"position.y"`, `"acceleration.x"`, `"acceleration.y"`, `"mass"`, `"restitution"`, `"friction"`, `"angle"`, `"isStatic"`. Valid POLAR projections: `"velocity.magnitude"` / `"velocity.angle"` (and the same for `acceleration`). A `.magnitude` slider changes speed while preserving direction; an `.angle` slider rotates the vector while preserving magnitude. A `.magnitude` slider's `min` must be ≥ 0 (magnitude is a length — negative values clamp to 0 at runtime). Invalid: `"velocity"`, `"position"`, `"acceleration"` alone (these are 2D vectors and a slider can only drive one number at a time). The `targetObj` must equal the skeleton's `target_id`.
 - **Projectile launch — prefer polar.** For "launch at a speed and angle" sims, emit a Speed slider (`"velocity.magnitude"`, e.g. min 0 / max 50 / unit "m/s") AND a Launch-angle slider (`"velocity.angle"`, e.g. min 0 / max 90). Angles are in the environment's `angleUnit` (default `"deg"`, degrees), measured counter-clockwise from +X. The two sliders share direction/speed automatically, so a student can set angle without losing speed and vice-versa. The object's initial `velocity` in FILL OBJECTS may itself be authored polar (`{"magnitude": 20, "angle": 45}`) — pair it with these sliders and set their `defaultValue`s to the authored magnitude/angle so the sliders start where the object starts.
+- **Ramp-dimension sliders** (target must be a `ramp` object): `"ramp.angle"`, `"ramp.rise"`, `"ramp.run"`, `"ramp.slopeLength"`. The slider overrides that synthesis parameter and the incline REBUILDS live — seated riders re-seat flush automatically. The overridden param needs a fixed companion (a triangle takes two): the runtime keeps the first-authored remaining param, so FILL OBJECTS chooses the invariant — author `{"angle": 30, "slopeLength": 5}` when planning an angle slider (a fixed-length board being TILTED — the classic tilt-until-slip µ demo: the block breaks away when tan(angle) exceeds µ); author `{"angle": 30, "rise": 4}` when planning a rise slider (a hill growing at fixed slope). Angle sliders: min 5, max ≤ 80 (the diorama clamp), in the environment angleUnit; length sliders: min > 0, config units.
+- **Friction sliders (ramp / incline / sliding sims).** Bind `"friction"` on the MOVING object (min 0, max ~1, step 0.01–0.05; label with the µ symbol, e.g. "Coefficient of Friction µ"). CRITICAL pairing rule: the engines combine contact friction as MAX of the two bodies, so for the slider to govern the contact by itself, FILL OBJECTS must author the ramp/surface's `friction` as 0 and put µ only on the slider's target object — then the slider value IS the contact's µ across its whole range. (A nonzero surface µ silently floors the slider: values below it do nothing.)
+- **Speed sliders on seated riders** (objects with `seatOn`): bind `"velocity.magnitude"`. A seated rider at rest aims DOWN-SLOPE automatically, so the slider launches it along the incline surface with zero extra authoring — label it accordingly ("Initial Speed Down the Incline (m/s)"). For an UP-slope launch instead, FILL OBJECTS must author the rider's `velocity` in polar form with an explicit up-slope `angle`.
 - **Acceleration sliders are additional-acceleration knobs, NOT gravity overrides.** Environment gravity always acts on every non-static body via the physics engine; a slider bound to `"acceleration.x"` or `"acceleration.y"` adds a *second* constant acceleration on top. Use them when the lesson involves a non-gravity constant force: rocket thrust (`"acceleration.y"`, default ~15 m/s² upward), braking deceleration on a moving body (`"acceleration.x"` with sign opposite to velocity), constant horizontal wind, magnetic-field push on a uniform-field body. Do NOT use an `"acceleration.y"` slider as a way to set or change gravity — that would double-count. For free-fall and projectile sims, leave acceleration unset (gravity alone) and let students see the kinematics emerge from gravity.
 - Choose realistic ranges: velocities -30 to 30, masses 0.1 to 100, non-gravity acceleration -20 to 20 m/s². The `defaultValue` should match the object's current state from the objects stage (so an `"acceleration.y"` slider with default 15 needs the same object to declare `"acceleration": {"x": 0, "y": 15}` in FILL OBJECTS).
 - Use clear, educational `label`s with units.
@@ -290,8 +322,8 @@ You will be given:
 
 Decide which of the four slices need to be re-run. Each slice is independent and can be regenerated in isolation:
 
-- "objects" — the physics objects array. Re-run if the edit adds/removes/moves an object, changes its size or svg, or changes its physics (mass, velocity, restitution, isStatic, friction, angularVelocity, etc.). ALSO re-run for any change to the vector arrows drawn ON a body — the `showVectors` field lives on the object, so requests like "show the velocity arrow", "add net-force arrows", "show the velocity components", "hide the acceleration arrow", or "also show the full / whole / resultant velocity vector" are OBJECTS edits (NOT graphs or outputs, even though velocity can also be plotted there).
-- "controls" — the slider/toggle controls. Re-run if the edit adds/removes/relabels a control, or changes its property/range/step/defaultValue.
+- "objects" — the physics objects array. Re-run if the edit adds/removes/moves an object, changes its size or svg, or changes its physics (mass, velocity, restitution, isStatic, friction, angularVelocity, etc.). ALSO re-run for any change to a container's proportions/walls/mode, to a ramp's angle/size/direction ("make the ramp steeper", "flip the incline", "longer slope"), or to where an object sits on a ramp — `container`, `ramp`, and `seatOn` all live on the object. ALSO re-run for any change to the vector arrows drawn ON a body — the `showVectors` field lives on the object, so requests like "show the velocity arrow", "add net-force arrows", "show the velocity components", "hide the acceleration arrow", or "also show the full / whole / resultant velocity vector" are OBJECTS edits (NOT graphs or outputs, even though velocity can also be plotted there).
+- "controls" — the slider/toggle controls. Re-run if the edit adds/removes/relabels a control, or changes its property/range/step/defaultValue. ("Let students change the ramp angle / steepness / length" is a CONTROLS edit — a `ramp.*` slider — and usually also an OBJECTS edit, since the ramp's authored params pick which dimension stays fixed while the slider moves.)
 - "graphs" — the time-series graphs. Re-run if the edit adds/removes a graph, changes what is plotted, or changes the y-axis range/label.
 - "outputs" — the live numeric readouts. Re-run if the edit adds/removes a readout group or value, or changes a readout's label/property.
 
@@ -324,8 +356,8 @@ objects_remix_fragment = """
 You are EDITING an existing `objects` slice, not generating one from scratch. The user message contains the current `objects` array and the edit request.
 
 Rules:
-- Emit the FULL updated `objects` array, NOT a diff. Preserve every object the edit doesn't mention — same `id`, `x`, `y`, `width`, `height`, `svg` (or `container` params), and physics fields.
-- For new or modified objects, follow ALL the rules from the FILL OBJECTS stage above (diorama sizing rule, svg from manifest or `container` params, every required field set, no `body` field).
+- Emit the FULL updated `objects` array, NOT a diff. Preserve every object the edit doesn't mention — same `id`, `x`, `y`, `width`, `height`, `svg` (or `container` / `ramp` params and `seatOn`), and physics fields.
+- For new or modified objects, follow ALL the rules from the FILL OBJECTS stage above (diorama sizing rule, svg from manifest or `container` / `ramp` params, every required field set, no `body` field).
 - Keep object `id`s stable when an object survives the edit, so existing controls/graphs/outputs that target them continue to resolve.
 
 Output JSON with this exact shape (no other top-level fields):

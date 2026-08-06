@@ -10,6 +10,8 @@ import BallIntoCupArcSimulation from './simulations/BallIntoCupArcSimulation'
 import ProjectileLaunchPolarSimulation from './simulations/ProjectileLaunchPolarSimulation'
 import ProjectileVelocityComponentsSimulation from './simulations/ProjectileVelocityComponentsSimulation'
 import FreefallWithDragSimulation from './simulations/FreefallWithDragSimulation'
+import RampSlideSimulation from './simulations/RampSlideSimulation'
+import RampEnergySimulation from './simulations/RampEnergySimulation'
 import PolarAuthoredVelocitySimulation from './simulations/PolarAuthoredVelocitySimulation'
 import CupCatchSimulation from './simulations/CupCatchSimulation'
 import BoxCatchSimulation from './simulations/BoxCatchSimulation'
@@ -52,6 +54,8 @@ function AppContent() {
         <Route path="/simulation/projectile-launch-polar" element={<ProjectileLaunchPolarSimulation />} />
         <Route path="/simulation/projectile-velocity-components" element={<ProjectileVelocityComponentsSimulation />} />
         <Route path="/simulation/freefall-with-drag" element={<FreefallWithDragSimulation />} />
+        <Route path="/simulation/ramp-slide" element={<RampSlideSimulation />} />
+        <Route path="/simulation/ramp-energy" element={<RampEnergySimulation />} />
         <Route path="/simulation/polar-authored-velocity" element={<PolarAuthoredVelocitySimulation />} />
         <Route path="/simulation/cup-catch" element={<CupCatchSimulation />} />
         <Route path="/simulation/box-catch" element={<BoxCatchSimulation />} />

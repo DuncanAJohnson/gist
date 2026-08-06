@@ -1,0 +1,51 @@
+{
+  "title": "Ramp Energy — GPE to KE (frictionless incline)",
+  "description": "Ramp + seatOn living exhibit (SO-A), mirrored (high side right). The ball starts at rest seated near the crest of a frictionless 35° incline: mgh becomes ½mv², so the foot speed is v = √(2gΔh) ≈ 5.9 m/s — the speed graph rises along a concave arc and plateaus there as the ball coasts along the frictionless floor. E = mgy + ½mv² stays constant frame by frame. The ball authors only x — drag it up or down the ramp to change the release height and the prediction with it.",
+  "environment": {
+    "walls": ["left", "right", "bottom"],
+    "gravity": 9.8,
+    "unit": "m",
+    "pixelsPerUnit": 100,
+    "physicsEngine": "rapier"
+  },
+  "objects": [
+    {
+      "id": "energyRamp",
+      "x": 6.2,
+      "ramp": { "angle": 35, "rise": 2.0, "highSide": "right" }
+    },
+    {
+      "id": "ball",
+      "x": 7.27,
+      "seatOn": "energyRamp",
+      "width": 0.4,
+      "height": 0.4,
+      "svg": "cannonball",
+      "mass": 2,
+      "restitution": 0,
+      "showVectors": ["velocity"]
+    }
+  ],
+  "controls": [],
+  "outputs": [
+    {
+      "title": "Energy bookkeeping (per unit mass)",
+      "values": [
+        { "label": "Height y", "targetObj": "ball", "property": "position.y", "unit": "m" },
+        { "label": "Speed", "targetObj": "ball", "property": "velocity.magnitude", "unit": "m/s" }
+      ]
+    }
+  ],
+  "graphs": [
+    {
+      "type": "line",
+      "title": "Height falls as speed rises — mgy ⇄ ½mv²",
+      "yAxisRange": { "min": 0, "max": 7 },
+      "yAxisLabel": "m  |  m/s",
+      "lines": [
+        { "label": "y (m)", "targetObj": "ball", "property": "position.y", "color": "#7c3aed" },
+        { "label": "|v| (m/s)", "targetObj": "ball", "property": "velocity.magnitude", "color": "#2ecc71" }
+      ]
+    }
+  ]
+}

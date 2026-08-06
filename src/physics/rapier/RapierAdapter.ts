@@ -248,6 +248,19 @@ class RapierPhysicsBody implements PhysicsBody {
     }
   }
 
+  get friction(): number {
+    return this.rigid.numColliders() > 0 ? this.rigid.collider(0).friction() : 0;
+  }
+  set friction(value: number) {
+    // Rapier re-evaluates contact materials from collider properties each
+    // step, so updating the colliders is sufficient — live contacts pick the
+    // new µ up on the next solve.
+    const n = this.rigid.numColliders();
+    for (let i = 0; i < n; i++) {
+      this.rigid.collider(i).setFriction(value);
+    }
+  }
+
   setLinearDamping(damping: number): void {
     this.rigid.setLinearDamping(damping);
   }
