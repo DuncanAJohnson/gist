@@ -3,6 +3,7 @@ import type {
   AdapterOptions,
   BodyDef,
   BodySnapshot,
+  ContactForces,
   PhysicsAdapter,
   PhysicsBody,
   ShapeDescriptor,
@@ -108,6 +109,7 @@ class PlanckPhysicsBody implements PhysicsBody {
     id: string,
     shape: ShapeDescriptor,
     private readonly body: planck.Body,
+    private readonly contactForceBuf: Map<planck.Body, ContactForces>,
   ) {
     this.id = id;
     this.shape = shape;
@@ -203,6 +205,19 @@ class PlanckPhysicsBody implements PhysicsBody {
   setLinearDamping(damping: number): void {
     this.body.setLinearDamping(damping);
   }
+
+  getContactForces(): ContactForces {
+    // Box2D reports impulses mid-step via post-solve; the adapter buffers
+    // them per body during step() (cleared each step). Copy out so callers
+    // can hold the result across steps without it mutating underneath them.
+    const buf = this.contactForceBuf.get(this.body);
+    return buf
+      ? {
+          normal: { x: buf.normal.x, y: buf.normal.y },
+          friction: { x: buf.friction.x, y: buf.friction.y },
+        }
+      : { normal: { x: 0, y: 0 }, friction: { x: 0, y: 0 } };
+  }
 }
 
 // ─── adapter ──────────────────────────────────────────────────────────────
@@ -216,6 +231,13 @@ export class PlanckAdapter implements PhysicsAdapter {
   private velocityIterations: number | undefined;
   /** Override for Planck's per-step position iterations (default 3). */
   private positionIterations: number | undefined;
+  /** dt of the in-flight step, read by the post-solve hook to turn contact
+   *  impulses into forces (F = J/dt). */
+  private currentDt = 0;
+  /** Per-body contact forces accumulated by post-solve during the current
+   *  step. Cleared at the top of every step() — post-solve fires mid-step,
+   *  possibly several times per body (one per contact). Dynamic bodies only. */
+  private readonly contactForceBuf = new Map<planck.Body, ContactForces>();
 
   constructor(opts: AdapterOptions = {}) {
     const g = opts.gravity ?? { x: 0, y: -9.8 };
@@ -232,6 +254,44 @@ export class PlanckAdapter implements PhysicsAdapter {
       contact.setFriction(
         Math.max(contact.getFixtureA().getFriction(), contact.getFixtureB().getFriction()),
       );
+    });
+    // Contact-force readback (FBD Goal-1 step 3). Solver impulses arrive here
+    // per contact, mid-step; buffer them as forces on each dynamic body.
+    // Box2D applies +P to body B and −P to body A, with P = Jn·n + Jt·t,
+    // n = world-manifold normal (unit, A→B) and t = cross(n, 1) = (n.y, −n.x).
+    // Coexists with the begin-contact Max-friction hook above (different
+    // event) — and because that hook already aligned contact friction with
+    // Rapier's Max rule, the tangent impulses reported here match GIST's
+    // cross-engine friction semantics.
+    this.world.on('post-solve', (contact, impulse) => {
+      const dt = this.currentDt;
+      if (!(dt > 0)) return;
+      const wm = contact.getWorldManifold(null);
+      if (!wm) return;
+      const nx = wm.normal.x;
+      const ny = wm.normal.y;
+      const tx = ny;
+      const ty = -nx;
+      let jn = 0;
+      let jt = 0;
+      for (let i = 0; i < impulse.normalImpulses.length; i++) {
+        jn += impulse.normalImpulses[i];
+        jt += impulse.tangentImpulses[i] ?? 0;
+      }
+      const add = (body: planck.Body, sign: number) => {
+        if (!body.isDynamic()) return;
+        let buf = this.contactForceBuf.get(body);
+        if (!buf) {
+          buf = { normal: { x: 0, y: 0 }, friction: { x: 0, y: 0 } };
+          this.contactForceBuf.set(body, buf);
+        }
+        buf.normal.x += (sign * nx * jn) / dt;
+        buf.normal.y += (sign * ny * jn) / dt;
+        buf.friction.x += (sign * tx * jt) / dt;
+        buf.friction.y += (sign * ty * jt) / dt;
+      };
+      add(contact.getFixtureB().getBody(), 1);
+      add(contact.getFixtureA().getBody(), -1);
     });
   }
 
@@ -291,7 +351,7 @@ export class PlanckAdapter implements PhysicsAdapter {
       });
     }
 
-    const wrapper = new PlanckPhysicsBody(def.id, def.shape, body);
+    const wrapper = new PlanckPhysicsBody(def.id, def.shape, body, this.contactForceBuf);
     this.bodyById.set(def.id, { def, body, wrapper });
     return wrapper;
   }
@@ -343,6 +403,8 @@ export class PlanckAdapter implements PhysicsAdapter {
   }
 
   step(dtSeconds: number): void {
+    this.contactForceBuf.clear();
+    this.currentDt = dtSeconds;
     this.world.step(dtSeconds, this.velocityIterations, this.positionIterations);
   }
 

@@ -42,6 +42,10 @@ export interface WallDef {
   thickness: number;
 }
 
+/** Per-step contact-force readback: this body's summed contact normal and
+ *  friction forces, recovered from solver impulses as F = J/dt. */
+export type ContactForces = { normal: Vec2; friction: Vec2 };
+
 export interface BodySnapshot {
   id: string;
   position: Vec2;
@@ -79,6 +83,18 @@ export interface PhysicsBody {
    * quadratic, mass-dependent drag using the engine's stable damping integrator.
    */
   setLinearDamping(damping: number): void;
+
+  /**
+   * Contact-force readback for the most recent step (FBD Goal-1 step 3).
+   * Sums normal and friction forces across all of this body's current
+   * contacts, recovered from solver impulses (F = J/dt over the full step
+   * dt). Returns zero vectors for a free body, a static body, or a SLEEPING
+   * body (impulses flatten when the engine puts a resting body to sleep).
+   * This is the engine-actual instrument: values jitter frame-to-frame at
+   * resting contact — smoothing or an analytical display model lives above
+   * the adapter, never here.
+   */
+  getContactForces(): ContactForces;
 }
 
 export interface PhysicsAdapter {

@@ -716,3 +716,154 @@ adapter seam (Rapier manifolds / Planck post-solve → normalized
 bus validator; (4) resolve primary-representation after the step-3 spike;
 (5) analytical normal + friction + the `normal` kind; (6) three-places for FBD
 authoring (incl. the prompt decision parked above).
+
+### Findings 2026-08-06 — sequenced-plan step 3 SHIPPED: engine contact-force seam (both engines), force-normal kind, overlay arrows — and the jitter question got an empirical answer
+
+Step 3 of the Goal-1 plan is built and headless-verified on both engines.
+The step-4 representation spike now has its data — and the data surprised
+us (below).
+
+**3a — the adapter seam** (`getContactForces(): { normal, friction }` on
+`PhysicsBody`, [types.ts](src/physics/types.ts)). Per-body summed contact
+forces recovered from the most recent step's solver impulses (F = J/dt over
+the full step dt), exactly per the 2026-07-19 grounded-API research:
+- **Rapier** ([RapierAdapter.ts](src/physics/rapier/RapierAdapter.ts)):
+  lazy manifold walk after step — `contactPairsWith` →
+  `contactPair(m, flipped)` → per-point `contactImpulse` /
+  `contactTangentImpulse`; manifold normal is collider1→collider2, so force
+  on us is −n·J when we're collider1 (+ when flipped).
+- **Planck** ([PlanckAdapter.ts](src/physics/planck/PlanckAdapter.ts)):
+  `post-solve` buffering into a per-body map, cleared at the top of every
+  `step()`; force on B = +(Jn·n + Jt·t)/dt, on A the negative, dynamic
+  bodies only. Coexists with the begin-contact Max-friction hook (different
+  event) — and because that hook aligns contact µ with Rapier's Max rule,
+  the reported tangent impulses match GIST's cross-engine friction
+  semantics.
+
+**Two engine quirks found + fixed by the harness (this is why we build the
+instrument first):**
+1. **Rapier's impulse readback overshoots by (i+1)/i** where i =
+   `numSolverIterations`. Its TGS-soft solver runs one extra stabilization
+   iteration beyond the configured count and `contactImpulse()` accumulates
+   across all of them. Probe measured N/(m·g) = 2.0, 1.5, 1.25, 1.125,
+   1.0625 for i = 1, 2, 4, 8, 16 — exactly (i+1)/i, so the adapter corrects
+   by i/(i+1), reading i live from `integrationParameters` so the
+   debug-panel solver-iterations knob stays consistent.
+2. **Rapier's 2D tangent convention is opposite Box2D's** cross(n, 1):
+   first run showed friction pointing down-slope. Fixed to t = (−n.y, n.x)
+   for Rapier only; verified on BOTH ramp orientations (high-left slides +x,
+   high-right slides −x) on both engines so the sign isn't a
+   one-orientation coincidence.
+
+**3b — render side.** `force-normal` added to `vectorTheme.ts` (teal
+#00897b, F_N, 2 px/N) — VECTOR_KINDS feeds the Zod enum, so the generated
+schema grew mechanically (regenerated per invariant #1); the prompt's
+"don't author force kinds" line already covers it, same posture as
+force-applied. VectorArrow wires `force-normal`/`force-friction` from
+`userData.normalForce`/`frictionForce`; JsonSimulation stashes the readback
+every frame in handleUpdate, and the values RIDE THE FRAME
+(`normalFx/normalFy/fricFx/fricFy` on FrameBodySnap, captured + restored) —
+the step-2 dragForce replay lesson applied proactively. The `?forces=1`
+overlay now draws all five: gravity, drag, normal, friction, net. Only
+`force-applied` remains unwired.
+
+**3c — THE SPIKE FINDING: zero jitter in the canonical teaching
+scenarios.** The 2026-07-19 research predicted impulse-solver readback
+would "shimmer and not cleanly sum to a stable net." Empirically, on BOTH
+engines at 1/60: resting box N = 19.600 N exact (std 0.0000 over the awake
+window); 30° ramp slide N = 16.974 = mg·cosθ exact, |Ff| = 4.244 = µN
+exact, friction up-slope, and closure m·a = m·g + N + Ff with residual
+(0.000, 0.000). The feared jitter did not materialize for single-contact
+box-on-plane scenarios — the readback is textbook-clean where the FBD
+curriculum lives (S0.1 territory). The caveat that DID materialize:
+**sleep flattening** — Planck put the resting box to sleep at t ≈ 0.6 s
+and the readback drops to zero (Rapier's threshold is laxer; it stayed
+awake 4 s). A block that slides to a stop mid-lesson LOSES its N and
+friction arrows — and the static-friction regime (tilt-until-slip below
+breakaway) is exactly where sleep hits. Options recorded for step 4:
+per-body sleep disable when force display is on (both engines expose it),
+or the analytical layer covers rest. Multi-contact stacks and
+high-restitution scenes remain unprofiled — the zero-jitter claim is
+scoped to what the harness drove.
+
+**Where this leaves the plan:** (1) ✅ bus; (2) ✅ gravity+drag; (3) ✅
+engine contact-force seam **[this entry]**; (4) **NOW UNBLOCKED — Bill's
+representation drive**: `/simulation/ramp-slide?simdebug=1&forces=1` shows
+the full 5-arrow engine-read FBD on the tilt-until-slip demo (both
+engines); judge closure/stability/legibility live. The zero-jitter finding
+weakens the case AGAINST engine-primary, but sleep flattening + the
+unprofiled multi-contact regime keep the hybrid recommendation alive.
+(5) analytical normal + friction, informed by 4; (6) three-places. The
+bus-validator half of step 3 (analytical-vs-engine force-delta diagnostic)
+is DEFERRED to step 5 by construction — there is no analytical model to
+compare against until step 5 exists, and the runtime-event-vs-config-truth
+semantic question (bus reports live config state, forces are runtime
+events) goes with it.
+
+**Harness:** scratchpad `contactForcesHarness.ts` (rest + ramp + mirrored
+ramp × both engines, 17 checks + jitter/sleep telemetry) — ALL GREEN.
+Build + tsc + lint at baseline. Legibility note for the drive: at 2 px/N a
+19.6 N normal is ~39 px — fine; the resting-equilibrium N vs gravity
+overlap (equal/opposite arrows from body center) may want the
+center-of-mass-origin / offset design gate from the research.
+
+### Findings 2026-08-06 (step-4 drive, round 1) — floor-suppressed F_net near breakaway taught the wrong thing; sub-floor force stub SHIPPED (Bill-ratified); numeric-values toggle OPEN
+
+Bill's first step-4 drive (ramp-slide, his tweak: mass 5, ice_block sprite)
+surfaced the display-floor pedagogy bug immediately: at 26° — above the
+21.8° breakaway, block visibly creeping and accelerating — **no F_net arrow**.
+F_net = mg(sinθ − µcosθ) = 3.9 N → 7.7 px at the default 2 px/N, under the
+14 px `minPixelLength` floor → suppressed entirely, while at 40° (16.5 N →
+33 px) it showed. Engine readback verified EXACT at both angles (probe:
+N/Ff/net match analytical to 3 decimals from frame 2). So: display-layer
+only. En route, a wrong turn worth recording: from the first screenshots I
+inferred per-arrow custom scales (F_N eyeballed longer than F_g, which would
+be impossible — N = mg·cosθ); Bill's zoomed screenshots + the mass-5 numbers
+showed everything is the stock 2 px/N overlay and the ratios (0.90/0.77) are
+correct — RETRACTED. Lesson: compute the expected pixel table from the
+actual sim params before reading screenshot geometry.
+
+**The pedagogy call (Bill, ratified):** "we DEFINITELY want to not teach
+something wrong where the box slides and accelerates without a visible
+F_net." Near breakaway this is structural, not a tuning issue — the net is
+~8% of gravity, so NO honest shared scale can draw it legibly next to F_g;
+and below breakaway F_net is exactly zero, making *stuck* and *creeping*
+visually identical under plain floor suppression.
+
+**Fix SHIPPED — sub-floor force stub**
+([VectorArrow.ts](src/components/simulation_components/renderables/visuals/VectorArrow.ts),
+constants in vectorTheme's VECTOR_GEOMETRY): a FORCE kind whose true arrow
+length lands in (0.1 px, 14 px) draws a fixed 10 px dashed stub with a
+HOLLOW (stroked) arrowhead, slightly faded, normal label — direction is
+real (creep net points down-slope; that's the teachable part), open head +
+tight dash signal "not to scale". At-or-under 0.1 px (solver rest-noise is
+~1e-3 px; smallest teachable creep nets ~0.3 px) draws nothing — so
+equilibrium stays blank and the stuck/creeping distinction is now visible.
+Non-force kinds keep plain suppression (a still box's velocity arrow
+vanishing is correct). Applies everywhere VectorArrow draws (overlay +
+authored + replay — same code path). Tilt-until-slip progression at m=5:
+blank ≤21.8° → stub 21.8°–29.7° → true-scale arrow above. Label resolution
+factored into `resolveVectorLabel` (shared by both paths). Canvas-drawing
+change → verification is Bill's re-drive, not headless; build/tsc/lint at
+baseline.
+
+**OPEN (Bill asked, answered, undecided): numeric values in the FBD** —
+PhET-style toggleable magnitude readout rendered next to each arrow's label
+("F_f 17.6 N"). Complements the stub (a stubbed F_net would read "3.9 N").
+Await Bill's call; natural home is the force overlay first (debug-first),
+per-visual `showValue` if it graduates to authoring. Per-diorama auto-scale
+(identical scale on all force arrows, normalized to the largest present)
+remains the queued deeper legibility fix — note it cannot rescue the
+near-breakaway net (8% of F_g is invisible at any shared scale); the stub
+is the honest answer there.
+
+**Addendum, same evening — stub drive-CONFIRMED + dispositions.** Bill
+re-drove: "the dashed stub looks GREAT." Sub-floor force stub is drive-
+confirmed shipped. **Numeric-values toggle: HELD (Bill's call)** — stays
+recorded here as the parked companion (would render "F_f 17.6 N" beside
+each arrow label, PhET-style, toggleable; a stubbed F_net would carry its
+true newtons); revisit when step 5's analytical layer or a values-hungry
+exhibit pulls it. **Exhibit baked:** rampSlide.json block is now
+`ice_block`, mass 5 (Bill's drive tweak made canonical — mass scales all
+force arrows 5× at the fixed 2 px/N without touching breakaway or a, so
+the default FBD reads well; authored velocity showVectors kept).

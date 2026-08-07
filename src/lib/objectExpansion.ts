@@ -212,6 +212,28 @@ function seatRiders(
       continue;
     }
 
+    // Max-rule friction masking (Bill, 2026-08-06 remix drive): the engines
+    // combine contact friction as max-of-the-pair, so a rider whose µ is
+    // BELOW its surface's µ is silently governed by the surface — and any
+    // friction slider bound to the rider is dead across [0, surface µ). The
+    // seatOn pair is the declared contact, so this is live config-state
+    // truth (the bus's semantic). Deliberately a DIAGNOSTIC, not a prompt
+    // change: how GIST represents pair friction to users and the LLM is a
+    // held design question (see the ramps note, Open questions).
+    const riderMu = obj.friction ?? 0;
+    const surfaceMu = target.object.friction;
+    if (riderMu < surfaceMu) {
+      reportDiagnostic(
+        `seat-friction-masked:${obj.id}`,
+        `seatRiders: "${obj.id}" has friction ${riderMu}, but its seatOn surface ` +
+          `"${obj.seatOn}" has ${surfaceMu} (delta ${Math.round((riderMu - surfaceMu) * 1e4) / 1e4}). ` +
+          `Engines take the MAX of the pair, so the contact runs at µ = ${surfaceMu} — ` +
+          `the rider's own friction, and any friction slider bound to it, do nothing ` +
+          `below ${surfaceMu}. For a slider-governed contact, author the surface at 0 ` +
+          `and put µ on the rider.`,
+      );
+    }
+
     const pose = seatAtX(target, obj.x, obj.height);
     if (pose.clamped) {
       reportDiagnostic(

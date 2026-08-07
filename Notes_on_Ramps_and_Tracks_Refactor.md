@@ -89,10 +89,13 @@ alongside `containerExpansion.ts`.
   `objectExpansion.ts` (ramps → containers → seatOn riders + slider
   param-overrides). Gate rounds 1–2 passed via `modal serve` (velocity
   seeding + friction accessor fixes in round 1); ramp-dimension sliders +
-  velocity-rides-the-ramp confirmed on local drive. REMAINING: gate round
-  3 (re-serve: steepness remix + tilt-until-slip generation) → `modal
-  deploy` (invariant #11: bundles working tree) → prod validation →
-  flip this line 🟢.
+  velocity-rides-the-ramp confirmed on local drive; round 3 serve-tested
+  2026-08-06 evening (tilt-until-slip validated to ~1%; steepness remix
+  exercised — surfaced the Max-rule masking finding, handled via the
+  seat-friction-masked diagnostic, prompt HELD). 🟢 **SHIPPED 2026-08-06**
+  — Bill ran `modal deploy` (working tree = final round-3 state); future
+  dev drives are the ongoing validation surface (issues found there come
+  back here as findings).
 - **R4 — rotated-basis + FBD convergence.** Incline components (vₓ′/v_y′
   along/normal to surface) through the parked rotated-basis door; normal +
   friction force arrows once FBD steps 3+5 land — the incline is their
@@ -170,6 +173,17 @@ alongside `containerExpansion.ts`.
 - **Ramp + container composition** (wagon rolls down ramp into…): nothing
   blocks it today in TSX; worth a composed exhibit before R3 to catch
   interaction surprises.
+- **How GIST represents friction to users and the LLM (HELD, Bill
+  2026-08-06).** µ is physically a property of a surface PAIR; the engines
+  fake it with per-body coefficients + the Max combine rule, and the
+  authoring surface inherits that fiction — the remix drive showed the LLM
+  reaching for "more friction" by raising the SURFACE's µ (0.6) over a
+  slider-governed rider (0.4), silently deadening the slider below 0.6.
+  Deliberately NOT patching the prompt further: the fix is a representation
+  decision (pair-friction authoring? one-owner convention enforced at the
+  seam? surface-µ read-only?) that belongs with the future static/kinetic
+  pair-friction workstream. Interim: the `seat-friction-masked` diagnostic
+  (below) makes the masking visible whenever it occurs.
 
 ## Findings 2026-08-05 — v1 BUILT + headless-verified (factory, seat helper, two exhibits); pending Bill's drive (R2)
 
@@ -548,3 +562,35 @@ the ramp (world-frame author intent, the SO2 velocity rule). It is the
 slider-held, seam-seeded direction that rides. React-effect-order-dependent
 behavior → verification is Bill's drive, not headless. Build + lint at
 baseline.
+
+### Findings 2026-08-06 (evening) — tilt-until-slip VALIDATED to ~1% (µ measured 0.404 vs 0.4); remix friction-masking finding → representation question HELD, `seat-friction-masked` diagnostic SHIPPED
+
+**The instrument works.** Bill's drive: no slide at 21.5°, slow creep at
+22° — tan(22°) = 0.404 against authored µ = 0.4. Reading the breakaway
+angle measured µ to about a percent, with the near-threshold creep
+behaving exactly as the single-µ Coulomb-solve analysis predicted.
+
+**Remix finding — Max-rule masking in the wild.** "Steeper and more
+friction" produced a friction slider (good) but satisfied "more friction"
+by setting the RAMP's µ to 0.6 over the box's slider-governed 0.4: the
+contact runs at max(0.4, 0.6) = 0.6 and the slider is dead below 0.6. The
+taught pairing rule (surface 0, µ on the rider) exists in FILL CONTROLS,
+but the remix path didn't honor it. **Decision (Bill): HOLD the prompt** —
+this is a symptom of the deeper representation question (per-body µ
+presenting as a pair property), now an Open question above, homed with the
+future pair-friction workstream.
+
+**Interim diagnostic SHIPPED:** `seat-friction-masked:<riderId>` in the
+seat pass ([objectExpansion.ts](src/lib/objectExpansion.ts)) — fires when a
+seatOn rider's effective friction (authored or the 0 default, matching
+ObjectRenderer's body-creation default) is BELOW its surface's, reporting
+the delta (Bill's formulation: rider − surface, e.g. 0.4 − 0.6 = −0.2),
+the effective contact µ, and the escape route. Silent when equal (the
+fixed-lesson same-µ pattern) or when the rider governs (slider pattern).
+seatOn is the declared contact pair, so this is live config-state truth —
+squarely the bus's ratified semantic; it re-derives per expansion, so
+fixing the JSON clears the badge. Harness (6 checks) green; build + lint
+baseline. Note: the badge reflects AUTHORED friction — a friction slider
+moved at runtime doesn't re-evaluate it (config truth, not runtime events;
+consistent with the bus semantic). **Drive-confirmed same evening:** Bill
+sees the badge in the debug panel's Diagnostics box on the remix exhibit.

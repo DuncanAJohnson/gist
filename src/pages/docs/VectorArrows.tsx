@@ -548,8 +548,9 @@ function VectorArrows() {
                 ['velocity', '20 px per (m/s)', 'body.velocity'],
                 ['acceleration', '10 px per (m/s²)', 'userData.derivedAcceleration'],
                 ['force-net', '2 px per N', 'm · a_derived'],
-                ['force-applied', '2 px per N', 'userData.appliedForce'],
-                ['force-friction', '2 px per N', 'userData.frictionForce (analytical)'],
+                ['force-applied', '2 px per N', 'userData.appliedForce (unwired)'],
+                ['force-friction', '2 px per N', 'userData.frictionForce (engine-read)'],
+                ['force-normal', '2 px per N', 'userData.normalForce (engine-read)'],
                 ['force-drag', '2 px per N', 'userData.dragForce'],
                 ['force-gravity', '2 px per N', 'm · g'],
               ] as Array<[VectorKind, string, string]>
@@ -666,9 +667,17 @@ function VectorArrows() {
           the head's apex (a small "dot" artifact visible in early renders).
         </li>
         <li>
-          <strong>Minimum arrow length:</strong> 14 px — below this, the arrow is suppressed.
-          Tuned so that after subtracting the shaft backoff, a visible shaft stub still remains.
-          Prevents jittery sub-pixel arrows when a quantity is near zero.
+          <strong>Minimum arrow length:</strong> 14 px — below this, non-force arrows are
+          suppressed. Tuned so that after subtracting the shaft backoff, a visible shaft stub
+          still remains. Prevents jittery sub-pixel arrows when a quantity is near zero.
+        </li>
+        <li>
+          <strong>Sub-floor force stub</strong> (FBD step 4, 2026-08-06): a FORCE kind whose
+          true length lands between 0.1 px and the 14 px floor draws a fixed 10 px dashed stub
+          with a <em>hollow</em> arrowhead — direction real, magnitude "not to scale". Without
+          it, a block creeping just past breakaway showed no F_net and read as equilibrium.
+          At or below 0.1 px (physically zero, rest-noise is ~10⁻³ px) nothing draws, so{' '}
+          <em>stuck</em> and <em>creeping</em> stay visually distinct.
         </li>
         <li>
           <strong>Y-up → Y-down flip:</strong> centralized in the draw function. Callers pass
@@ -860,8 +869,14 @@ function VectorArrows() {
             </tr>
             <tr>
               <td className="px-3 py-2 border border-gray-200 font-mono text-xs">force-friction</td>
-              <td className="px-3 py-2 border border-gray-200"><code>userData.frictionForce</code></td>
-              <td className="px-3 py-2 border border-gray-200">Yes (Phase 3, dynamics tier)</td>
+              <td className="px-3 py-2 border border-gray-200"><code>userData.frictionForce</code> (engine-read)</td>
+              <td className="px-3 py-2 border border-gray-200">Yes — shipped FBD step 3 (fricFx/fricFy)</td>
+              <td className="px-3 py-2 border border-gray-200">Dynamics</td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 border border-gray-200 font-mono text-xs">force-normal</td>
+              <td className="px-3 py-2 border border-gray-200"><code>userData.normalForce</code> (engine-read)</td>
+              <td className="px-3 py-2 border border-gray-200">Yes — shipped FBD step 3 (normalFx/normalFy)</td>
               <td className="px-3 py-2 border border-gray-200">Dynamics</td>
             </tr>
             <tr>
@@ -947,15 +962,19 @@ function VectorArrows() {
         in the frame, no derivation needed.
       </p>
 
-      <h3>Implications for future kinds</h3>
+      <h3>Implications for future kinds — pattern now proven three times</h3>
       <p>
-        Phase 3's <code>force-applied</code>, <code>force-friction</code>, and{' '}
-        <code>force-drag</code> follow the same pattern: their source vectors are
-        computed during precompute (engine-read where possible, analytical where
-        not) and stored in the dynamics-tier Frame schema. The vector resolver
-        reads from the body during render; the body has fresh state because
-        replay just restored it from the frame. <strong>No mode-aware code in the
-          visual layer. No userData write-during-replay invariant to remember.</strong>
+        <code>force-drag</code> (FBD step 2, 2026-07-24) and the engine-read{' '}
+        <code>force-friction</code> / <code>force-normal</code> pair (FBD step 3,
+        2026-08-06, via the adapter's <code>getContactForces()</code> seam) landed
+        exactly this way: their source vectors are computed during precompute and
+        ride the Frame (<code>dragFx/dragFy</code>,{' '}
+        <code>normalFx/normalFy/fricFx/fricFy</code> on FrameBodySnap). The vector
+        resolver reads from the body during render; the body has fresh state
+        because replay just restored it from the frame. The still-unwired{' '}
+        <code>force-applied</code> must follow the same pattern when its pipeline
+        lands. <strong>No mode-aware code in the visual layer. No userData
+          write-during-replay invariant to remember.</strong>
       </p>
       <p>
         <strong>The invariant for new derived kinds is now structural, not
@@ -1080,8 +1099,9 @@ function VectorArrows() {
           <strong>Applied forces refactor.</strong> Its Phase 2 calls for a{' '}
           <code>ForceArrow</code> renderable; this work delivers a generalized version that
           covers it. Once <code>userData.appliedForce</code> lands, the{' '}
-          <code>force-applied</code> kind lights up automatically. Same for{' '}
-          <code>userData.frictionForce</code> in the static-friction demo mode.
+          <code>force-applied</code> kind lights up automatically —{' '}
+          <code>userData.frictionForce</code> proved the pattern when the engine
+          contact-force seam populated it (FBD step 3, 2026-08-06).
         </li>
         <li>
           <strong>Vector representation refactor.</strong> Its Phase 3 calls for a shared{' '}

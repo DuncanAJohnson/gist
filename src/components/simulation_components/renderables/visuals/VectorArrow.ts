@@ -7,6 +7,7 @@ import {
   VECTOR_GEOMETRY,
   VECTOR_LABELS,
   VECTOR_LABEL_DEFAULTS,
+  type VectorKind,
   type VectorLabelDef,
 } from '../vectorTheme';
 
@@ -21,8 +22,13 @@ import {
  * `DrawContext.gravity`, an SI Y-up vector already pointing down) and
  * `force-drag` (the per-frame quadratic drag already vectorized onto
  * `body.userData.dragForce = −k·|v|·v`, populated only in air-resistance mode).
- * The remaining force kinds (`force-applied`, `force-friction`, and the
- * normal force) await the engine contact-force seam (Goal-1 step 3).
+ * FBD step 3 (2026-08-06) wires `force-normal` and `force-friction` from the
+ * engine contact-force seam: JsonSimulation stashes each frame's
+ * `getContactForces()` readback on `userData.normalForce` / `userData.frictionForce`.
+ * These are ENGINE-ACTUAL values (solver impulses / dt) — they jitter at
+ * resting contact and read zero on sleeping bodies; the analytical display
+ * model that may replace them student-facing is Goal-1 step 5, decided after
+ * the step-4 representation spike. Only `force-applied` still awaits a source.
  *
  * For `force-net`, the source is Newton's 2nd Law:
  *   F_net = m · a_derived
@@ -73,9 +79,19 @@ function drawVectorArrow(drawCtx: DrawContext, visual: PixelVisual) {
     const drag = (body.userData.dragForce as Vec2 | undefined) ?? { x: 0, y: 0 };
     vx = drag.x;
     vy = drag.y;
+  } else if (kind === 'force-normal') {
+    // Engine-read contact normal force (see header note): jitters at rest,
+    // zero when free or asleep.
+    const f = (body.userData.normalForce as Vec2 | undefined) ?? { x: 0, y: 0 };
+    vx = f.x;
+    vy = f.y;
+  } else if (kind === 'force-friction') {
+    // Engine-read contact friction force (see header note).
+    const f = (body.userData.frictionForce as Vec2 | undefined) ?? { x: 0, y: 0 };
+    vx = f.x;
+    vy = f.y;
   } else {
-    // force-applied, force-friction: await the engine contact-force seam
-    // (Goal-1 step 3). Not wired yet.
+    // force-applied: awaits the applied-force pipeline (Phases 1–3 above).
     return;
   }
 
@@ -88,12 +104,25 @@ function drawVectorArrow(drawCtx: DrawContext, visual: PixelVisual) {
   const scale = visual.pixelsPerUnit ?? VECTOR_DEFAULT_SCALES[kind];
   const magnitude = Math.hypot(vx, vy);
   const arrowLen = magnitude * scale;
-  if (arrowLen < VECTOR_GEOMETRY.minPixelLength) return;
 
   // SI (Y-up) → canvas (Y-down): flip vy when computing the screen angle.
   const angle = Math.atan2(-vy, vx);
   const cx = position.x;
   const cy = position.y;
+  const color = visual.color ?? VECTOR_COLORS[kind];
+
+  if (arrowLen < VECTOR_GEOMETRY.minPixelLength) {
+    // Sub-floor affordance (step-4 drive decision, Bill 2026-08-06): a FORCE
+    // that is real but too small to draw at scale gets a fixed-length dashed
+    // stub with a hollow head — direction true, magnitude "not to scale".
+    // Without this, a block creeping just past breakaway showed NO net arrow
+    // and read as equilibrium. Physically-zero forces (and all non-force
+    // kinds) still draw nothing, keeping stuck vs. creeping distinct.
+    if (!kind.startsWith('force-') || arrowLen <= VECTOR_GEOMETRY.subFloorZeroPx) return;
+    drawSubFloorStub(drawCtx, kind, angle, cx, cy, color, visual.label, visual.axis, visual.labelFontSize);
+    return;
+  }
+
   const ex = cx + Math.cos(angle) * arrowLen;
   const ey = cy + Math.sin(angle) * arrowLen;
 
@@ -105,8 +134,6 @@ function drawVectorArrow(drawCtx: DrawContext, visual: PixelVisual) {
   const shaftLen = Math.max(0, arrowLen - shaftBackoff);
   const sx = cx + Math.cos(angle) * shaftLen;
   const sy = cy + Math.sin(angle) * shaftLen;
-
-  const color = visual.color ?? VECTOR_COLORS[kind];
 
   ctx.save();
   ctx.globalAlpha = opacity;
@@ -133,21 +160,8 @@ function drawVectorArrow(drawCtx: DrawContext, visual: PixelVisual) {
   ctx.closePath();
   ctx.fill();
 
-  // Label.
-  // Label. For a component leg with no explicit override, derive a subscripted
-  // label from the kind's default by appending the axis (v → vₓ / v_y;
-  // F_net → F_net,x / F_net,y). An author-supplied label is respected verbatim.
-  let labelDef: VectorLabelDef | string | null;
-  if (visual.label === null) {
-    labelDef = null;
-  } else if (visual.label !== undefined) {
-    labelDef = visual.label;
-  } else if (visual.axis) {
-    const base = VECTOR_LABELS[kind];
-    labelDef = { main: base.main, sub: base.sub ? `${base.sub},${visual.axis}` : visual.axis };
-  } else {
-    labelDef = VECTOR_LABELS[kind];
-  }
+  // Label (shared resolution with the sub-floor stub path).
+  const labelDef = resolveVectorLabel(visual.label, visual.axis, kind);
   if (labelDef !== null) {
     const fontSize = visual.labelFontSize ?? VECTOR_LABEL_DEFAULTS.fontSize;
     const placement = visual.labelPlacement ?? VECTOR_LABEL_DEFAULTS.placement;
@@ -179,6 +193,90 @@ function drawVectorArrow(drawCtx: DrawContext, visual: PixelVisual) {
     drawSubscriptedLabel(ctx, labelDef, labelX, labelY, fontSize, color);
   }
 
+  ctx.restore();
+}
+
+/**
+ * Shared label resolution. For a component leg with no explicit override,
+ * derives a subscripted label from the kind's default by appending the axis
+ * (v → vₓ / v_y; F_net → F_net,x / F_net,y). An author-supplied label is
+ * respected verbatim; an explicit null suppresses the label.
+ */
+function resolveVectorLabel(
+  label: string | VectorLabelDef | null | undefined,
+  axis: 'x' | 'y' | undefined,
+  kind: VectorKind,
+): VectorLabelDef | string | null {
+  if (label === null) return null;
+  if (label !== undefined) return label;
+  const base = VECTOR_LABELS[kind];
+  if (axis) return { main: base.main, sub: base.sub ? `${base.sub},${axis}` : axis };
+  return base;
+}
+
+/**
+ * Sub-floor force stub: fixed-length dashed shaft + HOLLOW (stroked, never
+ * filled) arrowhead, drawn slightly faded. Signals "this force is real and
+ * points this way, but its magnitude is below the display floor" — used only
+ * for force kinds whose true arrow length lands in (subFloorZeroPx,
+ * minPixelLength). The open head and dash pattern (tighter than the
+ * component-leg dash) are the not-to-scale markers.
+ */
+function drawSubFloorStub(
+  drawCtx: DrawContext,
+  kind: VectorKind,
+  angle: number,
+  cx: number,
+  cy: number,
+  color: string,
+  label: string | VectorLabelDef | null | undefined,
+  axis: 'x' | 'y' | undefined,
+  labelFontSize: number | undefined,
+) {
+  const { ctx, opacity } = drawCtx;
+  const len = VECTOR_GEOMETRY.subFloorStubLength;
+  const head = VECTOR_GEOMETRY.headLength * 0.75;
+  const headA = VECTOR_GEOMETRY.headAngleRad;
+  const ex = cx + Math.cos(angle) * len;
+  const ey = cy + Math.sin(angle) * len;
+  // Head apex sits past the shaft end so the stub reads shaft-then-head.
+  const hx = ex + Math.cos(angle) * head;
+  const hy = ey + Math.sin(angle) * head;
+
+  ctx.save();
+  ctx.globalAlpha = opacity * 0.85;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  ctx.setLineDash(VECTOR_GEOMETRY.subFloorDash);
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(ex, ey);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.beginPath();
+  ctx.moveTo(hx, hy);
+  ctx.lineTo(hx - head * Math.cos(angle - headA), hy - head * Math.sin(angle - headA));
+  ctx.lineTo(hx - head * Math.cos(angle + headA), hy - head * Math.sin(angle + headA));
+  ctx.closePath();
+  ctx.stroke();
+
+  const labelDef = resolveVectorLabel(label, axis, kind);
+  if (labelDef !== null) {
+    const fontSize = labelFontSize ?? VECTOR_LABEL_DEFAULTS.fontSize;
+    const offset = VECTOR_LABEL_DEFAULTS.perpendicularOffsetPx + fontSize * 0.4;
+    drawSubscriptedLabel(
+      ctx,
+      labelDef,
+      hx + Math.cos(angle) * offset,
+      hy + Math.sin(angle) * offset,
+      fontSize,
+      color,
+    );
+  }
   ctx.restore();
 }
 

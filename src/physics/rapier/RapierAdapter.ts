@@ -3,6 +3,7 @@ import type {
   AdapterOptions,
   BodyDef,
   BodySnapshot,
+  ContactForces,
   PhysicsAdapter,
   PhysicsBody,
   ShapeDescriptor,
@@ -169,6 +170,7 @@ class RapierPhysicsBody implements PhysicsBody {
     id: string,
     shape: ShapeDescriptor,
     private readonly rigid: RAPIER_NS.RigidBody,
+    private readonly worldRef: () => RAPIER_NS.World | null,
   ) {
     this.id = id;
     this.shape = shape;
@@ -264,6 +266,57 @@ class RapierPhysicsBody implements PhysicsBody {
   setLinearDamping(damping: number): void {
     this.rigid.setLinearDamping(damping);
   }
+
+  getContactForces(): ContactForces {
+    const out: ContactForces = { normal: { x: 0, y: 0 }, friction: { x: 0, y: 0 } };
+    const world = this.worldRef();
+    if (!world || this.rigid.isFixed()) return out;
+    // world.timestep still holds the dt of the most recent step (step() sets
+    // it before stepping) — impulses accumulate over that whole dt across
+    // solver iterations, so this is the correct divisor.
+    const dt = world.timestep;
+    if (!(dt > 0)) return out;
+    // Rapier 0.19's TGS-soft solver runs numSolverIterations substeps PLUS one
+    // extra stabilization iteration, and contactImpulse() accumulates across
+    // all of them — so raw J/dt overshoots the true force by (i+1)/i.
+    // Empirically exact across iteration counts 1–16 (step-3 harness probe,
+    // 2026-08-06): a 2 kg resting box reads N/(m·g) = 2.0, 1.5, 1.25, 1.125,
+    // 1.0625 for i = 1, 2, 4, 8, 16. Read i live so the debug-panel solver-
+    // iterations knob keeps the correction consistent.
+    const iters = world.integrationParameters.numSolverIterations;
+    const corr = iters / (iters + 1);
+
+    const n = this.rigid.numColliders();
+    for (let i = 0; i < n; i++) {
+      const collider = this.rigid.collider(i);
+      world.contactPairsWith(collider, (other) => {
+        world.contactPair(collider, other, (manifold, flipped) => {
+          // Manifold normal is world-space, collider1 → collider2. Our
+          // collider is manifold-collider1 when !flipped, so the contact
+          // force ON US points along −normal (+normal when flipped).
+          const nrm = manifold.normal();
+          const nx = nrm.x;
+          const ny = nrm.y;
+          const sign = flipped ? 1 : -1;
+          // Tangent: 90° counter-clockwise from the normal — Rapier's 2D
+          // tangent convention is opposite Box2D's cross(n, 1); harness-
+          // verified on both ramp orientations (friction opposes motion).
+          const tx = -ny;
+          const ty = nx;
+          const count = manifold.numContacts();
+          for (let c = 0; c < count; c++) {
+            const jn = manifold.contactImpulse(c);
+            const jt = manifold.contactTangentImpulse(c);
+            out.normal.x += (sign * nx * jn * corr) / dt;
+            out.normal.y += (sign * ny * jn * corr) / dt;
+            out.friction.x += (sign * tx * jt * corr) / dt;
+            out.friction.y += (sign * ty * jt * corr) / dt;
+          }
+        });
+      });
+    }
+    return out;
+  }
 }
 
 // ─── adapter ──────────────────────────────────────────────────────────────
@@ -340,7 +393,7 @@ export class RapierAdapter implements PhysicsAdapter {
       massOverride: def.mass,
     });
 
-    const wrapper = new RapierPhysicsBody(def.id, def.shape, rigid);
+    const wrapper = new RapierPhysicsBody(def.id, def.shape, rigid, () => this.world);
     this.bodyById.set(def.id, { def, rigid, wrapper });
     return wrapper;
   }

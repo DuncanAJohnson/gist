@@ -184,14 +184,24 @@ export function synthesizeVectorArrowRenderables(obj: ExpandedObjectConfig): Pix
  * overlay. The kinds:
  *   - `force-gravity` (m·g) — always present on a dynamic body.
  *   - `force-drag` (−k·|v|·v) — only non-zero in air-resistance mode.
+ *   - `force-normal` / `force-friction` — ENGINE-READ contact forces from the
+ *     adapter seam (Goal-1 step 3, 2026-08-06): solver impulses / dt, so they
+ *     jitter at resting contact and read zero on sleeping bodies. Engine-truth
+ *     instrument, same spirit as the collider overlay.
  *   - `force-net` (m·a) — the measured resultant.
- * In a gravity+drag-only scene these three visibly close (m·a = m·g + F_drag);
- * once contact forces enter, net will diverge from the shown parts until normal/
- * friction land (Goal-1 steps 3+5). Static bodies (floors/walls) get nothing;
- * zero-length arrows (drag at rest, net in equilibrium) are suppressed by the
- * renderer's min-length floor.
+ * With all four component sources drawn, the FBD should close onto net up to
+ * impulse-solver noise — how well it closes IS the step-4 representation-spike
+ * question. Static bodies (floors/walls) get nothing; zero-length arrows
+ * (drag at rest, net in equilibrium) are suppressed by the renderer's
+ * min-length floor.
  */
-const FORCE_DEBUG_KINDS: readonly VectorKind[] = ['force-gravity', 'force-drag', 'force-net'];
+const FORCE_DEBUG_KINDS: readonly VectorKind[] = [
+  'force-gravity',
+  'force-drag',
+  'force-normal',
+  'force-friction',
+  'force-net',
+];
 
 export function synthesizeForceDebugRenderables(obj: ExpandedObjectConfig): PixelRenderable[] {
   if (obj.isStatic) return [];

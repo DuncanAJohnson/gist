@@ -18,6 +18,7 @@ export const VECTOR_KINDS = [
   'force-net',
   'force-applied',
   'force-friction',
+  'force-normal',
   'force-drag',
   'force-gravity',
 ] as const;
@@ -30,6 +31,7 @@ export const VECTOR_COLORS: Record<VectorKind, string> = {
   'force-net': '#e74c3c',       // red      — sum of forces
   'force-applied': '#3498db',   // blue     — the user's pull
   'force-friction': '#d35400',  // pumpkin  — opposes motion (contrasts with brown sprites)
+  'force-normal': '#00897b',    // teal     — support force, ⟂ to the surface
   'force-drag': '#455a64',      // blue-grey 700 — air resistance (readable on white)
   'force-gravity': '#34495e',   // navy     — always-on weight
 };
@@ -48,6 +50,7 @@ export const VECTOR_LABELS: Record<VectorKind, VectorLabelDef> = {
   'force-net': { main: 'F', sub: 'net' },
   'force-applied': { main: 'F', sub: 'app' },
   'force-friction': { main: 'F', sub: 'f' },
+  'force-normal': { main: 'F', sub: 'N' },
   'force-drag': { main: 'F', sub: 'ar' },
   'force-gravity': { main: 'F', sub: 'g' },
 };
@@ -63,6 +66,7 @@ export const VECTOR_DEFAULT_SCALES: Record<VectorKind, number> = {
   'force-net': 2,      // px per N
   'force-applied': 2,
   'force-friction': 2,
+  'force-normal': 2,
   'force-drag': 2,
   'force-gravity': 2,
 };
@@ -83,6 +87,25 @@ export const VECTOR_GEOMETRY = {
    * the head's base), a visible shaft stub still remains.
    */
   minPixelLength: 14,
+  /**
+   * Sub-floor affordance for FORCE kinds (step-4 drive finding, 2026-08-06:
+   * a creeping block near breakaway has a real but tiny F_net — suppressing
+   * it entirely made "sliding + accelerating" visually identical to
+   * equilibrium, teaching the wrong thing). A force arrow whose true length
+   * lands in (subFloorZeroPx, minPixelLength) draws as a fixed-length dashed
+   * stub with a HOLLOW arrowhead: direction is real, the open head + dash
+   * say "not to scale". Exactly-zero (≤ subFloorZeroPx) still draws nothing,
+   * so equilibrium and creep stay visually distinct.
+   */
+  subFloorStubLength: 10,
+  subFloorDash: [3, 3] as number[],
+  /**
+   * At-or-below this true length a force is treated as physically zero (no
+   * stub). Solver rest-noise sits around 1e-3 px at default scales, and the
+   * smallest teachable creep nets (just past breakaway) are ~0.3 px — 0.1 px
+   * separates the two.
+   */
+  subFloorZeroPx: 0.1,
 };
 
 export const VECTOR_LABEL_DEFAULTS = {

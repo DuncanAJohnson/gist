@@ -137,6 +137,14 @@ type FrameBodySnap = {
   // step 2, 2026-07-24). Zero when air resistance is off.
   dragFx: number;
   dragFy: number;
+  // Per-frame engine-read contact forces (Goal-1 FBD step 3, 2026-08-06):
+  // adapter getContactForces() readback stashed on userData each frame. Same
+  // standing gotcha as drag — userData-sourced arrows MUST ride the Frame or
+  // they vanish in replay. Zero when the body is free (or asleep).
+  normalFx: number;
+  normalFy: number;
+  fricFx: number;
+  fricFy: number;
 };
 
 type Frame = {
@@ -511,6 +519,9 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
         // Restore per-frame drag so the force-drag arrow animates in replay
         // (see FrameBodySnap.dragFx note).
         body.userData.dragForce = { x: snap.dragFx, y: snap.dragFy };
+        // Same for the engine-read contact forces (FrameBodySnap.normalFx note).
+        body.userData.normalForce = { x: snap.normalFx, y: snap.normalFy };
+        body.userData.frictionForce = { x: snap.fricFx, y: snap.fricFy };
       }
     });
 
@@ -768,6 +779,15 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
             body.setLinearDamping(0);
             body.userData.dragForce = { x: 0, y: 0 };
           }
+
+          // Engine-read contact forces (FBD step 3): the adapter recovers
+          // this body's summed normal + friction forces from the most recent
+          // step's solver impulses (F = J/dt). Stashed on userData for the
+          // force-normal / force-friction arrows; rides the Frame below so
+          // replay animates them (the step-2 dragForce lesson).
+          const contact = body.getContactForces();
+          body.userData.normalForce = contact.normal;
+          body.userData.frictionForce = contact.friction;
         }
 
         const prevVelocity = prevVelocitiesRef.current[objectConfig.id];
@@ -838,6 +858,8 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
           const derived = (body.userData.derivedAcceleration as Vec2 | undefined) ?? { x: 0, y: 0 };
           const alpha = (body.userData.derivedAngularAcceleration as number | undefined) ?? 0;
           const drag = (body.userData.dragForce as Vec2 | undefined) ?? { x: 0, y: 0 };
+          const normal = (body.userData.normalForce as Vec2 | undefined) ?? { x: 0, y: 0 };
+          const fric = (body.userData.frictionForce as Vec2 | undefined) ?? { x: 0, y: 0 };
           return {
             id: objectConfig.id,
             x: body.position.x,
@@ -851,6 +873,10 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
             alpha,
             dragFx: drag.x,
             dragFy: drag.y,
+            normalFx: normal.x,
+            normalFy: normal.y,
+            fricFx: fric.x,
+            fricFy: fric.y,
           };
         })
         .filter((b): b is FrameBodySnap => b !== null);

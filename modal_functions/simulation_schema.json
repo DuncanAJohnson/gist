@@ -355,6 +355,7 @@
                     "force-net",
                     "force-applied",
                     "force-friction",
+                    "force-normal",
                     "force-drag",
                     "force-gravity"
                   ]
@@ -372,6 +373,7 @@
                         "force-net",
                         "force-applied",
                         "force-friction",
+                        "force-normal",
                         "force-drag",
                         "force-gravity"
                       ]

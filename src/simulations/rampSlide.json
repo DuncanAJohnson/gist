@@ -21,8 +21,8 @@
       "seatOn": "slideRamp",
       "width": 0.5,
       "height": 0.5,
-      "svg": "box",
-      "mass": 1,
+      "svg": "ice_block",
+      "mass": 5,
       "friction": 0.4,
       "restitution": 0,
       "showVectors": ["velocity", { "kind": "velocity", "components": true }]
