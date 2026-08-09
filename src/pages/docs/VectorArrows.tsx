@@ -396,6 +396,215 @@ function LabelOverridesScene() {
 }
 
 // ============================================================================
+// Force loupe (PROPOSED) — design scratchpad for reading sub-threshold forces.
+//
+// The feather in `bowlingBallAndFeather` weighs 0.098 N. At the shared force
+// scale of 2 px/N that is a 0.2 px arrow, so ALL of its force arrows fall under
+// `minPixelLength` and render as identical sub-floor stubs — the body's whole
+// diagram is illegible while the bowling ball beside it draws a 98 px weight.
+// The loupe is a DISCLOSED local rescale: same per-body scaling we could do
+// silently, but wrapped in a signifier that says "this is enlarged."
+// ============================================================================
+
+/** The shipped sub-floor stub, drawn standalone (VectorArrowDemo returns null
+ *  below minPixelLength, so the docs page could not show a stub until now). */
+function StubArrowDemo({
+  kind,
+  dirX,
+  dirY,
+  tailX,
+  tailY,
+  label,
+}: {
+  kind: VectorKind;
+  dirX: number;
+  dirY: number;
+  tailX: number;
+  tailY: number;
+  label?: VectorLabelDef;
+}) {
+  const len = VECTOR_GEOMETRY.subFloorStubLength;
+  const angle = Math.atan2(-dirY, dirX);
+  const ex = tailX + Math.cos(angle) * len;
+  const ey = tailY + Math.sin(angle) * len;
+  const head = VECTOR_GEOMETRY.headLength * 0.7;
+  const headA = VECTOR_GEOMETRY.headAngleRad;
+  const color = VECTOR_COLORS[kind];
+  const labelDef = label ?? VECTOR_LABELS[kind];
+  return (
+    <g opacity={0.85}>
+      <line
+        x1={tailX}
+        y1={tailY}
+        x2={ex}
+        y2={ey}
+        stroke={color}
+        strokeWidth={2}
+        strokeDasharray={VECTOR_GEOMETRY.subFloorDash.join(' ')}
+      />
+      {/* HOLLOW head — the "not to scale" signal. */}
+      <polygon
+        points={`${ex + Math.cos(angle) * head},${ey + Math.sin(angle) * head} ${
+          ex - head * Math.cos(angle - headA) + Math.cos(angle) * head
+        },${ey - head * Math.sin(angle - headA) + Math.sin(angle) * head} ${
+          ex - head * Math.cos(angle + headA) + Math.cos(angle) * head
+        },${ey - head * Math.sin(angle + headA) + Math.sin(angle) * head}`}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.5}
+      />
+      <text
+        x={ex + Math.cos(angle) * 22}
+        y={ey + Math.sin(angle) * 22}
+        fill={color}
+        fontSize={11}
+        fontFamily={VECTOR_LABEL_DEFAULTS.fontFamily}
+        fontWeight={600}
+        textAnchor="middle"
+        dominantBaseline="middle"
+      >
+        <tspan>{labelDef.main}</tspan>
+        {labelDef.sub && (
+          <tspan dy={3} fontSize={8}>
+            {labelDef.sub}
+          </tspan>
+        )}
+      </text>
+    </g>
+  );
+}
+
+/** Labelled scale bar — the honesty device. Micrograph/map convention: state
+ *  the magnitude a fixed pixel length represents, rather than a bare "×500". */
+function ForceScaleBar({
+  x,
+  y,
+  widthPx,
+  labelText,
+}: {
+  x: number;
+  y: number;
+  widthPx: number;
+  labelText: string;
+}) {
+  return (
+    <g stroke="#374151" fill="#374151">
+      <line x1={x} y1={y} x2={x + widthPx} y2={y} strokeWidth={1.5} />
+      <line x1={x} y1={y - 4} x2={x} y2={y + 4} strokeWidth={1.5} />
+      <line x1={x + widthPx} y1={y - 4} x2={x + widthPx} y2={y + 4} strokeWidth={1.5} />
+      <text
+        x={x + widthPx / 2}
+        y={y + 15}
+        fontSize={11}
+        fontFamily={VECTOR_LABEL_DEFAULTS.fontFamily}
+        textAnchor="middle"
+        stroke="none"
+      >
+        {labelText}
+      </text>
+    </g>
+  );
+}
+
+// Feather instant used by every loupe scene: v = 0.8·v_terminal, so the three
+// forces are distinct AND still close exactly (0.098 − 0.063 = 0.035 N).
+const F_G = 0.098;
+const F_DRAG = 0.063;
+const F_NET = F_G - F_DRAG;
+const LOUPE_SCALE = 600; // px per N inside the loupe (vs 2 px/N on canvas)
+
+function LoupeProblemScene() {
+  return (
+    <SceneCard
+      title="The problem — a body whose whole diagram is sub-threshold"
+      caption="Feather at the shared 2 px/N canvas scale. Weight is 0.098 N → 0.2 px, drag likewise, so every arrow falls under the 14 px floor and draws as the same fixed 10 px dashed stub. The stubs correctly say 'a force is here'; they cannot say which is larger, and at terminal velocity F_net drops below 0.1 px and vanishes entirely. Direction survives, proportion does not."
+    >
+      <svg viewBox="0 0 320 180" className="w-full h-auto bg-gray-50" role="img" aria-label="Feather with all force arrows below the render threshold">
+        <RenderableSprite src="feather.svg" cx={150} cy={86} size={54} />
+        <StubArrowDemo kind="force-gravity" dirX={0} dirY={-1} tailX={150} tailY={86} />
+        <StubArrowDemo kind="force-drag" dirX={0} dirY={1} tailX={150} tailY={86} />
+        <text x={232} y={84} fontSize={11} fill="#6b7280" fontFamily="ui-sans-serif, system-ui">
+          F_net: not drawn
+        </text>
+        <text x={232} y={98} fontSize={10} fill="#9ca3af" fontFamily="ui-sans-serif, system-ui">
+          (≤ 0.1 px at terminal)
+        </text>
+      </svg>
+    </SceneCard>
+  );
+}
+
+function LoupeParticleScene() {
+  const cx = 150;
+  const cy = 78;
+  return (
+    <SceneCard
+      title="Proposed — force loupe, particle model"
+      caption="The same instant at 600 px/N inside the loupe. The body is a DOT — the particle model, the actual FBD convention — so no spatial claim is made and nothing invites a 'zoomed in on what?' reading. Arrows still close exactly: F_g (59 px) − F_ar (38 px) = F_net (21 px). The scale bar, not a '×N' factor, is what makes the rescale honest."
+    >
+      <svg viewBox="0 0 320 205" className="w-full h-auto bg-gray-50" role="img" aria-label="Force loupe showing the feather as a particle-model dot with rescaled force arrows">
+        <circle cx={160} cy={82} r={74} fill="#ffffff" stroke="#6b7280" strokeWidth={2} />
+        <VectorArrowDemo kind="force-gravity" vectorPhysX={0} vectorPhysY={-F_G} tailX={cx} tailY={cy} pixelsPerUnit={LOUPE_SCALE} />
+        <VectorArrowDemo kind="force-drag" vectorPhysX={0} vectorPhysY={F_DRAG} tailX={cx} tailY={cy} pixelsPerUnit={LOUPE_SCALE} />
+        {/* Net drawn offset so it doesn't lie on top of the collinear weight. */}
+        <line x1={207} y1={62} x2={219} y2={62} stroke="#9ca3af" strokeWidth={1} />
+        <VectorArrowDemo kind="force-net" vectorPhysX={0} vectorPhysY={-F_NET} tailX={213} tailY={62} pixelsPerUnit={LOUPE_SCALE} />
+        {/* The particle: body reduced to a point. */}
+        <circle cx={cx} cy={cy} r={5} fill="#111827" />
+        <ForceScaleBar x={130} y={178} widthPx={0.1 * LOUPE_SCALE} labelText="0.1 N" />
+      </svg>
+    </SceneCard>
+  );
+}
+
+function LoupeOutlineScene() {
+  const cx = 150;
+  const cy = 78;
+  return (
+    <SceneCard
+      title="Rejected alternative — silhouette inside the loupe"
+      caption="Identical arrows, but the body drawn as its own outline. This is the version to avoid: a lens around a recognisable shape reads as a SPATIAL magnifier, so a viewer expects the feather to be enlarged too — and it isn't, only the force scale changed. Same picture, false promise."
+    >
+      <svg viewBox="0 0 320 205" className="w-full h-auto bg-gray-50" role="img" aria-label="Force loupe drawn with a body silhouette instead of a particle dot">
+        <circle cx={160} cy={82} r={74} fill="#ffffff" stroke="#6b7280" strokeWidth={2} />
+        <g opacity={0.35}>
+          <RenderableSprite src="feather.svg" cx={cx} cy={cy} size={46} />
+        </g>
+        <ellipse cx={cx} cy={cy} rx={13} ry={23} fill="none" stroke="#9ca3af" strokeWidth={1.5} strokeDasharray="4 3" />
+        <VectorArrowDemo kind="force-gravity" vectorPhysX={0} vectorPhysY={-F_G} tailX={cx} tailY={cy} pixelsPerUnit={LOUPE_SCALE} />
+        <VectorArrowDemo kind="force-drag" vectorPhysX={0} vectorPhysY={F_DRAG} tailX={cx} tailY={cy} pixelsPerUnit={LOUPE_SCALE} />
+        <ForceScaleBar x={130} y={178} widthPx={0.1 * LOUPE_SCALE} labelText="0.1 N" />
+      </svg>
+    </SceneCard>
+  );
+}
+
+function LoupeAnchoredScene() {
+  return (
+    <SceneCard
+      title="Placement — anchored to the selected body, in a mixed-scale scene"
+      caption="Bowling ball (49 N → 98 px) and feather (0.098 N → stubs) in one scene: a 500× spread no shared scale can serve. On pause, selecting the feather opens its loupe beside it with a leader line. The canvas scale never changes, so the ball's arrows stay comparable to every other sim; only the loupe's interior is rescaled, and it says so."
+    >
+      <svg viewBox="0 0 320 215" className="w-full h-auto bg-gray-50" role="img" aria-label="Scene with a bowling ball at canvas scale and a feather with an anchored force loupe">
+        <RenderableSprite src="bowling_ball.svg" cx={48} cy={40} size={34} />
+        <VectorArrowDemo kind="force-gravity" vectorPhysX={0} vectorPhysY={-49} tailX={48} tailY={40} pixelsPerUnit={2} />
+        <RenderableSprite src="feather.svg" cx={150} cy={40} size={34} />
+        <StubArrowDemo kind="force-gravity" dirX={0} dirY={-1} tailX={150} tailY={40} />
+        <StubArrowDemo kind="force-drag" dirX={0} dirY={1} tailX={150} tailY={40} />
+        {/* Selection ring + leader line to the loupe. */}
+        <rect x={132} y={22} width={36} height={36} fill="none" stroke="#2563eb" strokeWidth={1.5} strokeDasharray="4 3" rx={3} />
+        <line x1={168} y1={58} x2={215} y2={104} stroke="#9ca3af" strokeWidth={1} strokeDasharray="3 3" />
+        <circle cx={243} cy={131} r={56} fill="#ffffff" stroke="#6b7280" strokeWidth={2} />
+        <VectorArrowDemo kind="force-gravity" vectorPhysX={0} vectorPhysY={-F_G} tailX={232} tailY={116} pixelsPerUnit={340} label={null} />
+        <VectorArrowDemo kind="force-drag" vectorPhysX={0} vectorPhysY={F_DRAG} tailX={232} tailY={116} pixelsPerUnit={340} label={null} />
+        <circle cx={232} cy={116} r={4} fill="#111827" />
+        <ForceScaleBar x={219} y={176} widthPx={0.1 * 340} labelText="0.1 N" />
+      </svg>
+    </SceneCard>
+  );
+}
+
+// ============================================================================
 // Mermaid diagrams
 // ============================================================================
 
@@ -640,6 +849,140 @@ function VectorArrows() {
       <div className="not-prose my-6">
         <LabelOverridesScene />
       </div>
+
+      <h2>Force loupe — reading sub-threshold forces (PROPOSED, 2026-08-08)</h2>
+      <p>
+        <strong>The problem is dynamic range.</strong> A single scene can hold forces three
+        orders of magnitude apart — <code>bowlingBallAndFeather</code> pairs a 49 N weight
+        with a 0.098 N one, a 500× spread. At the shared force scale of 2 px/N the ball draws
+        a 98 px arrow and every one of the feather's arrows lands under the 14 px floor, so
+        the feather's whole diagram collapses into identical sub-floor stubs. Direction
+        survives; proportion — the thing an FBD exists to show — does not.
+      </p>
+      <p>
+        Two obvious fixes were considered and rejected. A <strong>logarithmic</strong> arrow
+        scale fails on arithmetic: log|A| + log|B| ≠ log|A+B|, so the arrows stop closing
+        head-to-tail, and head-to-tail closure is the FBD's entire teaching promise (it is a
+        ratified design gate — see the applied-forces note). It also breaks component
+        decomposition, is undefined at F_net = 0 (exactly the terminal-velocity case we want
+        to show), and asks ages-10–13 readers to parse a late-secondary abstraction.
+        A <strong>silent per-body scale</strong> keeps the arithmetic — closure is a per-body
+        property, since forces are only ever summed on one body — but it is undisclosed: two
+        arrows of equal length on screen would mean wildly different forces with nothing
+        saying so. Observant students notice, and they are right to.
+      </p>
+      <p>
+        <strong>The loupe is per-body scaling made honest.</strong> Same arithmetic, wrapped
+        in a signifier that announces the rescale. That is the whole idea: it does not escape
+        per-body scaling, it legitimises it.
+      </p>
+
+      <h3>The particle-model dot</h3>
+      <p>
+        A magnifying glass magnifies <em>space</em>; what we need to change is{' '}
+        <em>force scale</em>. Those come apart badly here — a 500× spatial zoom on a feather
+        shows a few square millimetres of barrel with the arrows in exactly the same
+        proportion, because the problem was never spatial resolution. So the body inside the
+        loupe is drawn as a <strong>dot</strong>: the particle model, the actual convention
+        of the free-body diagram, and the same reduction every physics textbook makes when it
+        says "treat the object as a point mass." It makes the absence of a spatial claim
+        explicit rather than merely hoped for. The rejected-alternative card below shows why
+        a silhouette is worse: a lens around a recognisable shape promises spatial
+        magnification the loupe does not deliver.
+      </p>
+      <p>
+        The second honesty device is a <strong>labelled scale bar</strong> rather than a bare
+        "×500" factor — the micrograph and map convention. It answers the observant student
+        directly, in the units of the quantity, and it degrades gracefully when the loupe is
+        small.
+      </p>
+
+      <h3>Why it is gated on pause</h3>
+      <p>
+        A free-body diagram is inherently a <em>single-instant</em> object; textbook FBDs are
+        always drawn at an instant, and drawing them continuously during motion is a bonus
+        GIST happens to offer. Gating the loupe on pause aligns the affordance with that:
+        playing is the qualitative read (stubs say "a force is here, too small to draw"),
+        paused is the quantitative read (the loupe says what it is). The stub stops being a
+        dead end and becomes an invitation.
+      </p>
+      <p>
+        <strong>The cost, and the fix.</strong> The feather's lesson is dynamic — drag growing
+        until it cancels weight is a process, and static snapshots do not show growth. So the
+        loupe must stay live under <em>scrub</em>, not just static pause. The frame cache
+        holds every recorded frame with full force data and{' '}
+        <a href="/docs/runtime-loop">replay never drops frames</a>, so scrubbing with the
+        loupe open recovers the dynamics frame by frame — arguably better than real time,
+        since at 1.6 m/s terminal the interesting part is over in a third of a second. Treat
+        "live under scrub" as part of the definition, not an enhancement.
+      </p>
+
+      <div className="not-prose grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
+        <LoupeProblemScene />
+        <LoupeParticleScene />
+        <LoupeOutlineScene />
+        <LoupeAnchoredScene />
+      </div>
+
+      <h3>Placement</h3>
+      <p>
+        Lean: <strong>selection-gated and anchored</strong>. On pause, clicking a body opens
+        its loupe beside it with a leader line, at a fixed pixel size so it is invariant to
+        diorama scale. Selection-gating solves crowding, multi-body ambiguity, and occlusion
+        in one move, and it reuses an affordance the debug tooling already has. Bodies near a
+        canvas edge dock their loupe to the nearest corner, keeping the leader.
+      </p>
+      <p>
+        The tempting alternative — auto-appearing on every sub-threshold body — sounds more
+        helpful and is probably worse: most bodies have <em>some</em> sub-floor arrow at some
+        instant, so loupes would bloom everywhere. If it is ever made automatic, the trigger
+        should be that the body's <em>largest</em> force arrow is under the floor, meaning the
+        whole diagram is illegible, not merely one component of it.
+      </p>
+
+      <h3>Open questions</h3>
+      <ul>
+        <li>
+          <strong>Circle or inset rectangle?</strong> The circle carries the magnifier
+          metaphor that makes the affordance instantly readable, and simultaneously carries
+          the spatial-zoom implication we are trying to disown. The dot plus scale bar may
+          defuse that; if it does not, a rounded-rect inset reads as "inset diagram" and drops
+          the metaphor entirely. Worth trying both on a drive.
+        </li>
+        <li>
+          <strong>Does it overlap the vector panel?</strong> A separate autoscaled
+          bar-chart-style panel (discussed 2026-08-08) solves the cross-body, quantitative,
+          always-on half; the loupe solves the single-body, proportional, in-place half. Both
+          are defensible — but shipping both without naming one as primary gives a student two
+          answers to "how big is this force" that they then have to reconcile.
+        </li>
+        <li>
+          <strong>Or is the numeric-values toggle enough?</strong> Numbers beside the stubs
+          (currently HELD) would answer the quantitative need for a fraction of the effort,
+          at the cost of proportional reading — which is what arrows are for. Plausible
+          sequencing: numbers as the cheap stepping stone, loupe as the real answer.
+        </li>
+        <li>
+          <strong>What sets the loupe's scale?</strong> Normalise so the body's largest force
+          hits a target pixel budget (self-tuning, but the scale changes as you scrub), or pin
+          it per pause (stable, but can under- or overflow). Leaning: normalise on open, then
+          hold it for the duration of that selection so scrubbing shows real growth rather
+          than a rescaling illusion.
+        </li>
+        <li>
+          <strong>Multiple loupes at once?</strong> Comparing two bodies is a real teaching
+          move, but two different interior scales side by side reintroduces exactly the
+          confusion the scale bar is fighting. If allowed, they should probably share one
+          interior scale.
+        </li>
+      </ul>
+      <p>
+        Cost note: this is a purely render-side affordance — no physics, no{' '}
+        <code>Frame</code> schema change, no three-places pass — so it can ship debug-first
+        behind a flag exactly as <code>?forces=1</code> did. It also does not depend on the
+        unresolved analytical-vs-engine representation call, because it concerns scale
+        legibility rather than where the numbers come from.
+      </p>
 
       <h2>Geometry conventions</h2>
       <ul>

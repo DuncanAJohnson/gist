@@ -1,11 +1,13 @@
 {
   "title": "Bowling Ball and Feather Drop",
-  "description": "Both objects start in free fall. The bowling ball opts out of air resistance (dragCoefficient: 0) so its F_net arrow stays at m·g all the way to the floor — a pedagogically deliberate diorama-scoped choice that keeps the gravity arrow constant for visual contrast. The feather feels quadratic, mass-dependent drag: as drag grows to balance gravity, its F_net arrow shrinks and vanishes the moment terminal velocity is reached. The disappearing arrow IS the lesson. Both arrows go to zero when the objects come to rest on the floor. Note: feather mass is dialed up to 1 kg so the gravity arrow is visible at the default scale (per-arrow scale overrides land later in the vector-arrows refactor).",
+  "description": "The vacuum-chamber demo, run in air. A 5 kg bowling ball and a 10 g feather are released together from 2 m, each drawn with three force arrows — weight (F_g), drag (F_d), and their sum (F_net). Both feel the same quadratic drag law, F = ½·ρ·Cd·A·|v|·v; the difference is entirely in how much that force matters against each body's weight. On the ball, the drag arrow stays a stub next to a 49 N weight: its terminal velocity is about 45 m/s, far beyond anything a 2 m drop can reach, so F_net holds steady at m·g and it lands at roughly 6.2 m/s after 0.63 s. On the feather, the drag arrow visibly grows until it exactly cancels the weight arrow and F_net vanishes — terminal velocity is about 1.6 m/s, reached in the first quarter of the fall, after which it drifts down at constant speed and lands around 1.3 s, roughly 0.7 s behind the ball. The vanishing F_net arrow IS the lesson: terminal velocity is not 'no gravity', it is gravity exactly cancelled. Read the acceleration graph alongside it — the ball sits pinned near −9.8 m/s² while the feather's climbs to zero. Diorama-scoped authoring notes: the feather is rotated 90° (ObjectConfig.angle is in RADIANS, unlike ramp and vector angles which follow env.angleUnit) so it falls flat-side-on, and because drag's default reference area is the authored WIDTH and is NOT rotation-aware, referenceArea is set explicitly to 0.1 m² so the modelled frontal area matches the area the picture shows. Both bodies carry real drag coefficients rather than the earlier Cd = 0 opt-out, and the feather carries a real 10 g mass rather than one dialed up for arrow visibility.",
   "environment": {
-    "walls": ["bottom"],
+    "walls": [
+      "bottom"
+    ],
     "gravity": 9.8,
     "unit": "m",
-    "pixelsPerUnit": 10,
+    "pixelsPerUnit": 280,
     "physicsEngine": "rapier",
     "airResistance": {
       "enabled": true,
@@ -15,27 +17,37 @@
   "objects": [
     {
       "id": "bowling_ball",
-      "x": 25,
-      "y": 55,
-      "width": 1,
-      "height": 1,
+      "x": 0.6,
+      "y": 2,
+      "width": 0.1,
+      "height": 0.1,
       "svg": "bowling_ball",
       "mass": 5,
       "restitution": 0.3,
-      "dragCoefficient": 0,
-      "showForceArrows": true
+      "dragCoefficient": 0.4,
+      "showVectors": [
+        "force-gravity",
+        "force-drag",
+        "force-net"
+      ]
     },
     {
       "id": "feather",
-      "x": 55,
-      "y": 55,
-      "width": 1,
-      "height": 0.4,
+      "x": 1,
+      "y": 2,
+      "width": 0.04,
+      "height": 0.1,
       "svg": "feather",
-      "mass": 1,
+      "mass": 0.01,
       "restitution": 0.1,
-      "dragCoefficient": 1.5,
-      "showForceArrows": true
+      "dragCoefficient": 0.6,
+      "referenceArea": 0.1,
+      "angle": 1.57,
+      "showVectors": [
+        "force-gravity",
+        "force-drag",
+        "force-net"
+      ]
     }
   ],
   "controls": [
@@ -54,15 +66,35 @@
     {
       "title": "Bowling Ball",
       "values": [
-        { "label": "Velocity Y", "targetObj": "bowling_ball", "property": "velocity.y", "unit": "m/s" },
-        { "label": "Acceleration Y", "targetObj": "bowling_ball", "property": "acceleration.y", "unit": "m/s²" }
+        {
+          "label": "Velocity Y",
+          "targetObj": "bowling_ball",
+          "property": "velocity.y",
+          "unit": "m/s"
+        },
+        {
+          "label": "Acceleration Y",
+          "targetObj": "bowling_ball",
+          "property": "acceleration.y",
+          "unit": "m/s²"
+        }
       ]
     },
     {
       "title": "Feather",
       "values": [
-        { "label": "Velocity Y", "targetObj": "feather", "property": "velocity.y", "unit": "m/s" },
-        { "label": "Acceleration Y", "targetObj": "feather", "property": "acceleration.y", "unit": "m/s²" }
+        {
+          "label": "Velocity Y",
+          "targetObj": "feather",
+          "property": "velocity.y",
+          "unit": "m/s"
+        },
+        {
+          "label": "Acceleration Y",
+          "targetObj": "feather",
+          "property": "acceleration.y",
+          "unit": "m/s²"
+        }
       ]
     }
   ],
@@ -70,21 +102,47 @@
     {
       "type": "line",
       "title": "Velocity Over Time",
-      "yAxisRange": { "min": -35, "max": 5 },
+      "yAxisRange": {
+        "min": -5,
+        "max": 5
+      },
       "yAxisLabel": "Velocity Y (m/s)",
       "lines": [
-        { "label": "Bowling Ball", "targetObj": "bowling_ball", "property": "velocity.y", "color": "#34495e" },
-        { "label": "Feather", "targetObj": "feather", "property": "velocity.y", "color": "#2ecc71" }
+        {
+          "label": "Bowling Ball",
+          "targetObj": "bowling_ball",
+          "property": "velocity.y",
+          "color": "#34495e"
+        },
+        {
+          "label": "Feather",
+          "targetObj": "feather",
+          "property": "velocity.y",
+          "color": "#2ecc71"
+        }
       ]
     },
     {
       "type": "line",
       "title": "Acceleration Over Time",
-      "yAxisRange": { "min": -12, "max": 2 },
+      "yAxisRange": {
+        "min": -12,
+        "max": 2
+      },
       "yAxisLabel": "Acceleration Y (m/s²)",
       "lines": [
-        { "label": "Bowling Ball", "targetObj": "bowling_ball", "property": "acceleration.y", "color": "#34495e" },
-        { "label": "Feather", "targetObj": "feather", "property": "acceleration.y", "color": "#2ecc71" }
+        {
+          "label": "Bowling Ball",
+          "targetObj": "bowling_ball",
+          "property": "acceleration.y",
+          "color": "#34495e"
+        },
+        {
+          "label": "Feather",
+          "targetObj": "feather",
+          "property": "acceleration.y",
+          "color": "#2ecc71"
+        }
       ]
     }
   ]

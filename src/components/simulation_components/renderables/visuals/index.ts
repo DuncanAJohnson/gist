@@ -4,5 +4,6 @@ import './Image';
 import './Marker';
 import './BodyOutline';
 import './VectorArrow';
+import './ForceLoupe';
 import './BackgroundGrid';
 import './Renderable';

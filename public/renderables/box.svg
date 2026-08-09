@@ -1,7 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 58.1818">
+<svg viewBox="0 0 64 58.1818" version="1.1" id="svg3" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs3"></defs>
   
-  
-  
-  
-  
-<g transform="translate(0.0005 -2.9086) scale(1)"><g transform="translate(-14.5455 -14.5455) scale(1.4545)"><rect x="10" y="22" width="44" height="30" rx="2" fill="#A3836A"/><polygon points="10,22 20,12 54,12 54,22" fill="#C4A882"/><line x1="32" y1="12" x2="32" y2="22" stroke="#78350F" stroke-width="1.5"/><line x1="10" y1="22" x2="54" y2="22" stroke="#78350F" stroke-width="2"/><rect x="28" y="32" width="8" height="6" rx="1" fill="#78350F" opacity="0.5"/></g></g></svg>
+  <g transform="matrix(1.3130197,0,0,1.3130197,-15.464322,-12.721263)" id="g3-9">
+    <rect x="14" y="22" width="32" height="32" fill="#94a3b8" id="rect1-3" style="fill:#a3836a;fill-opacity:1"></rect>
+    <polygon points="58,10 46,22 14,22 26,10" fill="#cbd5e1" id="polygon1-8" style="fill:#c4a882;fill-opacity:1"></polygon>
+    <polygon points="58,42 46,54 46,22 58,10" fill="#64748b" id="polygon2" style="fill:#a3836a;fill-opacity:1"></polygon>
+    <line x1="14" y1="22.503889" x2="46" y2="22.503889" stroke="#475569" stroke-width="0.999998" id="line2-0" style="fill:#78350f;fill-opacity:1;stroke:#78350f;stroke-opacity:1"></line>
+    <line x1="45.5" y1="22.503889" x2="45.5" y2="54" stroke="#475569" stroke-width="0.992095" id="line3" style="fill:#78350f;fill-opacity:1;stroke:#78350f;stroke-opacity:1"></line>
+  </g>
+  <rect style="fill:#725a46;fill-opacity:1;stroke:none;stroke-width:0.838243;stroke-opacity:1" id="rect3" width="17.287334" height="11.222432" x="15.282601" y="31.562269"></rect>
+</svg>

@@ -54,6 +54,7 @@ import {
   synthesizeColliderDebugRenderable,
   synthesizeVectorArrowRenderables,
   synthesizeForceDebugRenderables,
+  synthesizeForceLoupeRenderable,
   synthesizeExperimentalRenderable,
   synthesizeGridRenderable,
   buildExperimentalDataResolver,
@@ -79,6 +80,18 @@ const COLLIDER_DEBUG_INITIAL =
 const FORCE_DEBUG_INITIAL =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).has('forces');
+
+// Force loupe (PROTOTYPE, Goal-1 FBD). A disclosed per-body force rescale for
+// bodies whose WHOLE free-body diagram is under the render floor (the feather
+// in bowlingBallAndFeather: 0.098 N → 0.2 px at the shared 2 px/N). Drawn only
+// while PAUSED — playing is the qualitative read (stubs say "a force is here"),
+// paused is the quantitative one — and live under scrub, since the draw reads
+// body.userData which handleReplayFrame rewrites per frame. The draw function
+// self-gates on the trigger. Scoped in Notes_on_Applied_Forces_Refactor.md
+// (Findings 2026-08-08); design views in /docs/vector-arrows.
+const LOUPE_DEBUG_INITIAL =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).has('loupe');
 
 export interface SimulationConfig {
   title?: string;
@@ -197,7 +210,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     setEditedConfig(config);
     setSelectedObjectId(null);
     setHasUnsavedChanges(false);
-    setSimIsDirty(false);
+    setSimAtInitialConditions(true);
     // Air-resistance mode is JSON-authoritative per sim: navigating to a new
     // sim resets the toggle to whatever the new sim's environment declares.
     // Within a single sim, the user's debug-panel override persists until
@@ -341,6 +354,9 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   // affect the bake cache, so toggling mid-replay is safe.
   const [showForces, setShowForces] = useState<boolean>(FORCE_DEBUG_INITIAL);
 
+  // Force loupe. Session-local like showForces; drawn only when paused.
+  const [showLoupe, setShowLoupe] = useState<boolean>(LOUPE_DEBUG_INITIAL);
+
   // Experimental data overlay state
   const [showExperimentalModal, setShowExperimentalModal] = useState(false);
   const [experimentalData, setExperimentalData] = useState<ExperimentalDataConfig | null>(null);
@@ -352,6 +368,10 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
 
   // Compose renderables in SI — every object emits one SVG renderable from
   // its `svg` field, plus walls, vector arrows, and any experimental overlay.
+  // Declared above pixelRenderables because the force-loupe renderable is
+  // paused-only and therefore reads isRunning inside that memo.
+  const [isRunning, setIsRunning] = useState(false);
+
   const pixelRenderables = useMemo<PixelRenderable[]>(() => {
     // Sprites take SI dimensions: the drawer scales visual.width/height via
     // WorldToCanvas.dimension (m → px), so config-unit values would render
@@ -373,10 +393,15 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     const forceArrows = showForces
       ? expandedObjects.flatMap(synthesizeForceDebugRenderables)
       : [];
-    return [...grid, ...walls, ...sprites, ...vectorArrows, ...forceArrows, ...experimental, ...colliderOutlines].sort(
+    // Paused-only: an FBD is inherently a single-instant object, and while
+    // playing the sub-floor stubs already carry the qualitative signal.
+    const loupes = showLoupe && !isRunning
+      ? expandedObjects.flatMap(synthesizeForceLoupeRenderable)
+      : [];
+    return [...grid, ...walls, ...sprites, ...vectorArrows, ...forceArrows, ...experimental, ...colliderOutlines, ...loupes].sort(
       (a, b) => a.zIndex - b.zIndex
     );
-  }, [expandedObjects, siObjects, environment.walls, environment.unit, experimentalData, configPixelsPerMeter, pixelsPerUnit, showGrid, showColliders, showForces, zoomFactor]);
+  }, [expandedObjects, siObjects, environment.walls, environment.unit, experimentalData, configPixelsPerMeter, pixelsPerUnit, showGrid, showColliders, showForces, showLoupe, isRunning, zoomFactor]);
 
   const dataSources = useMemo<Record<string, DataPositionResolver>>(() => {
     const sources: Record<string, DataPositionResolver> = {};
@@ -408,7 +433,6 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   // State for simulation controls
   const [simulationControls, setSimulationControls] = useState<SimulationControls | null>(null);
   const simulationControlsRef = useRef<SimulationControls | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
 
   // Click-to-edit state. Edits are drafts: they update editedConfig and physics
   // bodies, but don't persist until the user clicks Save now in the indicator.
@@ -416,10 +440,18 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // True once the sim has been advanced (play started) since last reset. While
-  // dirty we lock object editing — the user must reset first so edits apply
-  // to a clean initial state, not mid-sim positions.
-  const [simIsDirty, setSimIsDirty] = useState(false);
+  // True while every body still sits where the JSON put it — i.e. the sim has
+  // not been advanced since it was last returned to its authored start pose.
+  // Three ways in (load, Reset, navigating to another sim), exactly one way
+  // out: pressing Play. Pausing and scrubbing do NOT restore it — the bodies
+  // are still displaced, they just aren't moving. While false we lock object
+  // editing, so edits always apply to the authored initial state rather than
+  // to wherever physics happened to leave a body.
+  //
+  // NOT to be confused with `hasUnsavedChanges` above: that tracks edits to
+  // the CONFIG awaiting a save; this tracks displacement of the BODIES.
+  // (Renamed from `simIsDirty` 2026-08-09 — "dirty" read as the save sense.)
+  const [simAtInitialConditions, setSimAtInitialConditions] = useState(true);
 
   // Popup shown when the user clicks an object while editing is locked. Stores
   // viewport coords so the bubble can be positioned next to the click.
@@ -1265,10 +1297,25 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     }
   }, [editedConfig, simulationId, localJsonEdit, navigate]);
 
-  // Edit mode is only active when the sim is fully at rest at its initial
-  // pose: not running, not picking experimental position, and not dirty from a
-  // previous play that hasn't been reset yet.
-  const editModeActive = !isRunning && !pickingPosition && !simIsDirty;
+  // Direct-manipulation editing (select / move / resize / Delete) is gated on
+  // THREE unrelated concerns — worth naming them separately, because reading
+  // this line as one idea is what makes it confusing:
+  //
+  //  1. `!isRunning` — playback state. Don't edit a moving picture.
+  //  2. `!pickingPosition` — NOT a playback concept at all. This is a transient
+  //     canvas INPUT MODE owned by the experimental-data overlay: the user hit
+  //     "pick position" in ExperimentalDataModal, the modal hid itself, and the
+  //     next canvas click is claimed as an origin coordinate (handleCanvasClick
+  //     converts it to world coords and clears the flag immediately). The gate
+  //     exists so that one click doesn't ALSO select an object. Nothing about
+  //     the play/pause/scrub cycle sets it.
+  //  3. `simAtInitialConditions` — body displacement. See its declaration.
+  //
+  // Consequence worth knowing (it has bitten): after any run, editing stays
+  // locked until Reset — pausing and scrubbing do not unlock it. That is why
+  // the force loupe self-triggers on its own rule instead of being anchored to
+  // a selection (Notes_on_Applied_Forces_Refactor.md, Findings 2026-08-08).
+  const editModeActive = !isRunning && !pickingPosition && simAtInitialConditions;
 
   // Drop a stale selection if the object disappears (e.g., simulationId change
   // races, or future features that remove objects).
@@ -1348,10 +1395,11 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     const sim = simulationControlsRef.current;
     if (!sim) return;
 
-    // Drop selection so the edit overlay disappears once the sim starts; and
-    // mark dirty so editing stays locked until the user resets.
+    // Drop selection so the edit overlay disappears once the sim starts. The
+    // bodies are about to leave their authored poses, so editing stays locked
+    // until Reset puts them back — pausing or scrubbing is not enough.
     setSelectedObjectId(null);
-    setSimIsDirty(true);
+    setSimAtInitialConditions(false);
 
     // The cache-key invariant: EVERY physics-affecting input belongs in this
     // key — cached frames may replay only when all of them match. Air mode and
@@ -1446,7 +1494,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
 
     if (frameCacheRef.current) {
       setIsRunning(false);
-      setSimIsDirty(false);
+      setSimAtInitialConditions(true);
       setGraphData(graphs.map(() => []));
       jsonModeRef.current = 'replay';
       setPrecomputeState('ready');
@@ -1457,7 +1505,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
 
     sim.reset();
     setIsRunning(false);
-    setSimIsDirty(false);
+    setSimAtInitialConditions(true);
     setGraphData(graphs.map(() => []));
     prevVelocitiesRef.current = {};
     prevAngularVelocitiesRef.current = {};
@@ -1587,6 +1635,8 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
             onShowCollidersChange={setShowColliders}
             showForces={showForces}
             onShowForcesChange={setShowForces}
+            showLoupe={showLoupe}
+            onShowLoupeChange={setShowLoupe}
             onTweakJSON={canPersist ? handleTweakJSON : undefined}
             onImportObject={() => setShowImportObjectModal(true)}
           />
@@ -1706,7 +1756,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
         <EditOverlay
           canvasContainer={canvasContainer}
           editModeActive={editModeActive}
-          clickShowsResetPrompt={!editModeActive && !pickingPosition && (isRunning || simIsDirty)}
+          clickShowsResetPrompt={!editModeActive && !pickingPosition && (isRunning || !simAtInitialConditions)}
           editedObjects={expandedObjects}
           selectedObjectId={selectedObjectId}
           onSelect={setSelectedObjectId}

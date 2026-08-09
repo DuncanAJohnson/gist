@@ -1,6 +1,12 @@
-# BENCHMARK_SIMS.md (v1)
+# BENCHMARK_SIMS.md (v2)
 
 **Purpose.** External reference simulations that serve as GIST's internal acceptance test cases. The core question for each: *starting from a natural-language teacher prompt plus minor tweaking, can GIST reproduce the pedagogical core of this sim — and where can it exceed it?* Sibling of `PHYSICS_SHAPES.md` (S-IDs), `PHYSICS_JOINTS_CONSTRAINTS.md` (J-IDs), `PHYSICS_GRAPHS.md` (G-IDs). Feeds `CLAUDE.md`.
+
+**v2 changes (2026-08-07):** added the **Stance** below (how we talk about the platforms we benchmark against); added the **Coverage matrix** for foundational mechanics with a fill-the-cell dev checklist per empty cell; added **B18** (1D kinematics) and **B19** (1D free fall), whose prompts are PROPOSED, not yet frozen.
+
+**Stance — these platforms are collaborators, not targets (Bill, 2026-08-07).** GIST is engine-agnostic; it is ed-tech agnostic in exactly the same way. A good sim is a good sim, and every student should have access to it. PhET, The Physics Classroom, oPhysics, myPhysicsLab and the rest built the pedagogical canon this document is measured against — their work informs ours, and the position we want to grow into is one where ours can inform theirs. Three practical consequences: (1) benchmark language stays respectful and specific — we name what a sim teaches well, never "beat" it; (2) every parity claim carries its honesty note where our model differs (B1's drag note is the template) — an unqualified side-by-side is a claim we haven't earned; (3) **if any of this becomes outward-facing**, it ships with attribution, per-source license compliance, links that send traffic *to* the original sim, and no implication of endorsement. Screenshots of third-party sims are not to be hosted in `public/` or rendered from a `/docs` page until that licensing pass is done and recorded here — `/docs` is served ungated in production.
+
+**ID discipline.** B-IDs are append-only. Never renumber and never reword a frozen prompt — both are eval drift (Protocol #2). New IDs are added at the end of their tier, so numbering is not contiguous within a tier; that is intentional.
 
 **What "pedagogical core" means (and doesn't).** We are not cloning UI. Each benchmark names the 2–4 things a learner must be able to *do and see* for the sim to teach its concept (vary these parameters, observe this graph/vector/bar chart, hit this prediction beat). Matching that is a pass. Polish, skins, and game wrappers are out of scope.
 
@@ -129,11 +135,31 @@
 - **Example prompt:** *"Swing a ball on a string in a vertical circle. Show the string tension as the ball goes around, and find the slowest speed where the string stays tight at the top."*
 - **Pass:** slack onset at v_top = √(gr); T(v²) slope = m/r; mirror-symmetry with B4's N = 0 documented in the sim notes.
 
+### B18 · 1D kinematics — constant velocity vs constant acceleration ⭐ *(PROPOSED 2026-08-07)*
+- **Status:** prompt **NOT YET FROZEN.** Freezes on Bill's ratification; edit freely until then.
+- **URL:** candidate references, exact paths unverified — The Physics Classroom Kinematics interactives ("Graph That Motion", "Name That Motion") from the verified index https://www.physicsclassroom.com/interactive ✔ ; PhET "The Moving Man" (verify HTML5 availability — it may be legacy-only).
+- **Concepts:** the ages-10–13 front door to motion. Constant v vs constant a, read off position and velocity graphs; slope as a rate.
+- **Pedagogical core:** two bodies released together on flat ground, one at constant velocity and one accelerating; twin x(t) traces (straight line vs curve) and twin v(t) traces (flat vs ramp) side by side; learner varies v₀ and a and predicts who wins.
+- **GIST mapping:** no S-ID (flat ground, no shape work) · Graphs **G1** — this is the case G1 calls "the ages-10–13 entry point."
+- **Example prompt (PROPOSED):** *"Two carts start together on flat ground. One rolls at a steady 5 m/s; the other starts from rest and speeds up at 2 m/s². Let me change both numbers with sliders. Graph position against time and velocity against time for both so I can see where they cross."*
+- **Pass:** x(t) straight vs parabolic; v(t) flat vs constant-slope = a; crossing time matches 2v₀/a analytically; no drift on the constant-velocity cart over the run.
+- **Exceed:** the constant-velocity cart is a real rigid body on a genuinely frictionless surface, not a scripted animation — so the same scene extends into collision (B2) or onto a ramp (B6) by editing one line, and "steady speed" is an *emergent* result of ΣF = 0 rather than an assertion.
+
+### B19 · 1D free fall — the g calibration ⭐ *(PROPOSED 2026-08-07)*
+- **Status:** prompt **NOT YET FROZEN.** Freezes on Bill's ratification; edit freely until then.
+- **URL:** candidate references, exact paths unverified — The Physics Classroom free-fall interactives from the verified index https://www.physicsclassroom.com/interactive ✔ ; the vacuum-chamber hammer-and-feather demo (Apollo 15 / BBC) as the cultural touchstone rather than a sim.
+- **Concepts:** free fall as constant acceleration; slope of v(t) = −g; mass-independence in vacuum, and what air resistance changes.
+- **Pedagogical core:** drop from rest, watch v(t) come out a straight line of slope −g regardless of mass; then turn air resistance on and watch the heavy compact object stay straight while the light draggy one bends to terminal velocity.
+- **GIST mapping:** no S-ID · Graphs **G1** — PHYSICS_GRAPHS calls the drop "the single most important calibration graph in the harness."
+- **Example prompt (PROPOSED):** *"Drop a bowling ball and a feather from 20 meters at the same moment, first with no air and then with air resistance on. Graph the speed of each one against time and show me which hits first."*
+- **Pass:** vacuum case — both v(t) slopes = −9.8 within harness tolerance and impact times identical; air case — bowling ball essentially unchanged, feather flattens to terminal v = √(2mg/ρC_dA) and lands late.
+- **Exceed:** the air-off/air-on toggle is the *same scene*, not two sims, and the force arrows (F_gravity, F_drag, F_net) show *why* the feather flattens — F_net shrinking to zero — which the classic demo can only assert. This is the honest twin of B1's drag honesty note: GIST models quadratic drag via per-frame damping (see `Notes_on_Air_Resistance_Refactor.md`), so state the model rather than claiming aerodynamic fidelity.
+
 ---
 
 ## Tier B — General-engine environments (breadth benchmarks, not clones)
 
-These are GIST's true competitors: one engine, arbitrary scenes. Benchmark differently — not "recreate sim X" but "match authoring breadth and beat authoring *speed*."
+These occupy GIST's own architectural niche: one engine, arbitrary scenes. They benchmark differently — not "recreate sim X" but "match authoring breadth, and let language do the revising." Where Tier A sets the pedagogical bar, Tier B sets the authoring bar.
 
 ### B14 · Algodoo (Algoryx)
 - **URLs:** https://www.algodoo.com ✔ · lesson library how-to: https://www.algodoo.com/learn-it/ ✔
@@ -156,10 +182,148 @@ These are GIST's true competitors: one engine, arbitrary scenes. Benchmark diffe
 
 ---
 
+## Coverage matrix — foundational mechanics (opened 2026-08-07)
+
+Scope: the eight foundational cells behind 1D/2D kinematics, free fall, 1D momentum, and Newton's 1st/2nd laws. This is **not** a coverage matrix for all 19 B-IDs — it is the entry-level band, the part of the curriculum a teacher reaches for first, and the part where our canon turned out to be thinnest.
+
+**A cell is FILLED when** a GIST sim exists for it *and* has been scored A–E against its benchmark with time-to-sim logged (Protocol #5). Merely having a sim that runs is 🟡 THIN, not ✅.
+
+| # | Topic | Benchmark | GIST sim today | Cell | Why it's not filled |
+|---|---|---|---|---|---|
+| 1 | 1D kinematics (const v vs const a) | **B18** *(proposed)* | none | ⬜ EMPTY | authoring only — no capability gap |
+| 2 | Free fall 1D (slope = −g) | **B19** *(proposed)* | `freefallWithDrag` (drag framing); `bowlingBallAndFeather.json` **orphaned** | 🟡 THIN | authoring only — one orphan needs a route |
+| 3 | 2D kinematics / projectile | **B1** | `projectileVelocityComponents`, `projectileLaunchPolar` | 🟡 THIN | **capability:** no trajectory persistence, no range/landing readout |
+| 4 | Free fall 2D (simultaneous release) | **B10** · S0.5 | **`monkey-and-apple`** (local fixture) **+ sim 1411** (published exploration) — a deliberate pair | 🟡 THIN | fixture built 2026-08-07, drive + A–E scoring owed |
+| 5 | 1D momentum / collisions | **B2** | `cup-catch`, `box-catch`, `twoBoxes` | 🟡 THIN | **capability:** no system-total (Σp, ΣKE) outputs |
+| 6 | Newton's 1st law | **B5** (shared) · S2.3 | `wagon-stop` | ✅ FILLED* | *scored-against-rubric pass still owed |
+| 7 | Newton's 2nd law, 1D | **B5** | none | 🔴 BLOCKED | **no `applyForce`/`applyImpulse` on `PhysicsBody`** |
+| 8 | Newton's 2nd law, 2D (incline) | **B6** | `ramp-slide` | ✅ FILLED* | *µs ≠ µk absent; friction representation held |
+
+**The headline:** the two cells with no ID in any curriculum doc (1, 2) are the *simplest* physics in the set, and the one that is hard-blocked (7) sits under the most famous reference sim in the field, PhET's *Forces and Motion: Basics*. We built the flagship archetypes before the front door.
+
+**Note on cell 4 (2026-08-07):** it was filled *by the generator*, not by hand — a teacher prompt plus two remixes produced a working B10 scene in 21 minutes. That is the product working as intended, and it is the first evidence bearing on the open "hand-authored vs generated" question for any future comparison artifact. The useful lesson turned out not to be "the generator shipped the wrong slider": it shipped an affordance the benchmark didn't ask for, which Bill then made the basis of a **second pedagogical rung** (see cell 4). Generated sims will keep arriving with extra degrees of freedom; the judgment call is whether an off-benchmark control is noise or a teaching move, and that call belongs to a human reading the scene, not to the rubric.
+
+### Fill-the-cell checklists
+
+Each list is ordered so the first unchecked box is the next action. Tags: **[gist-staged]** = local JSON only, three-places deliberately untouched (per invariant #2); **[three places]** = schema + prompt + docs must move together; **[capability]** = new runtime behavior, needs a design decision before code.
+
+#### Cell 1 — 1D kinematics (B18) ⬜ **[gist-staged]** · est. small
+Nothing is missing from the engine or the schema; this is a scene we simply never authored. `ObjectConfig.acceleration` is an additive constant acceleration (invariant #9) and is slider-bindable via `acceleration.x`, and object friction defaults to 0, so a frictionless glide needs no special handling.
+
+- [ ] Ratify or reword the B18 prompt above, then mark it frozen.
+- [ ] Author `src/simulations/kinematics1D.json`: flat ground, two carts released together at x = 0 — cart A `velocity {x: 5, y: 0}`, cart B from rest with `acceleration {x: 2, y: 0}`; both `friction: 0`, `restitution: 0`.
+- [ ] Controls: sliders on A's `velocity.x` and B's `acceleration.x`.
+- [ ] Graphs (G1): overlay `position.x` for both (straight vs curve) and `velocity.x` for both (flat vs ramp). **Set `yAxisRange` to fit the data or leave it unset** — see the `twoBoxes` bug in cell 5.
+- [ ] `showVectors: ["velocity"]` on A; `["velocity", "acceleration"]` on B.
+- [ ] Wrapper + route per `Local_Sim_Workflow.md` (`/simulation/kinematics-1d`).
+- [ ] Harness-verify: crossing time = 2v₀/a; A's velocity constant to tolerance over the full run (a real check — it exercises whether "frictionless" is actually frictionless after the container-work friction changes).
+- [ ] Bill's drive, then score A–E and log time-to-sim.
+
+#### Cell 2 — Free fall 1D (B19) 🟡 **[gist-staged]** · est. small
+`bowlingBallAndFeather.json` already exists and is exactly this benchmark — bowling ball with `Cd = 0` against a feather with `Cd = 1.5` — but it has **no wrapper and no route** (zero references anywhere in `src/`), so it is unreachable in the app. It also predates the vector work and still uses the legacy `showForceArrows: true` flag.
+
+- [ ] Ratify or reword the B19 prompt above, then mark it frozen.
+- [x] Give `bowlingBallAndFeather.json` a wrapper + route (`/simulation/bowling-ball-and-feather`) — **done 2026-08-07, drive pending.** `BowlingBallAndFeatherSimulation.tsx` + import + route; tsc/lint at baseline. Notes from routing: `referenceArea` is unauthored and defaults to widest horizontal extent, giving the feather A = 1 m² and terminal v ≈ 3.3 m/s against the ball's ≈ 33 m/s — both inside the authored −35…5 graph range. Colliders (re-checked against Bill's 2026-08-07 renderables update): `bowling_ball` is now a **circle** (center [32,32], r 30.52 in its 64×64 viewBox) — upgraded from a 12-vertex polygon, exactly the round-shape fix the CC2 census called for; `feather` is an 8-vertex polygon, under the Planck cap. Neither is a cap risk, and this sim is authored `physicsEngine: "rapier"` anyway.
+- [x] Migrate its `showForceArrows: true` → `showVectors: ["force-gravity", "force-drag", "force-net"]` — **done 2026-08-08, drive-confirmed.** Also gained explicit `referenceArea: 0.1` (the feather's 90° rotation presents its long axis, but the drag default is NOT rotation-aware): terminal v 2.58 → 1.63 m/s, so it now lands 1.31 s vs the ball's 0.63 s — better separation. NOTE the feather's forces are ~0.098 N → all arrows sub-floor at the shared 2 px/N; legibility comes from the **force loupe** (`?loupe=1`, paused-only, shipped 2026-08-08), not from a per-arrow scale override.
+- [ ] Add the air-off case: either a second scene or — better — verify the debug air-resistance toggle switches this sim cleanly, since "same scene, air off vs on" is B19's pedagogical core. Confirm the toggle is in the replay frame-cache key (invariant #13; this was the 2026-08-06 stale-replay bug).
+- [ ] Author the plain-drop calibration variant `freefall1D.json` (single ball, no drag, v(t) slope = −g). PHYSICS_GRAPHS calls this the single most important calibration graph in the harness and we don't have it.
+- [ ] Harness-verify: vacuum slopes = −9.8 both bodies, identical impact times; feather's terminal v matches √(2mg/ρC_dA).
+- [ ] Drive, score, log.
+
+#### Cell 3 — 2D kinematics / projectile (B1) 🟡 **[capability]** · est. medium
+`projectileVelocityComponents` covers the vector story well. What's missing is B1's stated core: *"trajectory trace persists across shots for comparison"* and the target-hitting beat. **There is no trail, path, or trace rendering anywhere in the codebase** — confirmed by search; the only "ghost" in `src/` is `EditOverlay`'s resize preview.
+
+- [ ] **Decide the trajectory-persistence design.** Related parked idea: `GIST_Physics_Wishlist.md` §8 "Ghost replay (A/B compare)" — translucent trail of a saved run beside the live body, explicitly modeled on PhET's projectile comparison. Decide whether one mechanism serves both this and ghost replay, or whether within-session shot traces are a simpler separate thing. **This is a design decision, not a coding task — do it first.**
+- [ ] Decide where a trace lives: a render-only overlay reading recorded Frames (replay already stores every frame — invariant #12), or persisted state. Frames-as-source is the cheaper and more honest route.
+- [ ] Add a landing/range readout. Outputs are per-object property paths today, so "range" is not directly expressible — either add a derived output or accept `position.x` sampled at impact.
+- [ ] Author the target crate (trivially authorable — a static or dynamic box at 40 m).
+- [ ] **[three places]** if trajectory display becomes LLM-authorable: schema field + regenerate, prompt, docs. Consider landing it debug-first (like `?forces=1`) and holding the prompt, matching the FBD posture.
+- [ ] Verify the B1 pass criteria: complementary angles 30°/60° land together; analytical range overlay matches impact.
+- [ ] Drive, score, log.
+
+#### Cell 4 — Free fall 2D / simultaneous release (B10, S0.5) 🟡 **[gist-staged]** · est. small
+**Filled from the generator, not by hand — the first matrix cell to arrive this way** (2026-08-07). Sim **1411 "Monkey and the Apple"**, published by Bill; it is the DB sim at `/simulation/1411`, not a local JSON.
+
+**Lineage — the first logged time-to-sim in the repo (Protocol #5).** Six versions, 1406 → 1411, **21 min 40 s** from cold prompt to published:
+
+| id | time | leg | prompt |
+|---|---|---|---|
+| 1406 | 19:06:06 | LLM (cold) | *"create a monkey and the hunter simulation."* |
+| 1407 | 19:08:10 | LLM (tweak 1) | *"add a floor and the ability to change initial angle of bullet"* |
+| 1408 | 19:15:21 | human edit | — |
+| 1409 | 19:16:18 | LLM (tweak 2) | *"add a slider for vertical position of the hunter and apple and have the default be at the same height as the monkey."* |
+| 1410 | 19:25:48 | human edit | — |
+| 1411 | 19:26:06 | human edit | published 19:27:46 |
+
+Three LLM rounds (one cold + **two** remixes) — inside the two-run rule's ≤2-tweak budget — plus three hand edits.
+
+**Physics verified against the config (headless):** apple and monkey sit at *identical* y (31.191), and the apple is fired at 25 m/s at angle 0 — so "horizontal" *is* the line of sight, and the aim is correct. Both fall at g with air resistance off. They meet at **t = 2.20 s, 7.53 m up, with the monkey's feet 2.53 m above the floor** and **0.114 s of margin** before the monkey would have landed. The beat lands, but the margin is thin — this is a photo finish with the ground, and any reduction in launch speed loses it.
+
+- [x] Scene exists and the pedagogical beat works (verified above).
+- [x] Graph: "Height vs Time" overlays `position.y` for monkey and apple — **exactly B10's pass criterion** ("twin y(t) sag traces overlay identically"). Strongest part of the sim; the traces are analytically identical.
+**DECIDED 2026-08-07 (Bill): keep BOTH sims — they are a two-rung ladder, not a fixture and a mistake.** My first read called 1411's launch-angle slider "the wrong control for B10." That was wrong: it is the right control for the *second* rung. The pair now reads:
+
+- **Rung 1 — `monkey-and-apple`** (local, git-tracked, `/simulation/monkey-and-apple`). Launcher and branch at the SAME height, so the aim is horizontal and the two height traces overlay exactly — B10's pass criterion made literal. **One control**, launch speed. Deliberately simple: vary v₀, watch the hit persist, then slide below the threshold and watch the floor win.
+- **Rung 2 — sim 1411** (published, DB, with its angle + vertical-position sliders). Start at the same-height default so the horizontal case is familiar, then **lower the zookeeper to the ground**. The line of sight is now *angled*, so a purely horizontal throw misses, and the student has to give the apple both a vertical and a horizontal component to re-aim. That is the full canonical monkey-and-zookeeper — and the student **discovers** that "aim at the monkey" generalizes beyond horizontal rather than being told it.
+
+The angle slider is therefore load-bearing on rung 2 and correctly absent from rung 1. Keep them distinct; do not converge them.
+
+- [x] Local fixture authored + routed (2026-08-07) — `src/simulations/monkeyAndApple.json`. Verified headless: no dynamic-vs-static overlap at t=0 (the monkey hangs clear of the cypress collider); hit/miss threshold **15.92 m/s** sits mid-slider (5–40, default 25); v=15 misses, v=16 hits with 0.36 m of floor clearance; both graph ranges sized against the slider extremes, not the default.
+- [x] Failure case built in — B10's Exceed (t_hit = Δx/v vs t_land = √(2h/g)) is reachable by dragging one slider, not a separate scene.
+- [ ] **Drive rung 1** (`/simulation/monkey-and-apple`) — confirm the twin height traces genuinely overlay, and that the monkey reads as hanging from the branch (it clears by 0.5 m by design; close the gap with a taller monkey or lower branch, never by overlapping).
+- [ ] Score **rung 1** A–E against B10 and log time-to-sim (hand-authored, so the number is not comparable to 1411's 21 min — log both, labelled).
+- [ ] Sim 1411 housekeeping: its second graph "Apple Speed and Launch Angle" **clips** (range min −10, angle trace runs to −40.7°, ~80% off-scale) and mixes m/s with degrees on one axis. Worth a remix pass since 1411 is now a keeper, not a throwaway.
+- [ ] Sim 1411's default meeting is 0.114 s from the floor — fine for rung 2's exploration, but note it in any teacher-facing framing so a slightly slow apple doesn't read as a broken sim.
+- [ ] Mark **S0.5 implemented** in `PHYSICS_SHAPES.md` once rung 1 is drive-confirmed (lifecycle discipline).
+
+**Cross-cutting finding — the LLM authors `yAxisRange` too tight.** Third confirmed instance (`twoBoxes.json` ±1 for ±5 m/s data; `bowlingBallAndFeather.json` −5 for a −6.15 m/s impact; sim 1411's angle trace). Three independent sims, same failure. This is a **prompt-level** issue, not three authoring slips: the graph guidance should either teach range selection from expected data magnitude or prefer omitting `yAxisRange` so the axis auto-fits. Worth its own three-places pass.
+
+#### Cell 5 — 1D momentum (B2) 🟡 **[capability]** · est. medium
+`cup-catch` is a clean perfectly-inelastic capture and `box-catch` adds the momentum-then-energy story, so the physics is real. Two things block B2 parity. The elasticity slider is **cheaper than expected** — `restitution` has live getters and setters in both adapters, sits in the schema's slider property allowlist, and `applyControlToBody` dispatches it generically, so it should be authorable today. The system readouts are the genuine gap: outputs and graphs both take a **per-object property path**, so Σp and ΣKE across bodies are not expressible at all.
+
+- [ ] Author an elasticity slider bound to `restitution` on a two-cart scene. **Verify it isn't a silent no-op** — the friction slider looked authorable and did nothing until an accessor was added (ramps gate round 1, 2026-08-06), and Box2D stamps contact properties at begin-contact, so Planck may need the same live-contact refresh friction needed. Assume nothing; drive it.
+- [ ] Fix `twoBoxes.json`: its two graphs carry `yAxisRange {min: -1, max: 1}` while the data runs ±5 m/s, so both are clipped. Also settle whether it's meant to be 1D — the boxes sit at different heights (y = 50 vs 40).
+- [ ] **[capability, three places]** Decide how system-level quantities are expressed. Σp and ΣKE are B2's core, and they generalize immediately to B3's energy bars (KE/PE/thermal/total) and B8's — so this is a *shared* capability, not a one-benchmark patch. Options to weigh: an aggregate output kind over a named object set; a derived-quantity expression language (powerful, large); or per-object outputs plus a "total" graph series. **Decide before building.**
+- [ ] Consider J5 (prismatic rail) for a true 1D constraint — joints-gated, and B2's pass criteria don't strictly need it since a frictionless flat floor is 1D enough.
+- [ ] Verify B2 pass: Σp conserved across e ∈ {1, 0.5, 0}; KE conserved only at e = 1.
+- [ ] Drive, score, log.
+
+#### Cell 6 — Newton's 1st law (B5 shared, S2.3) ✅ **[scoring owed]** · est. tiny
+`wagon-stop` was purpose-built for this and ships: `walls: 'left'` open-front wagon, payload rides then keeps its velocity when the wagon is stopped, twin vx traces diverge. Nothing to build.
+
+- [ ] Score it A–E against B5's Newton's-1st half and log time-to-sim. That is the whole remaining task.
+- [ ] Note in the sim's docs that B5's *other* half (2nd law, applied force) is cell 7 and blocked — the two halves of one PhET sim land in different quarters for us.
+
+#### Cell 7 — Newton's 2nd law, 1D (B5) 🔴 **BLOCKED** · est. large — this is a refactor, not a sim
+There is no `applyForce`, `applyImpulse`, `applyLinearImpulse`, or `addForce` anywhere in `src/physics/` or `src/components/` — confirmed by search. You cannot push anything in GIST. `GIST_Physics_System_Topics.md` already records this as blocking PhET-Forces-and-Motion-style sims, and the work is scoped in `Notes_on_Applied_Forces_Refactor.md`; **that note owns the plan — this checklist only tracks the benchmark dependency.** Do not restate its phases here.
+
+- [ ] Adapter seam: `applyForce` / `applyImpulse` on `PhysicsBody`, implemented in both engines, engine-specific logic confined to the adapters (invariant #4).
+- [ ] `userData.appliedForce` populated per frame **and riding the Frame** — the standing replay rule (FBD step 2's lesson: any userData-sourced arrow not in `FrameBodySnap` is invisible in replay).
+- [ ] `force-applied` then lights up with no renderer work — it is the last unwired kind in `vectorTheme.ts`, and `VectorArrow` already has the branch waiting.
+- [ ] **[three places]** `appliedForce` schema field + regenerate, prompt teaching, docs.
+- [ ] Parked B5-parity UI decisions already recorded in the applied-forces note: ±100 N slider range, self-centering slider, drag-the-cart-by-hand. Pick these up there, not here.
+- [ ] Then author the B5 scene (50 kg crate, applied-force slider, friction switch, speedometer) and the S3.1 stacked-crate Exceed follow-on.
+- [ ] Drive, score, log.
+
+#### Cell 8 — Newton's 2nd law, 2D / incline (B6) ✅ **[gaps noted]** · est. small
+`ramp-slide` ships and is drive-validated: breakaway measured µ = 0.404 against an authored 0.4, about a 1% instrument, with the full five-arrow FBD live. Strongest cell in the matrix and the natural first row of any future comparison artifact.
+
+- [ ] Score A–E against B6 and log time-to-sim.
+- [ ] B6 names "µ regimes" in its concepts, and we model a single µ — static vs kinetic (µs ≠ µk) is the parked `frictionDemo` Phase 2.5 item in the applied-forces note. Decide whether B6 passes without it or whether it's a pass blocker. **Recommend: passes, with an honesty note**, since breakaway lands within 1%.
+- [ ] Related open design question, deliberately held: how friction is represented to users and the LLM (per-body µ presenting as a pair property, Max combine rule, the remix masking finding) — see `Notes_on_Ramps_and_Tracks_Refactor.md` Open questions. Not a cell-8 blocker; it governs how we'd *explain* the cell.
+- [ ] B6's Exceed line (swap the block for hoop/disk/sphere → rolling race, S0.2) is a follow-on prompt, per Protocol #4.
+
+### What this matrix is not
+
+It is not a comparison artifact. The side-by-side screenshot page discussed on 2026-08-07 — GIST beside PhET and others for each canonical setup — remains **wanted but deferred**, gated on: the Stance's licensing pass; a written capture protocol (controlled initial conditions, viewport, and toggles, or the comparison proves nothing); a decision on whether our cell shows a hand-authored sim, a sim generated from the frozen prompt, or a live embed; and a staleness contract, since our renderers change weekly and there is no screenshot tooling in the repo. The natural first row is cell 8, and the natural first *use* is informing the FBD representation decision (analytical-primary vs engine-primary) in `Notes_on_Applied_Forces_Refactor.md`.
+
+---
+
 ## Protocol
 
-1. **Order:** run Tier A benchmarks as their underlying archetypes land (B5/B6 with Rung 0; B3/B4 with Rung 1; B2 with J5; B7–B9 with J1/J3/J4). B12 last — it is the thesis demo.
-2. **Prompts are frozen test fixtures.** The example prompts above go in the repo verbatim; runs are scored A–E against them. Prompt drift = eval drift.
+1. **Order:** run Tier A benchmarks as their underlying archetypes land (B5/B6 with Rung 0; B3/B4 with Rung 1; B2 with J5; B7–B9 with J1/J3/J4). **B18/B19 run first of all** — they need no archetype and no capability we lack, and they are the entry-level band everything else assumes. B12 last — it is the thesis demo.
+2. **Prompts are frozen test fixtures.** The example prompts above go in the repo verbatim; runs are scored A–E against them. Prompt drift = eval drift. A prompt marked *PROPOSED* is the one exception — it is editable until ratified, and frozen the moment the marker comes off.
 3. **Two-run rule:** score authorability on the *first* LLM output and after ≤ 2 tweak rounds; both numbers matter (cold accuracy vs converged accuracy).
 4. **Exceed claims must be demonstrated, not asserted** — each "Exceed" line becomes a follow-on prompt in the same session ("now put a cup where the ball lands").
 5. **Log time-to-sim on every benchmark run.** Plot it over development time. That curve is the FCL progress report.
+6. **The coverage matrix is a live tracker, not a snapshot.** Move a cell's state when reality moves, and check the box in the same commit as the work (lifecycle discipline). A cell reaching ✅ FILLED means scored, not merely built.

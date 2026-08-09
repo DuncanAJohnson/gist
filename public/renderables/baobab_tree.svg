@@ -1,0 +1,13 @@
+<svg viewBox="0 0 55.2157 64" version="1.1" id="svg3" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs3"></defs>
+  
+  <g transform="translate(-12.549 -11.2941) scale(1.2549)" id="g3">
+    <path d="M 34.525987,30 C 26.167341,30.61536 18.85504,27.434711 13.829163,19.189121 m 33.256292,-3.832823 c -0.522686,8.732719 -7.299133,11.781177 -12.054847,11.23352 M 51.025473,19.29845 C 52.125189,22.825865 48.057816,29.911273 34.525987,30 m 0.504621,-3.410182 C 20.669807,23.732628 21.649756,17.670418 21.959176,16.28356" stroke="#a16207" stroke-width="4" fill="none" id="path2"></path>
+    <path d="m 24.525987,60 q 2,-27.495142 6,-41.242712 h 8 q 4,13.74757 6,41.242712 z" fill="#92400e" id="path1" style="stroke-width:1.17249"></path>
+    <ellipse style="fill:#89a02c;stroke-width:1.23194" id="path3" cx="18.278254" cy="18.294857" rx="8.2782536" ry="5.271709"></ellipse>
+    <ellipse style="fill:#89a02c;stroke-width:1.12918" id="path3-8" cx="33.839447" cy="18.609684" rx="10.686539" ry="3.4308593"></ellipse>
+    <ellipse style="fill:#89a02c;stroke-width:1.32633" id="path4" cx="28.474104" cy="14.479804" rx="10.843998" ry="4.2774835"></ellipse>
+    <ellipse style="fill:#89a02c;stroke-width:1.29084" id="path5" cx="42.508873" cy="13.647427" rx="8.2775078" ry="3.6300802"></ellipse>
+    <ellipse style="fill:#89a02c;stroke-width:1.48243" id="path6" cx="44.948437" cy="18.040518" rx="9.0516415" ry="4.0000248"></ellipse>
+  </g>
+</svg>

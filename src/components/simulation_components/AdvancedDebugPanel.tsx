@@ -35,6 +35,8 @@ interface AdvancedDebugPanelProps {
   onShowCollidersChange: (v: boolean) => void;
   showForces: boolean;
   onShowForcesChange: (v: boolean) => void;
+  showLoupe: boolean;
+  onShowLoupeChange: (v: boolean) => void;
   onTweakJSON?: () => void;
   onImportObject?: () => void;
 }
@@ -99,6 +101,8 @@ function AdvancedDebugPanel({
   onShowCollidersChange,
   showForces,
   onShowForcesChange,
+  showLoupe,
+  onShowLoupeChange,
   onTweakJSON,
   onImportObject,
 }: AdvancedDebugPanelProps) {
@@ -272,6 +276,20 @@ function AdvancedDebugPanel({
               type="checkbox"
               checked={showForces}
               onChange={(e) => onShowForcesChange(e.target.checked)}
+              className="cursor-pointer"
+            />
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span
+              className="text-xs text-gray-600"
+              title="Force loupe (prototype): for any body whose WHOLE free-body diagram is under the 14 px render floor, draws a lens beside it showing that body as a DOT (particle model) with its force arrows rescaled so weight spans the lens, plus a labelled scale bar. Per-body rescaling made honest rather than silent. PAUSE-ONLY, and live while scrubbing. Also available as ?loupe=1."
+            >
+              Show force loupe (paused)
+            </span>
+            <input
+              type="checkbox"
+              checked={showLoupe}
+              onChange={(e) => onShowLoupeChange(e.target.checked)}
               className="cursor-pointer"
             />
           </div>

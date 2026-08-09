@@ -10,6 +10,8 @@ import BallIntoCupArcSimulation from './simulations/BallIntoCupArcSimulation'
 import ProjectileLaunchPolarSimulation from './simulations/ProjectileLaunchPolarSimulation'
 import ProjectileVelocityComponentsSimulation from './simulations/ProjectileVelocityComponentsSimulation'
 import FreefallWithDragSimulation from './simulations/FreefallWithDragSimulation'
+import BowlingBallAndFeatherSimulation from './simulations/BowlingBallAndFeatherSimulation'
+import MonkeyAndAppleSimulation from './simulations/MonkeyAndAppleSimulation'
 import RampSlideSimulation from './simulations/RampSlideSimulation'
 import RampEnergySimulation from './simulations/RampEnergySimulation'
 import PolarAuthoredVelocitySimulation from './simulations/PolarAuthoredVelocitySimulation'
@@ -54,6 +56,8 @@ function AppContent() {
         <Route path="/simulation/projectile-launch-polar" element={<ProjectileLaunchPolarSimulation />} />
         <Route path="/simulation/projectile-velocity-components" element={<ProjectileVelocityComponentsSimulation />} />
         <Route path="/simulation/freefall-with-drag" element={<FreefallWithDragSimulation />} />
+        <Route path="/simulation/bowling-ball-and-feather" element={<BowlingBallAndFeatherSimulation />} />
+        <Route path="/simulation/monkey-and-apple" element={<MonkeyAndAppleSimulation />} />
         <Route path="/simulation/ramp-slide" element={<RampSlideSimulation />} />
         <Route path="/simulation/ramp-energy" element={<RampEnergySimulation />} />
         <Route path="/simulation/polar-authored-velocity" element={<PolarAuthoredVelocitySimulation />} />

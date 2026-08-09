@@ -215,6 +215,23 @@ export function synthesizeForceDebugRenderables(obj: ExpandedObjectConfig): Pixe
 }
 
 /**
+ * Force loupe (PROTOTYPE, debug-only). One per dynamic body; the DRAW function
+ * self-gates on the trigger — it renders only when the body's LARGEST force
+ * arrow is under the render floor, i.e. the whole diagram is illegible, not
+ * merely one component of it. zIndex 40 puts it above the collider overlay.
+ */
+export function synthesizeForceLoupeRenderable(obj: ExpandedObjectConfig): PixelRenderable[] {
+  if (obj.isStatic) return [];
+  return [{
+    id: `__force_loupe_${obj.id}`,
+    source: { type: 'body' as const, bodyId: obj.id, followAngle: false },
+    visual: { type: 'force-loupe' as const },
+    opacity: 1,
+    zIndex: 40,
+  }];
+}
+
+/**
  * Marker renderable for imported experimental data.
  */
 export function synthesizeExperimentalRenderable(

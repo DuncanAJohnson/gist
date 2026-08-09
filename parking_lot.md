@@ -548,3 +548,172 @@ the basis angle live?
 **Trigger to un-park.** Scoping the first incline-plane / ramp sim, or the FBD
 workstream (`Notes_on_Applied_Forces_Refactor.md` Goal 1) reaching step 5's
 "incline decomposition" follow-on — whichever comes first. Both want ∥/⊥ legs.
+
+---
+
+## Loupe as a general visualization primitive — what else it could hold (2026-08-08)
+
+**What it is.** The force loupe was scoped for FBDs (`Notes_on_Applied_Forces_Refactor.md`
+Findings 2026-08-08; design views + SVG mockups live in `/docs/vector-arrows`).
+Working through *what else* it could show surfaced a broader read of the tool.
+Parked deliberately as a SURVEY, not a plan: Bill's instruction is that **no line
+gets drawn yet** — see "Why no line" below.
+
+**The reframe that generated the survey.** The particle-dot decision (body inside
+the loupe drawn as a point, the FBD convention) was made for honesty — it kills
+the spatial-zoom implication. But once the body is a point and the scale is
+disclosed, the loupe stops being "the scene, bigger" and becomes **a bounded
+region where you can do geometry that doesn't fit on the scene, and then say
+truthfully how it relates back.** That is what textbooks have always done: the
+free-body diagram is drawn *beside* the ramp; the Δv triangle is drawn *beside*
+the circular path. The loupe is the sim's version of **the diagram in the
+margin**. "Too small to see" is only one reason a construction can't be drawn in
+place; "too cramped" (overlapping, collinear, needs vectors moved tail-to-tail,
+needs a different basis) is the other, and the same machinery serves both.
+
+**The organizing axis — modes of invisibility.** Physics content is the wrong
+axis; perceptual failure modes are the right one, because the loupe addresses a
+class of problem, not a class of topic.
+
+| mode | what it looks like | example |
+|---|---|---|
+| magnitude too small | arrow under the render floor | feather's 0.098 N weight (the shipped case) |
+| difference too small vs. its terms | two large quantities nearly cancel; the residual IS the physics | F_net at terminal velocity; E_total drift; Σp unchanged across a collision |
+| construction doesn't fit in place | overlap, collinearity, tail-to-tail moves, rotated basis | F_g and F_N on a resting block, exactly cancelling and exactly superimposed |
+| increment too small to perceive | the per-step change, not the value | Δv per frame — acceleration intuition |
+| no natural geometry at all | real quantity, no on-canvas shape | momentum, impulse, torque |
+| too fast | one-frame events | collision impulse spike (probably a DIFFERENT tool — a time axis, not a scale axis) |
+
+**The survey, mapped to B-IDs.**
+
+- **Δv construction (acceleration intuition)** — Bill's seed, from a colleague
+  conversation. Draw v(t) and v(t−Δt) tail-to-tail inside the loupe with Δv
+  spanning their tips: literally a = Δv/Δt made into a picture. **Convergence
+  worth noting: Δv is ITSELF sub-threshold** — at a 60 Hz step in free fall
+  Δv = 9.8/60 = 0.163 m/s → 3.3 px at 20 px per m/s, under the same 14 px floor,
+  for the same reason. Not a bolt-on; the identical problem with a different
+  quantity. Payoffs: **B19** Δv constant frame-to-frame is what "constant
+  acceleration" LOOKS like; **B1** at the apex v_y reverses while Δv doesn't
+  change (a top-tier projectile misconception); **B4/B13** Δv points at the
+  CENTER — that is the derivation of centripetal acceleration and is currently
+  unshowable; **B6** Δv changes the instant friction engages; **B10** two loupes
+  showing *identical* Δv on very different masses = the monkey-and-apple sag
+  comparison, which is inexpressible in the per-object graph model.
+- **Rotated basis on an incline (B6)** — F_g decomposed along ∥/⊥ incline axes
+  inside the loupe while the canvas keeps world axes. This is the parked
+  "Rotated coordinate basis" item above, and the loupe may be a better home than
+  schema authoring: a rotated basis is a *local representation change*, exactly
+  the loupe's primitive, and as a VIEW rather than authoring it sidesteps that
+  entry's env-level-vs-per-arrow fork entirely.
+- **Equilibrium as active cancellation (B5, B6)** — a block at rest has F_g and
+  F_N equal and exactly superimposed; students read that as "no forces." Separate
+  them in the loupe and draw F_net explicitly as zero. Well-documented PER
+  misconception target.
+- **Momentum vs velocity (B2)** — p = mv is parallel to v but scales differently;
+  a heavy slow body and a light fast one can share p while looking nothing alike.
+  Two arrows, two scale bars.
+- **Conservation residuals (B2 Σp, B3 E_total drift)** — compelling, and B3's
+  drift trace is a stated GIST Exceed claim over PhET. But these are SYSTEM
+  quantities and the loupe is body-anchored; energy is also scalar, so the arrow
+  idiom doesn't fit. Likely wants the proposed vector/bar PANEL instead.
+
+**Promoted for design work (three, NOT a boundary).** FBD (in flight), **Δv**,
+**rotated basis**. These three share vector-quantity/one-body/one-instant, which
+is why they're the cheapest next experiments — Δv especially, as the deliberate
+test of whether the loupe generalizes at all: if it needs nothing beyond a second
+scale bar (m/s instead of N) and a caption, the pattern is real; if it needs
+special-casing, that's the signal the loupe is an FBD tool and should stay one.
+
+**Why no line — explicitly (Bill, 2026-08-08).** A definition written now would
+foreclose ideation later. Concrete example Bill raised the same day: game UIs
+present options in a **radial menu centred on the player** — which suggests
+**multiple loupes arranged radially around one body**, each holding a different
+construction (forces here, Δv there, components there). A "one loupe, one body,
+one instant" rule would have quietly killed that before it was examined, and it
+is not obviously wrong: a radial arrangement solves the anchoring/occlusion
+problem the single-loupe placement design is still wrestling with, and it makes
+"which construction am I looking at" positional rather than modal. So: **the
+three promoted items are promoted, nothing is excluded**, and the survey stays
+here rather than hardening into a scope statement.
+
+**What would force a decision (i.e. when to un-park).**
+1. Δv ships and either generalizes cleanly or doesn't — that is the real
+   evidence, and it settles more than argument will.
+2. The proposed vector/bar PANEL gets scoped. Panel and loupe overlap on the
+   quantitative read; shipping both without naming one primary leaves a student
+   two answers to "how big is this force." That tension needs resolving before
+   BOTH exist, not after.
+3. Mode count grows past ~2. The real cost of a general loupe isn't features, it
+   is **modes** — the student must know which construction they're looking at.
+   Mitigations already identified: show ONE construction at a time; name it in a
+   caption beside the scale bar; and note the scale bar's units already
+   half-answer it (newtons vs m/s tells you which construction you're in).
+
+---
+
+## Cross-repo vocabulary drift: gist ↔ generator name the same things differently (2026-08-07)
+
+**Symptom.** GIST and the SVG-generator repo (`../physics_sim_icon_dev`)
+implement the *identical* Planck over-cap check — same pinned `poly-decomp@0.3.0`,
+same `makeCCW`+`quickDecomp`, same 12-vertex cap, same per-decomposed-part
+metric — under different names on each side, with no shared glossary. Bill,
+2026-08-07: *"It's important that the two repos talk the same language."*
+
+**Cause / concrete drifts.**
+
+| concept | generator | gist |
+|---|---|---|
+| the cap | `MAX_CONVEX_VERTICES = 12` (colliderSchema.js:42) | `PLANCK_MAX_POLYGON_VERTS = 12` (shapeHelpers.ts:18) |
+| the check | `planckReadiness()` → `{level: ok\|warn\|fail}` | `warnOnOverCapParts()` |
+| surfacing | `⚠P` / `✖P` card badges, `PlanckVerdict` line | diagnostics bus key `collider-overcap:*`; red parts under `?colliders=1` |
+| remediation | `fix` status + bulk move + auto-coarsen | none — gist is consume-only; the dev warn is a backstop |
+
+Plus three more:
+- **`convex` vs `polygon`.** The generator's internal `COLLIDER_TYPES` still says
+  `"convex"` (the "accepted-concave misnomer" — a `convex`-typed collider MAY be
+  concave), while manifest_version 2 exports `type: "polygon"`. gist accepts both
+  as one union member, so nothing breaks; the two repos simply name one thing two
+  ways in their own source.
+- **Stale comment**, colliderSchema.js:33 — still annotates `"convex"` as
+  "(≤ 8 vertices)". The cap moved to 12 on 2026-07-17; the constant below it is
+  right, only the comment lags.
+- **`MAX_CONVEX_VERTICES` does double duty** in the generator (Planck cap AND
+  save-gate / editor add-vertex cap / hull-tool target — Bill's "12 everywhere"
+  call). gist's constant means *only* the Planck cap. Same number, different
+  scope, which will matter the moment either one moves.
+
+**How this actually caused harm (the motivating incident).** Asked whether the
+generator's "0 approved SVGs concave after decomp" was the same number as gist's
+post-decomposition census, an agent answered **no — different metric (convexity,
+not vertex count)**. That was wrong: `planckReadiness` became an exact per-part
+vertex check on 2026-07-17 (generator Task 15). The wrong answer came from
+reasoning about the *pre-2026-07-17 heuristic* (`convex >8` fail / `concave >8`
+warn) — which really was a different metric — with nothing in either repo
+signalling that the vocabulary had moved on. **Reading
+`../physics_sim_icon_dev/Dev_Tasks.md` first is the fix for the incident; a
+shared glossary is the fix for the class.**
+
+**Why parked.** Not blocking: both repos are correct today and the census is
+clean. It is a naming/legibility problem whose cost is paid in agent-hours and
+cross-repo confusion, not in wrong colliders. Bill's ruling 2026-08-07: *"keep
+the language discrepancy an open issue"* — record it, don't fix it yet.
+
+**Suggested fix paths, ranked.**
+1. **Standardize one term for the metric and use it on both sides.** Candidate:
+   **over-cap** (gist's diagnostics key already says `collider-overcap`), because
+   it names the property rather than the engine — which stays honest when a third
+   adapter appears and "Planck" stops being the reason.
+2. **A short shared glossary block**, duplicated verbatim in gist's
+   `Notes_on_Concave_Colliders_Refactor.md` and the generator's `Dev_Tasks.md`
+   (they already cross-link by relative path), listing the term pairs above.
+   Cheaper than renaming code and captures most of the value.
+3. **Rename toward the wire format** — generator `convex` → `polygon` internally,
+   matching manifest v2. Touches the generator's schema, validators, editor and
+   LLM system prompt; do it only if the misnomer bites again.
+4. **Fix the stale ≤8 comment** (colliderSchema.js:33) whenever that file is next
+   opened — a one-line no-risk cleanup.
+
+**Related.** A gist-side assertion that every consumed manifest entry is
+`status === "approved"` would let gist *detect* an export-invariant violation
+instead of assuming it; entries already carry `status`. Small, and it belongs
+with the parked ingestion-boundary work.

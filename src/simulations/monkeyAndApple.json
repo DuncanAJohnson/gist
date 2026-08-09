@@ -1,0 +1,212 @@
+{
+  "title": "Monkey and the Apple",
+  "description": "B10 — the monkey-and-zookeeper invariance. A hunter on a ledge throws an apple straight at a monkey hanging from a branch across the gorge; the monkey lets go at the same instant. Both are then in free fall, so both drop exactly ½gt² below where they would have been — and because the apple was aimed along the line of sight, that shared drop cancels out and the apple finds the monkey no matter how hard it is thrown. The launcher and the branch sit at the SAME height, so the aim is horizontal and the two height traces overlay exactly: that identical pair of curves on the Height-vs-Time graph is B10's pass criterion made literal. Drop the launch speed below about 16 m/s and the monkey reaches the ground before the apple arrives — B10's Exceed case, where the failure is just as predictable as the hit (it is a race between t_hit = Δx/v and t_land = √(2h/g), nothing more). Air resistance is OFF by design: the whole lesson is that the fall is mass-independent, and drag would break that. Authoring notes: the monkey hangs clear of the cypress collider (a dynamic body overlapping a static one at t=0 gets ejected by penetration recovery, not held); the branch and tree overlap each other, which is harmless because both are static.",
+  "environment": {
+    "walls": [],
+    "gravity": 9.8,
+    "unit": "m",
+    "pixelsPerUnit": 10,
+    "physicsEngine": "rapier",
+    "airResistance": {
+      "enabled": false,
+      "airDensity": 1.225
+    }
+  },
+  "objects": [
+    {
+      "id": "floor",
+      "x": 40,
+      "y": 1,
+      "width": 80,
+      "height": 2,
+      "svg": "oak_plank",
+      "isStatic": true,
+      "restitution": 0.1,
+      "friction": 0.8
+    },
+    {
+      "id": "ledge",
+      "x": 6,
+      "y": 37,
+      "width": 12,
+      "height": 2,
+      "svg": "oak_plank",
+      "isStatic": true,
+      "restitution": 0.1,
+      "friction": 0.8
+    },
+    {
+      "id": "hunter",
+      "x": 5,
+      "y": 41,
+      "width": 3.12,
+      "height": 6,
+      "svg": "person_walking",
+      "isStatic": true
+    },
+    {
+      "id": "tree",
+      "x": 70,
+      "y": 24,
+      "width": 15.8,
+      "height": 44,
+      "svg": "cypress_tree",
+      "isStatic": true,
+      "restitution": 0.1
+    },
+    {
+      "id": "branch",
+      "x": 60,
+      "y": 43.5,
+      "width": 16,
+      "height": 1,
+      "svg": "oak_plank",
+      "isStatic": true,
+      "restitution": 0.1
+    },
+    {
+      "id": "apple",
+      "x": 10,
+      "y": 40,
+      "width": 1.6,
+      "height": 2.4,
+      "svg": "apple",
+      "mass": 0.15,
+      "restitution": 0.1,
+      "velocity": {
+        "magnitude": 25,
+        "angle": 0
+      },
+      "showVectors": [
+        "velocity",
+        {
+          "kind": "velocity",
+          "components": true
+        },
+        "acceleration"
+      ]
+    },
+    {
+      "id": "monkey",
+      "x": 56,
+      "y": 40,
+      "width": 4.7,
+      "height": 5,
+      "svg": "monkey",
+      "mass": 15,
+      "restitution": 0.1,
+      "showVectors": [
+        "velocity",
+        "acceleration"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "type": "slider",
+      "label": "Apple Launch Speed (m/s)",
+      "targetObj": "apple",
+      "property": "velocity.magnitude",
+      "min": 5,
+      "max": 40,
+      "step": 1,
+      "defaultValue": 25
+    }
+  ],
+  "outputs": [
+    {
+      "title": "Apple",
+      "values": [
+        {
+          "label": "Height",
+          "targetObj": "apple",
+          "property": "position.y",
+          "unit": "m"
+        },
+        {
+          "label": "Horizontal velocity",
+          "targetObj": "apple",
+          "property": "velocity.x",
+          "unit": "m/s"
+        },
+        {
+          "label": "Vertical velocity",
+          "targetObj": "apple",
+          "property": "velocity.y",
+          "unit": "m/s"
+        }
+      ]
+    },
+    {
+      "title": "Monkey",
+      "values": [
+        {
+          "label": "Height",
+          "targetObj": "monkey",
+          "property": "position.y",
+          "unit": "m"
+        },
+        {
+          "label": "Vertical velocity",
+          "targetObj": "monkey",
+          "property": "velocity.y",
+          "unit": "m/s"
+        }
+      ]
+    }
+  ],
+  "graphs": [
+    {
+      "type": "line",
+      "title": "Height vs Time — the two traces should overlay exactly",
+      "yAxisRange": {
+        "min": 0,
+        "max": 45
+      },
+      "yAxisLabel": "Height (m)",
+      "lines": [
+        {
+          "label": "Apple",
+          "targetObj": "apple",
+          "property": "position.y",
+          "color": "#e74c3c"
+        },
+        {
+          "label": "Monkey",
+          "targetObj": "monkey",
+          "property": "position.y",
+          "color": "#8e44ad"
+        }
+      ]
+    },
+    {
+      "type": "line",
+      "title": "Apple velocity components — horizontal flat, vertical falling",
+      "yAxisRange": {
+        "min": -32,
+        "max": 45
+      },
+      "yAxisLabel": "Velocity (m/s)",
+      "lines": [
+        {
+          "label": "Apple vₓ",
+          "targetObj": "apple",
+          "property": "velocity.x",
+          "color": "#2980b9"
+        },
+        {
+          "label": "Apple v_y",
+          "targetObj": "apple",
+          "property": "velocity.y",
+          "color": "#e74c3c"
+        },
+        {
+          "label": "Monkey v_y",
+          "targetObj": "monkey",
+          "property": "velocity.y",
+          "color": "#8e44ad"
+        }
+      ]
+    }
+  ]
+}

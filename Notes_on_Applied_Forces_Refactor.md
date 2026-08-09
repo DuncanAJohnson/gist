@@ -867,3 +867,275 @@ exhibit pulls it. **Exhibit baked:** rampSlide.json block is now
 `ice_block`, mass 5 (Bill's drive tweak made canonical — mass scales all
 force arrows 5× at the fixed 2 px/N without touching breakaway or a, so
 the default FBD reads well; authored velocity showVectors kept).
+
+---
+
+### Findings 2026-08-08 — the dynamic-range problem generalized; log arrows REJECTED, per-body scale REJECTED-as-silent, **force loupe SCOPED** (design views live in /docs/vector-arrows)
+
+**How it surfaced.** `bowlingBallAndFeather` was re-authored to real values
+(5 kg ball, 10 g feather) and migrated off legacy `showForceArrows` onto
+`showVectors: ["force-gravity","force-drag","force-net"]`. Computing the
+rendered lengths against the shipped thresholds showed the migration is
+functionally inert on one body:
+
+| body | F_g | F_drag | F_net |
+|---|---|---|---|
+| bowling ball (49 N) | 98 px | stub | 96 px |
+| feather (0.098 N) | **0.20 px → stub** | **0.20 px → stub** | 0.20 px → **blank** |
+
+So the ball reads perfectly — big weight, big net, drag correctly stubbed as
+"present but negligible" — while the feather's ENTIRE diagram is two
+identical fixed-length stubs plus a vanishing third. The sim's whole premise
+(drag growing until it exactly cancels weight) is invisible. This is the
+2026-08-06 near-breakaway finding again, one order of magnitude worse, and
+now it is clearly **structural rather than scenario-specific**: any scene
+with mixed masses has it. 49 N vs 0.098 N is a 500× spread.
+
+**Idea 1 — logarithmic arrow lengths (Bill). REJECTED, and the rejection is
+arithmetic, not taste.** log|A| + log|B| ≠ log|A+B|, so arrows stop closing
+head-to-tail — and closure is the ratified design gate at "Other design
+gates" above ("the *identical* scale on every arrow incl. net, **or the sum
+won't visually close**"). Three further failures from the same root:
+component decomposition breaks (log|v| does not decompose into log legs);
+log(0) is undefined and F_net → 0 at terminal velocity is precisely the case
+we are trying to show; and it needs an arbitrary reference F₀ that silently
+sets every length. Audience objection on top: B18/B19 are the ages-10–13
+front door and log scales are a late-secondary skill — a log arrow silently
+asserts "these forces are comparable," the exact misreading at issue.
+**Precedent check:** log-scaled arrows ARE standard in *field* visualization
+(COMSOL offers normalized/logarithmic arrow length for vector fields) —
+where arrows depict a pattern across space and never need to sum. No
+instance found in FBD-style physics-education sims (PhET, Physics Classroom,
+oPhysics, myPhysicsLab); their answer is layered toggles plus separate
+autoscaled bar charts. Recorded honestly as "no precedent found," not
+"proven absent" — PhET's published model docs do not document arrow scaling
+at all. **Bill: "No log."** Settled; do not re-open.
+
+**Idea 2 — silent per-body scale. REJECTED as undisclosed.** The arithmetic
+is fine: **closure is a per-body property** (forces are only ever summed on
+one body — nobody adds the feather's weight to the ball's), so a per-body
+scale keeps every diagram internally valid and is standard textbook practice.
+The objection is representational, and it is Bill's: *"I've had students who
+are observant enough to question the resulting representation."* Two arrows
+of equal length meaning wildly different forces, with nothing on screen
+saying so, is a new silent lie replacing the one we removed. Note the sub-floor
+stub's whole design premise is the opposite — the hollow head and tight dash
+exist to ANNOUNCE "not to scale."
+
+**Idea 3 — FORCE LOUPE (Bill). SCOPED.** A disclosed, local, per-body
+rescale: an inset near a body whose forces are sub-threshold, showing that
+body's FBD at a boosted px/N. It does not escape per-body scaling — **it
+legitimises it**, by wrapping the rescale in a signifier that says "enlarged."
+That directly answers Bill's own objection: the observant student still
+notices, but now asks the right question and the answer is on screen.
+Closure survives because the loupe's interior is exactly one body.
+
+Design decisions taken:
+
+1. **The body inside the loupe is a DOT — the particle model** (Bill's call,
+   and the right one). A magnifying glass magnifies SPACE; we need to change
+   FORCE scale. Those come apart badly: a 500× spatial zoom on a feather shows
+   a few mm² of barrel with the arrows in the same proportion, because the
+   problem was never spatial resolution. The dot is the actual FBD convention
+   and the same reduction every textbook makes ("treat the object as a point
+   mass"), so the absence of a spatial claim becomes explicit rather than
+   hoped-for. A silhouette inside a lens promises magnification the loupe does
+   not deliver — rendered as an explicit rejected-alternative card in /docs.
+2. **A labelled scale bar, not a "×500" factor** — the micrograph/map
+   convention. States the magnitude a fixed pixel length represents, in the
+   units of the quantity. It is the honesty device.
+3. **Gated on pause, live under SCRUB.** An FBD is inherently a single-instant
+   object; textbook FBDs are always drawn at an instant, and drawing them
+   continuously is a bonus GIST happens to offer. Playing = qualitative read
+   (stubs: "a force is here, too small to draw"); paused = quantitative read.
+   The stub becomes an invitation rather than a dead end. **Cost, and its
+   fix:** the feather's lesson is DYNAMIC (drag growing to cancel weight is a
+   process), so static snapshots lose it — therefore "live under scrub" is
+   part of the definition, not an enhancement. Free from the frame cache
+   (invariant #12: replay never drops frames), and arguably better than real
+   time since at 1.6 m/s terminal the interesting part lasts ~0.3 s.
+4. **Placement: selection-gated and anchored**, fixed pixel size, leader line,
+   docking to a canvas corner near edges. Solves crowding, multi-body
+   ambiguity and occlusion at once, and reuses the existing debug-tool
+   selection affordance. Auto-appearing on every sub-threshold body is
+   rejected as blooming — if ever automated, trigger on the body's LARGEST
+   force arrow being under the floor (whole diagram illegible), not any one
+   component.
+
+**Design views SHIPPED to [/docs/vector-arrows](src/pages/docs/VectorArrows.tsx)** —
+new "Force loupe" section with four React-rendered SVG scenes (the problem;
+the particle-model proposal; the silhouette rejected-alternative; and
+placement in a mixed-scale ball+feather scene), plus a reusable
+`StubArrowDemo` — the docs page could not previously draw a stub at all,
+since `VectorArrowDemo` returns null under `minPixelLength`. Per Bill, that
+page is where vector look-and-feel gets worked out before it is built.
+
+**Cost / sequencing.** Purely render-side (same altitude as the parked
+vector-arrow decay item): no physics, no `Frame` schema change, no
+three-places pass, so it can ship debug-first behind a flag as `?forces=1`
+did. It does NOT depend on step 4's analytical-vs-engine call, since it
+concerns scale legibility rather than where the numbers come from.
+
+**Open questions** (full list in the docs section): circle vs rounded-rect
+inset (the metaphor that aids recognition is the same one that implies
+spatial zoom); overlap with the proposed autoscaled vector PANEL (cross-body
+/quantitative/always-on) — both are defensible but shipping both without
+naming one primary leaves a student two answers to "how big is this force";
+whether the HELD numeric-values toggle is a cheaper stepping stone; what sets
+the loupe's interior scale (normalise on open, then HOLD for the selection,
+so scrubbing shows real growth rather than a rescaling illusion); and whether
+two loupes may coexist (if so they should share one interior scale).
+
+**Interim for the exhibit.** `bowlingBallAndFeather` still needs the feather
+legible before the loupe exists. Options: per-arrow `pixelsPerUnit ≈ 1000` on
+the feather's three entries with an honesty note in the description (the
+per-body principle applied by hand), or leave the stubs and let the loupe fix
+it properly. **Undecided — Bill's call.**
+
+**Related but separate — Phase 5 refinement.** Phase 5 auto-scale is currently
+scoped as per-KIND global normalize-to-largest. The closure analysis above
+says **per-BODY** is the better unit for mixed-mass scenes, since closure is
+per-body. Worth re-scoping Phase 5 accordingly when it is picked up; it also
+clears the parked cm-sim arrow-shrink bug and the suppressed-friction-arrow
+case.
+
+### Findings 2026-08-08 — force loupe PROTOTYPE SHIPPED + drive-confirmed (supersedes the "SCOPED" status in the entry above)
+
+**Status move: SCOPED → PROTOTYPE SHIPPED, same day.** The entry above scopes the
+loupe; this records what was actually built and what the build decided. Roadmap
+node `FBD4` added to [RefactorRoadmap.tsx](src/pages/docs/RefactorRoadmap.tsx).
+
+**What shipped.**
+[ForceLoupe.ts](src/components/simulation_components/renderables/visuals/ForceLoupe.ts)
+— a new `force-loupe` PixelVisual, registered in the renderables registry and
+synthesized per dynamic body (`synthesizeForceLoupeRenderable`,
+[synthesize.ts](src/components/simulation_components/renderables/synthesize.ts)),
+zIndex 40 (above the collider overlay). Gated by `showLoupe && !isRunning` in
+JsonSimulation's `pixelRenderables` memo, with `?loupe=1` + a debug-panel
+checkbox following the `?forces=1` pattern exactly.
+
+**Three decisions the implementation forced (none were in the scoping entry).**
+
+1. **It self-triggers on the whole-diagram rule, so v1 needs no selection.** The
+   draw function returns early unless the body's LARGEST force arrow is under
+   `minPixelLength` — the "whole diagram illegible, not merely one component"
+   rule the scoping entry proposed only as a hypothetical if the loupe were ever
+   automated. Adopting it *now* sidesteps a real blocker: `editModeActive =
+   !isRunning && !pickingPosition && !simIsDirty`, and `handlePlay` sets
+   `simIsDirty`, so **selection is impossible after a run until Reset** —
+   *(`simIsDirty` was renamed `simAtInitialConditions` on 2026-08-09, polarity
+   inverted; see Findings 2026-08-09 below. The gate itself is unchanged.)* — a
+   selection-anchored v1 could not have been driven at all. Verified against the
+   exhibit: ball 98 px → no loupe; feather 0.20 px → loupe.
+2. **Interior scale normalizes to WEIGHT (m·g), not to the largest live force.**
+   This answers the scoping entry's open question ("normalise on open, then
+   HOLD"). Weight is constant for a body, so the scale is stable across the whole
+   run with no state to hold — growth reads as growth rather than as rescaling.
+   `scale = (radius · 0.7) / weight`; on the feather that is ≈443 px/N against
+   the canvas's 2 px/N.
+3. **Scale bar snaps near the WEIGHT, not to a fraction of the lens.** First
+   implementation targeted ~1.1·radius and produced a 0.2 N bar — *longer than
+   the largest arrow*, which reads as though the reference exceeds the thing
+   measured. Snapping `niceValue(weight)` gives 0.1 N ≈ 44 px beside a 43 px
+   weight arrow, so the bar reads as "that arrow is about 0.1 N."
+
+**Drive round 1 (Bill, screenshot) — one real defect, fixed.** The body-id label
+was anchored inside the lens at `ly − r + 12`; an up-pointing drag arrow at
+terminal velocity puts its `F_ar` label at `ly − 53` against the id at `ly − 50`
+— a guaranteed collision whenever drag approaches weight, i.e. exactly the
+instant the sim exists to show. **Ruling: the lens interior is reserved for the
+diagram; ALL metadata goes below it** (the figure/caption convention, matching
+the docs page's own `SceneCard`). New stack: scale bar `+12`, value `+24`, body
+id `+38` below the lens edge, with the placement clamp's bottom reserve raised
+34 → 44 px so the id cannot clip when the loupe docks near the canvas bottom.
+Arrow labels also pulled from 12 px to 10 px past the head, recovering room at
+the rim where `F_g` was sitting tight. Bill re-drove: "Looks GREAT."
+
+**Two behaviours the drive confirmed as designed, worth recording as intended.**
+The feather's on-canvas arrows remain dashed hollow-headed sub-floor stubs at
+true scale while the loupe carries the reading — *the canvas never rescales, the
+loupe discloses*. And `F_net` is correctly ABSENT at terminal velocity (below the
+1 px cutoff → nothing drawn), preserving the stub design's blank-means-zero
+distinction. The vanishing net arrow is the lesson, and it survives the new
+affordance intact.
+
+**Three-places rule: DELIBERATELY untouched, and that is the landing state.** The
+loupe is a debug-only render-side affordance — no schema field, no prompt prose,
+not LLM-authorable — exactly like the collider overlay and `?forces=1`. Per
+invariant #2 this is "not landed" *by design*, not an oversight. If it ever
+graduates to authoring it needs all three places at once; until then the flag +
+checkbox is the whole surface.
+
+**Fallout for Phase 5.** The closure analysis behind the loupe (closure is a
+**per-body** property — forces are only ever summed on one body) says Phase 5's
+auto-scale should be re-scoped from per-KIND global normalize to **per-BODY**.
+Noted on the roadmap node. Per-body also clears the parked cm-sim arrow-shrink
+bug and the suppressed-friction-arrow case.
+
+**Still open (unchanged by the prototype).** The step-4 primary-representation
+call (analytical vs engine) — the loupe does not depend on it, since it concerns
+scale legibility rather than provenance. Circle-vs-rounded-rect. Overlap with the
+proposed vector/bar panel. The numeric-values toggle (still HELD). And the
+interim question for `bowlingBallAndFeather`: the loupe now makes the feather
+legible **while paused**, which may remove the need for a per-arrow
+`pixelsPerUnit` override entirely — leaving the canvas honest at 2 px/N and the
+loupe as the reading. **Lean: drop the override idea; the loupe superseded it.**
+
+**Exhibit changes in the same session.** `bowlingBallAndFeather.json` migrated
+off legacy `showForceArrows` → `showVectors: ["force-gravity","force-drag",
+"force-net"]` on both bodies, and the feather gained an explicit
+`referenceArea: 0.1` — its 90° rotation presents its long axis to the airflow,
+but `effectiveA = referenceArea ?? width`
+([ObjectRenderer.tsx:122](src/components/simulation_components/objects/ObjectRenderer.tsx))
+is NOT rotation-aware, so the modelled frontal area disagreed with the picture.
+Terminal velocity 2.58 → 1.63 m/s; the feather now lands 1.31 s against the
+ball's 0.63 s (was 0.94 s), a better-separated demo. **Generalizable gotcha: the
+drag reference-area default ignores body rotation — any rotated body wanting
+honest drag must author `referenceArea` explicitly.**
+
+### Findings 2026-08-09 — `simIsDirty` → `simAtInitialConditions`: naming the edit-mode gate that blocked selection-anchoring
+
+**Why this is here and not in a maintenance log.** The loupe entry above records
+`editModeActive` as the blocker that forced the loupe to self-trigger. Reading
+that line back, Bill asked what its three booleans actually mean — specifically
+whether `pickingPosition` and `simIsDirty` referred to the playback scrubber.
+Neither does, and the fact that the question was reasonable is the finding.
+
+**What the three gates are** (now documented at the declaration site in
+[JsonSimulation.tsx](src/components/JsonSimulation.tsx)):
+
+1. `!isRunning` — playback state.
+2. `!pickingPosition` — **not a playback concept at all.** A transient canvas
+   INPUT MODE owned by the experimental-data overlay: the user clicks "pick
+   position" in `ExperimentalDataModal`, the modal hides, and the next canvas
+   click is claimed as an origin coordinate (`handleCanvasClick` converts it and
+   clears the flag immediately). The gate stops that one click from also
+   selecting an object. Nothing in play/pause/scrub sets it.
+3. body displacement — the renamed flag.
+
+**The rename.** `simIsDirty` collided with `hasUnsavedChanges`, declared ~25
+lines above it: two flags, adjacent, one word, two unrelated meanings — "dirty"
+reads as *unsaved config edits*, but nothing here is unsaved. What is displaced
+is the BODIES. Renamed to **`simAtInitialConditions`** with polarity inverted
+(7 call sites; `useState(true)`), so the gate reads positively:
+`!isRunning && !pickingPosition && simAtInitialConditions` — which states the
+actual precondition for editing: *you may only move an object while it is where
+the JSON put it.*
+
+`simIsReset` was considered (Bill's proposal) and is the better half of the
+change — it kills the collision either way. Rejected on one wrinkle: the initial
+value must be `true`, so a flag named "is reset" would assert a reset that never
+happened on first load or on navigation. **Reset is one of three ways INTO the
+state, not the definition of it** (the others: initial mount, and the
+`simulationId` effect on navigating to another sim). Naming the state rather
+than its most common cause keeps the name honest in all four cases.
+
+**Semantics worth stating once, because they are not guessable from the name
+alone:** exactly one way out (pressing Play) and three ways in. **Pausing and
+scrubbing do NOT restore it** — the bodies are still displaced, they just aren't
+moving. This is the whole reason editing stays locked after a run until Reset,
+and therefore the reason the loupe self-triggers.
+
+Verification: `tsc` and `npm run lint` both at the known baseline (4
+react-refresh context splits; `da.ts` locale typing). No behavior change — pure
+rename plus comments; the truth table is identical.

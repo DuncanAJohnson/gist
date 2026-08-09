@@ -138,12 +138,13 @@ flowchart LR
     VACOMP["Component decomposition<br/>components:true → dashed vₓ/v_y legs<br/>rotated basis door open (parked)<br/><b>SHIPPED 2026-07-22</b>"]
     FBD2["FBD step 2: gravity + drag arrows<br/>+ Show-force-vectors toggle (?forces=1)<br/>+ freefall-with-drag exhibit<br/><b>SHIPPED 2026-07-24</b>"]
     FBD3["FBD step 3: engine contact-force seam<br/>getContactForces (Rapier manifolds / Planck post-solve)<br/>+ force-normal kind, overlay arrows<br/><b>SHIPPED 2026-08-06</b> · harness exact, zero jitter<br/>(next: step-4 representation drive)"]
+    FBD4["FBD step 4: representation — sub-floor stub<br/>+ FORCE LOUPE prototype (?loupe=1, paused-only)<br/>disclosed per-body rescale · particle dot + scale bar<br/><b>PROTOTYPE SHIPPED 2026-08-08</b> · drive-confirmed<br/>(primary-representation call still OPEN)"]
     VAP3["Phase 3: applied kind<br/>(gravity + drag via FBD step 2;<br/>friction + normal via FBD step 3;<br/>applied awaits its pipeline)"]
     VAP4["Phase 4: legend + presets"]
-    VAP5["Phase 5: auto-scale calib"]
+    VAP5["Phase 5: auto-scale calib<br/>(re-scope to per-BODY, not per-kind —<br/>closure is a per-body property, 2026-08-08)"]
     VAP1A --> VAP1B --> VAP1C --> VAP2 --> VAP3 --> VAP4 --> VAP5
     VAP2 --> VACOMP
-    VAP2 --> FBD2 --> FBD3
+    VAP2 --> FBD2 --> FBD3 --> FBD4
   end
 
   subgraph AIRPHASES["1. Air resistance"]
@@ -190,7 +191,7 @@ flowchart LR
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#92400e;
   classDef pending fill:#dbeafe,stroke:#2563eb,color:#1e40af;
 
-  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,VACOMP,FBD2,FBD3,APPP4,CCP0,CC2,CC3,CC5,CC6,RP0,VECP1,RT1 done;
+  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,VACOMP,FBD2,FBD3,FBD4,APPP4,CCP0,CC2,CC3,CC5,CC6,RP0,VECP1,RT1 done;
   class APPP1,APPP2,APPP25,APPP3,APPP4,VECP2,VECP3,VAP3,VAP4,VAP5,CC4,CC8,RP1,RP2,RP3,RP4,RP5,RP6,RT2,RT3,RT4 pending;
   class CC1,CC7,RT5 proposed;
 `;

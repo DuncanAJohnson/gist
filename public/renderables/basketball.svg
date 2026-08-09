@@ -1,8 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg viewBox="0 0 64 64" version="1.1" id="svg4" xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs4"></defs>
   
-  
-  
-  
-  
-  
-<g transform="translate(-19.2 -19.2) scale(1.6)"><circle cx="32" cy="32" r="20" fill="#F97316"/><circle cx="32" cy="32" r="20" fill="none" stroke="#9A3412" stroke-width="1.5"/><line x1="12" y1="32" x2="52" y2="32" stroke="#9A3412" stroke-width="1.2"/><line x1="32" y1="12" x2="32" y2="52" stroke="#9A3412" stroke-width="1.2"/><path d="M18 16 Q32 28 18 48" fill="none" stroke="#9A3412" stroke-width="1.2"/><path d="M46 16 Q32 28 46 48" fill="none" stroke="#9A3412" stroke-width="1.2"/></g></svg>
+  <g transform="matrix(-1.5460226,0,0,1.5460226,81.472723,-17.472723)" id="g4">
+    <circle cx="32" cy="32" r="20" fill="#f97316" id="circle1"></circle>
+    <circle cx="32" cy="32" r="20" fill="none" stroke="#9a3412" stroke-width="1.5" id="circle2"></circle>
+    <line x1="12" y1="32" x2="52" y2="32" stroke="#9a3412" stroke-width="1.2" id="line2"></line>
+    <line x1="32" y1="12" x2="32" y2="52" stroke="#9a3412" stroke-width="1.2" id="line3"></line>
+    <path d="m 46.011875,17.295173 q -14.068501,11.067504 0,29.513343" fill="none" stroke="#9a3412" stroke-width="1.15525" id="path4"></path>
+    <path d="m 17.988125,17.295172 q 14.068501,11.067504 0,29.513343" fill="none" stroke="#9a3412" stroke-width="1.15525" id="path4-3"></path>
+  </g>
+</svg>

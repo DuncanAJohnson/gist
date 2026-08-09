@@ -126,6 +126,21 @@ export interface BackgroundGridVisual {
 }
 
 /**
+ * Internal force-loupe visual (PROTOTYPE, debug-only). A disclosed per-body
+ * force rescale for bodies whose whole FBD is under the render floor. Drawn as
+ * a lens containing the body-as-a-DOT (particle model — no spatial claim), its
+ * force arrows at a boosted px/N, and a labelled scale bar. See
+ * /docs/vector-arrows "Force loupe".
+ */
+export interface ForceLoupeVisual {
+  type: 'force-loupe';
+  /** Lens radius in canvas px. Default 62. */
+  radiusPx?: number;
+  /** Force kinds to draw inside. Default gravity + drag + net. */
+  kinds?: VectorKind[];
+}
+
+/**
  * All visuals RenderLayer can draw (schema visuals + internal synthesized ones).
  */
 export type PixelVisual =
@@ -133,7 +148,8 @@ export type PixelVisual =
   | MarkerVisual
   | BodyOutlineVisual
   | VectorArrowVisual
-  | BackgroundGridVisual;
+  | BackgroundGridVisual
+  | ForceLoupeVisual;
 
 /**
  * A renderable prepared for RenderLayer. All numeric values in `source` and

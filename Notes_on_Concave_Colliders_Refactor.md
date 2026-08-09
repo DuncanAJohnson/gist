@@ -1627,3 +1627,53 @@ from this entry.)
 - **Sensors / contact events** ([GIST_Physics_System_Topics.md](GIST_Physics_System_Topics.md)):
   Phase 3 catch-detection is a cheap stand-in until those land.
 - **Joints** (wishlist): a wagon with real wheels needs revolute joints; deferred.
+
+### 🟢 2026-08-07 — CC2's over-cap remediation backlog CLEARED: full-manifest census 19 → 0 (upstream fix, verified downstream)
+
+**What happened.** Bill shipped a renderables update from the generator repo
+(`physics_sim_icon_dev`). A downstream census using GIST's own
+`decomposePolygonShape` — the only authoritative measure, since the guard fires
+on decomposed PARTS — reports the over-cap count has gone to zero.
+
+| manifest | entries | polygon colliders | raw outlines >12 verts | **parts >12 verts after decomp** |
+|---|---|---|---|---|
+| HEAD (committed) | 212 | 152 | 70 | **19** |
+| Bill's update | 243 | 171 | 128 | **0** |
+
+The HEAD figure of **19 reproduces the 2026-07-18 CC2 census exactly**, which is
+what makes the 0 trustworthy — the harness was validated against a known answer
+before being believed.
+
+**Disposition of the 19:** 18 genuinely re-authored, 1 (`hamburger`) removed from
+the library. `bowling_ball` went from a 17-vertex outline decomposing to a
+16-vertex part → a **circle** (center [32,32], r 30.52) — exactly the round-shape
+fix the July census recommended ("most are ROUND shapes → icon-repo fix = circle
+collider, not re-tessellation"). Also fixed: alarm_clock, weather_balloon,
+baseball, globe_bulb, orange_fruit, red_heat_lamp, **bird** (the guard's original
+motivating specimen), cat, donut, large_analog_clock_face, soccer_ball,
+basketball, duck, frog, planet, pumpkin, porous_asteroid. Zero newly over-cap.
+Four entries removed in total (autumn_leaf, drum, hamburger,
+slide_of_pepperoni_pizza); none is referenced anywhere in `src/`.
+
+**Why it stayed clear is structural, not luck** (generator-side, `Dev_Tasks.md`
+Task 16): `coarsenUntilPlanckSafe` is now the DEFAULT inside both trace tools, so
+colliders are born safe; any `✖P` item is bulk-moved to the `fix` status; and
+"Download approved" filters `status === "approved"`, so a failing collider
+**cannot reach an exported manifest**. The downstream census therefore confirms
+an upstream invariant rather than discovering anything — a weaker claim than it
+first appears, and worth stating honestly.
+
+**Two measurement gotchas, both of which bit during this census.**
+1. **Manifest colliders live at `item.physical_properties.collider`**, NOT a
+   top-level `item.collider`. Reading the top-level key returns undefined for
+   every entry and makes the whole library look collider-less. (It did, and the
+   first report was wrong.)
+2. **Raw outline vertex count is NOT the metric.** The updated manifest has 128
+   outlines over 12 verts and 0 parts over 12 verts. `shapeHelpers.ts:23` says it
+   outright: "a concave outline's own count does NOT predict its parts' counts."
+   Any future census must run the decomposition, and should validate itself by
+   reproducing the known-19 against the HEAD manifest first.
+
+**CC7 (decomposition sanity, PARKED) is unaffected** — still no live specimen,
+and this census produced zero decomposition failures across all 171 polygon
+colliders.
