@@ -169,6 +169,40 @@ function DesignPhilosophy() {
         </li>
       </ul>
 
+      <h3>Open next step: the extent should be perpendicular to travel</h3>
+      <p>
+        <em>HELD 2026-08-09 — surfaced deliberately, not yet scoped.</em> The
+        linear-A decision above stands. What is <strong>not</strong> settled is{' '}
+        <em>which</em> linear extent we use. For air resistance the physically
+        relevant quantity is the cross-section{' '}
+        <strong>perpendicular to the direction of motion</strong>, but the
+        runtime default reads the body's authored <code>width</code>{' '}
+        (<code>effectiveA = referenceArea ?? width</code>), which is a good
+        stand-in only while motion is vertical.
+      </p>
+      <p>
+        Two known consequences. A body travelling <em>horizontally</em>{' '}
+        presents its vertical extent instead — the schema and the LLM prompt
+        both already tell authors to override for this case, so it is manual
+        but documented. A <em>rotated</em> body is the sharper one: the default
+        is not rotation-aware, so an authored <code>angle</code> silently gives
+        a frontal area that disagrees with the picture on screen. The feather in{' '}
+        <code>bowlingBallAndFeather</code> is the worked specimen — rotated 90°,
+        and until <code>referenceArea</code> was set by hand its terminal
+        velocity was off by more than half (2.58 → 1.63 m/s).
+      </p>
+      <p>
+        <strong>Current position:</strong> keep authoring{' '}
+        <code>referenceArea</code> explicitly. Computing a per-frame projected
+        extent from the collider outline is buildable — we already load the
+        geometry — but doing it half-way injects more hand-calculation than it
+        removes, so it is held rather than half-landed. The open decisions
+        (per-frame vs. once-at-expansion, sprite box vs. collider outline) live
+        in <code>Notes_on_Air_Resistance_Refactor.md</code>, open question 6.
+        Whatever lands, <code>referenceArea</code> remains an author override —
+        a computed default must never take away the ability to say otherwise.
+      </p>
+
       <h2>The second concrete scoping: diorama composition (stage and actors)</h2>
       <p>
         The second affordance we've articulated in writing. <em>Landed

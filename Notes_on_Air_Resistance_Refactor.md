@@ -229,6 +229,25 @@ Ratio of ~45× between the two — dramatic and visible within a 60-meter canvas
 
 5. ✅ **RESOLVED (Phase 2) — `referenceArea` defaults to the body's widest horizontal extent (linear-A), not `width·height`.** Chosen per the diorama-scoping rationale (treat the 2D world as a 1m-deep slice) so drag is visible at canvas scale; see "Design rationale: diorama scoping." ~~Default for `referenceArea` on rectangles — pick `width·height`?~~
 
+6. 🟡 **The reference "area" should ultimately be the extent PERPENDICULAR TO THE DIRECTION OF TRAVEL — computed, not hand-authored.** *(HELD 2026-08-09, Bill — deliberately NOT closing this; keep surfacing it. Raise it in dev-team conversations with Ethan and Duncan.)*
+
+   **The physics.** We settled (Q5) on a *linear* stand-in for A, and that decision stands — it is what makes drag visible at diorama scale. But for air resistance the relevant quantity is the **cross-sectional extent perpendicular to the velocity vector**, and today we approximate it with a single authored scalar chosen once, at authoring time.
+
+   **What the code actually does.** [ObjectRenderer.tsx:122](src/components/simulation_components/objects/ObjectRenderer.tsx#L122) — `const effectiveA = referenceArea ?? width` — reads the **authored `width`**. Three consequences, in increasing order of how badly they bite:
+   - A body travelling **horizontally** presents its vertical extent, not its width. Schema and prompt both already tell the author to override in this case, so this one is *documented*, merely manual.
+   - A body that **rotates** (authored `angle`, or free rotation during the run) presents something between the two, changing frame to frame. The default is a constant and cannot track it.
+   - **The default is not rotation-aware at all**, so an authored `angle` silently produces a frontal area that disagrees with the picture on screen. This is a real specimen, not a hypothetical: `bowlingBallAndFeather`'s feather is rotated 90°, and until `referenceArea: 0.1` was set by hand its modelled area was its narrow authored width. Fixing it moved terminal velocity 2.58 → 1.63 m/s (Findings 2026-08-08, Notes_on_Applied_Forces_Refactor.md).
+
+   **Why we are holding.** The honest fix is a per-frame projected extent of the body's actual outline onto the axis ⊥ v — we have the geometry for it (manifest colliders, decomposed parts), so it is buildable. Bill's call: it injects **more hand-calculation than we want right now** if done half-way, and doing it properly is its own workstream. Explicit JSON `referenceArea` remains the sanctioned mechanism, and authors should keep using it.
+
+   **What "address later" means concretely** — none of this is committed work, it is the shape of the eventual decision:
+   - Decide whether A is computed **per-frame** (tracks tumbling; costs a projection each step and makes drag depend on orientation, which is physically right but newly couples two systems) or **once at expansion** from the authored pose (cheap, still wrong for tumblers, but kills the rotation gotcha for the common static-angle case).
+   - Decide the geometry source: sprite/authored bounding box vs. the manifest collider outline. The collider is the honest one and is already loaded.
+   - Keep `referenceArea` as an explicit override forever regardless — a computed default must not remove the author's ability to say otherwise (invariant #5: pedagogical scoping lives above the adapter).
+   - **Three-places status of the HOLD: fully landed** (schema `.describe()`, `gist_instructions.py` FILL OBJECTS guidance, and the Design-philosophy linear-A section all say to override explicitly). **Gap worth closing independently and cheaply:** all three describe the *horizontal-travel* override and none mentions the *rotated-body* case, so an LLM authoring a rotated body gets no signal. That is a small three-places prompt pass, and it does not depend on resolving this question.
+
+   **Trigger to un-park.** Any sim whose lesson depends on orientation-dependent drag (a tumbling plate, a parachute deploying, a rotated projectile), or the FBD workstream needing the drag arrow to stay honest under rotation.
+
 ---
 
 ## Follow-on (not in this refactor)
@@ -236,6 +255,7 @@ Ratio of ~45× between the two — dramatic and visible within a 60-meter canvas
 - Update LLM prompt examples and `gist_instructions.py` so the model populates the new fields with reasonable values. Without this, the feature exists but no AI-generated sim uses it.
 - ✅ DONE (Phase 3, 2026-06-17) — `frictionAir` removed end-to-end now that the quadratic model is canonical.
 - Still open (from Q4): an optional constant `environment.airResistance.angularDamping` knob so spinning bodies visibly slow down without doing the orientation work.
+- Still open (from Q6): **computed reference extent ⊥ to direction of travel**, replacing the authored-`width` default. HELD 2026-08-09 — `referenceArea` stays the hand-authored mechanism; keep the item visible for Bill and the dev team rather than letting it settle. Note Q4 and Q6 are the same missing capability seen from two sides: both are the orientation work this refactor deliberately scoped out.
 
 ---
 
