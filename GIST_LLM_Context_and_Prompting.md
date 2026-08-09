@@ -144,6 +144,21 @@ Could be a per-concept fragment appended to the preamble after the skeleton stag
 ### 4.7 ⭐ Inline definitions for jargon
 The output side has labels like "Vertical velocity" — fine. But the LLM occasionally introduces words like "momentum" or "kinetic energy" without being asked, in fields where they don't belong (e.g., a slider labeled "Kinetic energy" that's actually wired to `velocity.y`). Tell the LLM: "if you label a control as Kinetic Energy, the property *must* be a kineticEnergy computed (when those land), not a raw velocity component."
 
+### 4.8 STANCE — teaching the USER prompt language is a legitimate move at the small-model tier *(Bill, 2026-08-09)*
+
+Recorded because it cuts across every "should the model infer this?" argument, and because it has a first concrete instance.
+
+**The instance.** `BENCHMARK_SIMS.md` B18 (1D kinematics) carries the framing clause *"Show this from the top down with no gravity, so the carts just glide."* Left to itself, "two carts on flat ground" invites a side view with gravity, a floor, contact and friction — an entire contact problem standing between the learner and the 1D kinematics the sim is about. Top-down with `gravity: 0` removes all of it by construction.
+
+**The stance.** Ideally the model infers that framing from "1D kinematics", and **that remains the goal** — this is not a retreat from it. But GIST targets **low-cost and localized providers**, and SkoleGPT is a wired second backend running **Gemma 3 12B** ([pipeline/llm.py:3](modal_functions/pipeline/llm.py#L3)), not a frontier model. At that tier, spending a few user-facing words to state the frame is cheaper and far more reliable than engineering the system prompt until inference is dependable across every provider. **Teaching a teacher to say "top down, no gravity" is a product move, not a workaround** — and it is honest, since the teacher learns something transferable about how to ask.
+
+**Where the line sits.** This applies to **framing** (view, what physics is in play, what to hold constant) — things a teacher can reasonably learn to say. It is NOT a licence to push schema mechanics onto users: nobody should have to type `referenceArea` or `showVectors`. If a clause starts naming schema fields, it has crossed from prompt education into authoring, and the fix belongs in `gist_instructions.py` instead.
+
+**Consequences.**
+- **Eval integrity:** a prompt carrying a framing clause tests authorability *given a well-framed request*. It cannot also measure unaided inference. If we want that measured, it is a **separate B-ID with the clause removed** — never a reword of the existing one (Protocol #2).
+- **Provider spread:** the same prompt may need different amounts of framing per provider. Worth knowing whether we are tuning to the weakest backend by default — related to open question 4 below.
+- **Candidate follow-on:** if framing clauses recur across benchmarks, that is evidence for surfacing framing hints in the *authoring UI* (a "top-down / side-on" affordance) rather than relying on every teacher to know the phrase.
+
 ---
 
 ## 5. Improvements: prompt construction
