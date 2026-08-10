@@ -432,6 +432,20 @@ A way to exercise a sim entirely from the repo, with no DB round-trip and no pro
 
 **Why this matters going forward:** it's the cheapest way to prototype raw adapter/engine features that the schema and the prompt don't support yet — exactly the 🔴 items under *Adapter feature gaps* above (joints, sensors, contact events, CCD) and wishlist constructs like event sequences. Author the JSON by hand, wire a throwaway route, and watch it with `?simdebug=1` long before the LLM pipeline learns the new field.
 
+### 🟢 Scripted sim screenshots (headless Chrome via Playwright) — BUILT 2026-08-10
+A repeatable way to *drive* a local sim and capture publication-quality stills — built to illustrate a collaborator write-up, but the harness generalizes to exhibits, docs-page figures, and before/after evidence in refactor notes.
+
+**Setup, deliberately zero-footprint:** `npm install playwright` (~2 MB of JS) installed OUTSIDE the repo, driving the already-installed Chrome via `channel: 'chrome'`. No browser download, and `package.json` / the lockfile are never touched. **Do NOT run `npx playwright install chrome`** — that invokes `playwright-core/bin/reinstall_chrome_stable_mac.sh`, which opens with `rm -rf "/Applications/Google Chrome.app"` before re-downloading it. Launching the existing Chrome never touches those scripts.
+
+Four things had to be learned by driving, and they're the reusable part:
+
+- **Force arrows do not exist at t = 0.** Contact forces are read back from solver impulses, so a screenshot taken before the first `step()` shows gravity alone. **Play, then pause** — a still of an unstepped sim is not a free-body diagram.
+- **Seek to a FRAME, don't race the wall clock.** After precompute the transport exposes a scrub `input[type="range"].accent-blue-500`; setting it via the native value setter + an `input` event lands on an exact frame. Wall-clock waits are hopelessly coarse for fast scenes — `bowlingBallAndFeather` (`pixelsPerUnit: 280`, objects at y = 2 m) lands in ~0.62 s, so even a 1 s wait captures an empty floor.
+- **Crop on SATURATION, not luminance.** The canvas grid and axis labels are low-saturation greys; every object and arrow is saturated. Selecting pixels with `max(r,g,b) − min(r,g,b) > ~34` finds the content and ignores the grid — an earlier attempt that also accepted dark pixels selected the whole canvas and cropped nothing. Sims are authored to a diorama viewport, so the interesting region is often a small corner of it and uncropped stills read as empty boxes.
+- **Selectors:** `button[title="Play"]` / `button[title="Pause"]`; the debug panel starts collapsed behind a *Debug Mode* button; graph cards are 3 ancestors above `.recharts-wrapper`.
+
+Scripts (`lib.mjs` + per-shot drivers) were kept by Bill outside the repo for reuse. **Not committed and not a dependency** — this is an on-demand harness, not a build step, and nothing in the app knows it exists.
+
 ---
 
 ## Index of related refactor docs

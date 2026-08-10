@@ -89,9 +89,15 @@ export interface PhysicsBody {
    *
    * The applied-force path is force-in / impulse-under (ratified 2026-08-09):
    * callers above the adapter speak NEWTONS and convert once, at a single
-   * site, via `J = F · FIXED_DT_SECONDS` — the LOGICAL frame dt, not the
-   * substep dt (`onUpdate` runs once per logical frame, then the engine takes
-   * ~8 substeps; using substepDt would under-deliver 8×).
+   * site. The conversion rule is UNIT CONSISTENCY WITH THE STEP THIS IMPULSE
+   * PRECEDES:
+   *
+   *     J = F · dt_of_the_NEXT_STEP
+   *
+   * Deliver it from `BaseSimulation.onPreStep(adapter, dt)`, which fires
+   * before every `adapter.step(dt)` with that step's own dt — one full-dt step
+   * in live mode, ~8 substeps of 1/480 s in precompute. That is the cadence
+   * the engine itself uses for gravity.
    *
    * Impulse rather than force because both engines CLEAR accumulated forces
    * after every substep, so a per-frame `applyForce` would reach only the
@@ -100,11 +106,15 @@ export interface PhysicsBody {
    * engine divides by it, so `Δv = F·dt/m` and a mass slider changes the
    * acceleration for free.
    *
-   * Known leak (measure before engineering around it): the impulse lands at
-   * the frame boundary rather than spread across the substeps the way the
-   * engine delivers gravity, so a contact's per-substep friction budget may
-   * not absorb it in one go. See the applied-forces note, Findings 2026-08-09
-   * item #3 (sub-breakaway creep).
+   * DO NOT convert over the LOGICAL frame dt (`FIXED_DT_SECONDS`, 1/60) and
+   * hand the result to a substepped loop — an earlier revision of this comment
+   * prescribed exactly that, and it is wrong in contact. It dumps eight steps'
+   * worth of tangential impulse into one step's friction budget: measured
+   * breakaway collapsed to 6 N against a true 19.6 N, and a crate below
+   * threshold crept 36 mm in 5 s. Per-step delivery restores breakaway to ~3%
+   * and the creep to 0.3 mm. NOT a solver-iteration concern — cranking
+   * iterations 1 → 32 leaves the wrong number unchanged. See
+   * Notes_on_Applied_Forces_Refactor.md, Findings 2026-08-09 items #3 and #6.
    */
   applyImpulse(impulse: Vec2): void;
 

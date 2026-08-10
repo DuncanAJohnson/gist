@@ -1963,3 +1963,43 @@ end, losing friction, and continuing at F/m. Re-run on a long floor it matches
 theory to 0.01%. Recorded because the failure mode is easy to repeat: **an
 above-breakaway push covers real distance fast** (22.5 m in 3 s at +50 N), so
 any harness testing sustained force needs a floor sized for it.
+
+---
+
+### Findings 2026-08-10 — the ratified dt rule was still taught WRONG at the adapter seam (doc drift, fixed)
+
+Caught while re-reading the Phase 1 diff. Item #3 ratified `J = F ·
+FIXED_DT_SECONDS` (per logical frame) and item #6 then MEASURED that rule and
+replaced it with `J = F · dt_of_the_next_step` (per engine step, via the new
+`onPreStep` hook). Both entries are correct and correctly dated — but the
+`applyImpulse` docstring in `src/physics/types.ts` was written between them and
+never revised, so it shipped in `d92ea0f` still prescribing the superseded rule
+**and explicitly warning against the one that turned out to be right**
+("the LOGICAL frame dt, not the substep dt … using substepDt would
+under-deliver 8×"). It also described the sub-breakaway creep as a live "known
+leak" when item #6 had already closed it.
+
+**Why this one mattered more than an ordinary stale comment:** it sat on the
+interface declaration — the first thing a dev reads when wiring the *next*
+caller of `applyImpulse` (Phase 2's `appliedForce`, or `applyImpulseAtPoint`
+whenever it lands). Every other record of the correction lived in this note and
+in `GIST_Physics_System_Topics.md`; the one surface a future implementer meets
+at the point of use taught the bug. Doc drift is normally cosmetic — at an API
+seam it is a trap.
+
+**Fixed** (`types.ts`): the docstring now leads with `J = F ·
+dt_of_the_NEXT_STEP`, names `onPreStep` as the delivery mechanism, and keeps
+the wrong rule as an explicit DO-NOT with the measured numbers (breakaway 6 N
+vs. true 19.6 N; 36 mm creep) and the solver-iteration disclaimer. Superseded
+rationale marked, not deleted.
+
+**Generalizable lesson, worth carrying:** when a session ratifies a rule and
+then supersedes it *the same day*, the second decision has to sweep the first
+one's code comments too. The refactor note self-corrects by append; a docstring
+does not — it just keeps asserting. Cheap check for next time: after any
+same-session reversal, grep the touched files for the superseded phrasing
+before committing.
+
+Verification: `tsc` clean on the touched file; comment-only change, no behavior
+delta. Numbers re-checked against Findings 2026-08-09 items #3 and #6 rather
+than restated from memory.

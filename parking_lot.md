@@ -717,3 +717,52 @@ the language discrepancy an open issue"* — record it, don't fix it yet.
 `status === "approved"` would let gist *detect* an export-invariant violation
 instead of assuming it; entries already carry `status`. Small, and it belongs
 with the parked ingestion-boundary work.
+
+---
+
+## Force-arrow labels collide when two arrows are collinear (2026-08-10)
+
+**Symptom.** On a body in 1D vertical motion with both `force-net` and
+`force-gravity` drawn, the two labels overprint into an unreadable smudge —
+observed as a literal `FF_ng_t` glyph pile on the bowling ball in
+`/simulation/bowling-ball-and-feather` while capturing stills for a
+collaborator write-up. The arrows themselves render correctly; only the labels
+are illegible.
+
+**Cause.** Labels default to `labelPlacement: "midpoint"` with a fixed
+perpendicular offset to the arrow's left
+(`src/schemas/simulation.ts:71`). That offset resolves collisions between
+arrows pointing in *different* directions, which is the common case and why
+this has not bitten before. When two arrows are collinear AND similar in
+length — F_net and F_g on a body whose only other force is small drag — both
+labels land on the same point. The synthesizer already indexes multiple arrows
+of the same KIND to avoid exactly this
+(`synthesize.ts:148-149`), but nothing deduplicates across different kinds.
+
+**Why parked.** A manual escape hatch already exists and is authorable per
+arrow: `labelPlacement: 'tail' | 'midpoint' | 'head'` plus `labelFontSize`. Any
+sim that hits this can fix itself today by moving one of the two labels to
+`head`. So it is a polish defect, not a blocker — and it is most visible in
+exactly the 1D vertical scenes that are otherwise well served. It also has
+obvious overlap with the still-open FBD step-4 primary-representation call:
+if that lands an analytical display model, label layout gets revisited anyway
+and a fix built now may be thrown away.
+
+**Suggested fix paths, ranked.**
+1. **Collision-aware auto-offset in the synthesizer** — after building the
+   arrow list for a body, detect labels whose anchor points fall within some
+   px threshold and fan them along the arrow (tail / midpoint / head) or step
+   the perpendicular offset. Purely presentational, no schema change, and it
+   fixes every sim including LLM-authored ones that will never set
+   `labelPlacement` by hand. Preferred.
+2. **Author around it in the affected fixtures** — set `labelPlacement: 'head'`
+   on one of the pair in the sims that show it. Zero risk, fixes nothing
+   generally, and the LLM won't know to do it.
+3. **Suppress the redundant arrow** — on a body where F_net and F_g are
+   collinear the pair is arguably over-drawing anyway. Rejected as a default:
+   deciding an arrow is redundant is a pedagogical call, not a rendering one,
+   and the whole point of the FBD is that the student checks closure.
+
+**Diagnostic.** `/simulation/bowling-ball-and-feather`, play to ~frame 26 and
+look at the bowling ball. Any 1D vertical sim drawing both `force-net` and
+`force-gravity` reproduces it.
