@@ -1,0 +1,90 @@
+{
+  "title": "Applied-Force-Sim - A test of applied forces on an object with json authored mass and coefficient of friction.",
+  "environment": {
+    "walls": [
+      "left",
+      "right",
+      "bottom"
+    ],
+    "gravity": 9.8,
+    "unit": "m",
+    "pixelsPerUnit": 100,
+    "physicsEngine": "rapier"
+  },
+  "objects": [
+    {
+      "id": "block",
+      "x": 1,
+      "y": 0.25,
+      "width": 0.5,
+      "height": 0.5,
+      "svg": "ice_block",
+      "mass": 5,
+      "friction": 0.51,
+      "restitution": 0,
+      "showVectors": [
+        "velocity",
+        {
+          "kind": "velocity",
+          "components": true
+        }
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "type": "slider",
+      "label": "Initial horizontal speed (m/s)",
+      "targetObj": "block",
+      "property": "velocity.x",
+      "min": 0,
+      "max": 6,
+      "step": 0.1,
+      "defaultValue": 0
+    }
+  ],
+  "outputs": [
+    {
+      "title": "Block",
+      "values": [
+        {
+          "label": "Speed",
+          "targetObj": "block",
+          "property": "velocity.magnitude",
+          "unit": "m/s"
+        },
+        {
+          "label": "x",
+          "targetObj": "block",
+          "property": "position.x",
+          "unit": "m"
+        },
+        {
+          "label": "y",
+          "targetObj": "block",
+          "property": "position.y",
+          "unit": "m"
+        }
+      ]
+    }
+  ],
+  "graphs": [
+    {
+      "type": "line",
+      "title": "Speed of block",
+      "yAxisRange": {
+        "min": 0,
+        "max": 6
+      },
+      "yAxisLabel": "speed (m/s)",
+      "lines": [
+        {
+          "label": "|v|",
+          "targetObj": "block",
+          "property": "velocity.magnitude",
+          "color": "#2ecc71"
+        }
+      ]
+    }
+  ]
+}

@@ -200,6 +200,9 @@ const FORCE_DEBUG_KINDS: readonly VectorKind[] = [
   'force-drag',
   'force-normal',
   'force-friction',
+  // Wired 2026-08-09 (Goal-2 Phase 1). Reads {0,0} — and so self-suppresses —
+  // on every sim except the one body the debug-panel force dropdown targets.
+  'force-applied',
   'force-net',
 ];
 

@@ -85,6 +85,30 @@ export interface PhysicsBody {
   setLinearDamping(damping: number): void;
 
   /**
+   * Apply a linear impulse (N·s) at the body's center of mass, waking it.
+   *
+   * The applied-force path is force-in / impulse-under (ratified 2026-08-09):
+   * callers above the adapter speak NEWTONS and convert once, at a single
+   * site, via `J = F · FIXED_DT_SECONDS` — the LOGICAL frame dt, not the
+   * substep dt (`onUpdate` runs once per logical frame, then the engine takes
+   * ~8 substeps; using substepDt would under-deliver 8×).
+   *
+   * Impulse rather than force because both engines CLEAR accumulated forces
+   * after every substep, so a per-frame `applyForce` would reach only the
+   * first substep of ~8 in precompute. Impulse is also the primitive both
+   * solvers natively think in, and it leaves mass out of the conversion — the
+   * engine divides by it, so `Δv = F·dt/m` and a mass slider changes the
+   * acceleration for free.
+   *
+   * Known leak (measure before engineering around it): the impulse lands at
+   * the frame boundary rather than spread across the substeps the way the
+   * engine delivers gravity, so a contact's per-substep friction budget may
+   * not absorb it in one go. See the applied-forces note, Findings 2026-08-09
+   * item #3 (sub-breakaway creep).
+   */
+  applyImpulse(impulse: Vec2): void;
+
+  /**
    * Contact-force readback for the most recent step (FBD Goal-1 step 3).
    * Sums normal and friction forces across all of this body's current
    * contacts, recovered from solver impulses (F = J/dt over the full step

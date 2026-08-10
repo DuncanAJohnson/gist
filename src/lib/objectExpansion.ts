@@ -39,7 +39,7 @@
  * multiplier scaleObjectToSI uses) before handing makeRamp its degrees.
  */
 
-import type { ObjectConfig, ExpandedObjectConfig } from '../schemas/simulation';
+import type { ObjectConfig, ExpandedObjectConfig, ControlConfig } from '../schemas/simulation';
 import { expandContainerObjects, type ExpansionEnv } from './containerExpansion';
 import { makeRamp, type Ramp } from './ramp';
 import { isPolarVector } from './unitConversion';
@@ -48,6 +48,10 @@ import { reportDiagnostic } from './diagnosticsBus';
 export interface ObjectExpansionEnv extends ExpansionEnv {
   /** Authored-angle → radians multiplier (angleUnitToRadians(env.angleUnit)). */
   angleScale: number;
+  /** environment.airResistance?.enabled — read by the chapter-split check
+   *  below (drag is a force; forceless acceleration alongside it is the
+   *  mixed-chapter case). */
+  airResistanceEnabled: boolean;
 }
 
 const RAD_TO_DEG = 180 / Math.PI;
@@ -356,6 +360,127 @@ export function applyEditCommitToObject(
 }
 
 /**
+ * CHAPTER-SPLIT CHECK (ratified 2026-08-09, Bill — Notes_on_Applied_Forces_
+ * Refactor.md "The chapter split"). `ObjectConfig.acceleration` is a KINEMATIC
+ * STIPULATION: "this body accelerates at a", cause unmodelled, integrated
+ * app-side on top of gravity (invariant #9). It exists for the kinematics
+ * chapter, which physics teachers reach BEFORE Newton's laws — so a sim can
+ * show constant acceleration without owing anyone a force story.
+ *
+ * That makes it silently surprising in a DYNAMICS scene. Motion it injects is
+ * real — the finite difference sees it, so force-net renders m·a for it — but
+ * NO component arrow explains it, because there is no force behind it. The
+ * free-body diagram cannot close, and the discrepancy looks like a physics bug
+ * rather than an authoring choice. Bill's framing: "unexpected if you don't
+ * know it's there."
+ *
+ * So: not an error, not a drop, not a silent override — a BUS ENTRY, fired
+ * when forceless acceleration shares a body with real forces. Gravity is
+ * deliberately NOT a trigger: additivity over gravity is the field's ratified
+ * contract (invariant #9) and the prompt already teaches the gravity
+ * double-count separately. Triggers are the forces that put the scene in the
+ * OTHER chapter: friction, air resistance, and (once it lands) applied force.
+ *
+ * Authored config state only, never runtime — the ratified bus semantic.
+ */
+function checkChapterSplit(
+  objects: ExpandedObjectConfig[],
+  airResistanceEnabled: boolean,
+): void {
+  for (const obj of objects) {
+    const a = obj.acceleration;
+    if (!a || (a.x === 0 && a.y === 0)) continue;
+
+    const reasons: string[] = [];
+    // Authored non-zero µ. Nothing runs Zod at runtime (invariant #1), so an
+    // absent field really is absent — an explicit author, not a default.
+    if ((obj.friction ?? 0) !== 0) reasons.push(`friction ${obj.friction}`);
+    // dragCoefficient 0 is the documented per-body opt-out of air resistance.
+    if (airResistanceEnabled && obj.dragCoefficient !== 0) reasons.push('air resistance');
+    // NEXT: when `appliedForce` lands (applied-forces Phase 2), add it here —
+    // it is the sharpest case of all, since it is the field this object's
+    // author probably meant to reach for.
+
+    if (reasons.length === 0) continue;
+
+    reportDiagnostic(
+      `kinematic-acceleration-in-force-scene:${obj.id}`,
+      `checkChapterSplit: "${obj.id}" authors acceleration {x: ${a.x}, y: ${a.y}} ` +
+        `(a forceless KINEMATIC stipulation, added on top of gravity) while also ` +
+        `carrying ${reasons.join(' and ')}. The acceleration is applied as authored ` +
+        `and shows up in force-net as m·a, but no force arrow accounts for it, so a ` +
+        `free-body diagram on this body will NOT close. That is expected for a ` +
+        `kinematics-chapter sim and surprising in a forces sim — if you meant "a ` +
+        `force pushes this", author the force instead of the acceleration.`,
+    );
+  }
+}
+
+/**
+ * FRICTION-SLIDER MASKING (scoped 2026-08-09, Bill — the friction-representation
+ * hold's interim instrument, broadened).
+ *
+ * Both engines combine contact friction as MAX of the pair, so a friction
+ * slider bound to object X is DEAD across [slider.min, µ_other] for any object
+ * whose µ exceeds the slider's floor: the contact runs at the other body's µ
+ * and the student's slider does nothing until it climbs past it. Not an error
+ * — a silently deadened control, which is worse.
+ *
+ * This generalizes `seat-friction-masked` (seatRiders above), which only ever
+ * covered the DECLARED seatOn contact pair and therefore missed every other
+ * geometry — the case that actually bit us was a remix that raised a ramp's µ
+ * to 0.6 over a slider-governed rider's 0.4.
+ *
+ * SCOPE (Bill's call): compare against EVERY other object in the sim, not just
+ * static ones. We cannot know at config time which bodies will touch, and
+ * guessing from geometry would be a contact inference the seam has no business
+ * making. The rule this encodes is a dev-facing EXPECTATION instead — while
+ * exploring forces, **the friction slider's value should be the operative µ for
+ * all object interactions in the scene.** Anything that could override it is
+ * worth surfacing, and the broad net deliberately sets the stage for the
+ * pair-friction discussion rather than pre-empting it.
+ *
+ * Config-state truth only, never runtime — the ratified bus semantic. A slider
+ * DRAG does not re-evaluate this (matching seat-friction-masked).
+ */
+export function checkFrictionSliderMasking(
+  objects: ExpandedObjectConfig[],
+  controls: readonly ControlConfig[],
+): void {
+  for (const c of controls) {
+    if (c.type !== 'slider' || c.property !== 'friction') continue;
+
+    const floor = c.min;
+    const offenders = objects
+      .filter((o) => o.id !== c.targetObj && (o.friction ?? 0) > floor)
+      .map((o) => ({ id: o.id, mu: o.friction as number }))
+      .sort((a, b) => b.mu - a.mu);
+    if (offenders.length === 0) continue;
+
+    const highest = offenders[0].mu;
+    // µ ≥ slider max means the control is inert across its ENTIRE range, not
+    // merely floored — worth saying differently, it reads as a broken sim.
+    const whollyDead = highest >= c.max;
+    const list = offenders.map((o) => `"${o.id}" (µ ${o.mu})`).join(', ');
+
+    reportDiagnostic(
+      `friction-slider-masked:${c.targetObj}`,
+      `checkFrictionSliderMasking: the "${c.label}" slider drives friction on ` +
+        `"${c.targetObj}" over [${c.min}, ${c.max}], but ${list} ` +
+        `${offenders.length === 1 ? 'carries' : 'carry'} a higher µ. Engines take ` +
+        `the MAX of a contact pair, so ` +
+        (whollyDead
+          ? `this slider does NOTHING anywhere in its range — every contact with ` +
+            `those bodies runs at µ = ${highest}.`
+          : `the slider is dead from ${c.min} to ${highest}: below ${highest} the ` +
+            `contact still runs at µ = ${highest}.`) +
+        ` For the slider to be the operative µ for all interactions, author the ` +
+        `other objects' friction as 0 and put µ only on "${c.targetObj}".`,
+    );
+  }
+}
+
+/**
  * The seam entry point — JsonSimulation calls this (post dedupeObjectIds)
  * instead of expandContainerObjects directly. Ordinary complete objects pass
  * through all three passes untouched.
@@ -366,5 +491,8 @@ export function expandObjects(
 ): ExpandedObjectConfig[] {
   const ramped = expandRampObjects(objects, env.angleScale);
   const complete = expandContainerObjects(ramped.objects, env);
-  return seatRiders(complete, ramped.ramps, env.angleScale);
+  const seated = seatRiders(complete, ramped.ramps, env.angleScale);
+  // Runs last, on settled ids, and mutates nothing — a pure authoring check.
+  checkChapterSplit(seated, env.airResistanceEnabled);
+  return seated;
 }

@@ -32,6 +32,28 @@ interface BaseSimulationProps {
   physicsEngine?: PhysicsEngineKind;
   onInit?: (adapter: PhysicsAdapter) => void;
   onUpdate?: (adapter: PhysicsAdapter, time: number) => void;
+  /**
+   * Per-STEP hook, fired immediately before every `adapter.step(dt)` with that
+   * step's own dt — once per substep in precompute, once per frame in live
+   * mode. Distinct from `onUpdate`, which stays strictly once per LOGICAL
+   * frame (graphs, outputs, finite differences depend on that; see
+   * GIST_Physics_System_Topics.md → Loop-mode semantics).
+   *
+   * Exists for continuous forces that must be delivered on the engine's own
+   * cadence. The rule is unit consistency: an impulse must match the time step
+   * it precedes, `J = F · dt_of_the_next_step`. Applied forces converted over
+   * the LOGICAL frame dt and handed to a 1/480 s step dump eight steps' worth
+   * of tangential impulse into one step's friction budget, and a crate that
+   * should sit still until µmg starts sliding at a third of it (measured:
+   * breakaway 6 N against a true 19.6 N). Delivering per step restores it to
+   * ~3%. Gravity has always worked this way — the engine applies it once per
+   * `world.step()`, before the constraint solve.
+   *
+   * NOT related to solver iterations, which are convergence passes inside a
+   * single step: cranking them 1 → 32 does not move the breakaway number at
+   * all. See Notes_on_Applied_Forces_Refactor.md, Findings 2026-08-09 item #6.
+   */
+  onPreStep?: (adapter: PhysicsAdapter, dtSeconds: number) => void;
   children?: ReactNode;
   onControlsReady?: (controls: SimulationControls) => void;
   onCanvasContainerReady?: (container: HTMLDivElement) => void;
@@ -108,6 +130,7 @@ function BaseSimulation({
   physicsEngine = 'rapier',
   onInit,
   onUpdate,
+  onPreStep,
   children,
   onControlsReady,
   onCanvasContainerReady,
@@ -137,6 +160,7 @@ function BaseSimulation({
   // would try to call createWalls on a world-less adapter and throw.
   const onInitRef = useRef(onInit);
   const onUpdateRef = useRef(onUpdate);
+  const onPreStepRef = useRef(onPreStep);
   const onControlsReadyRef = useRef(onControlsReady);
   const onCanvasContainerReadyRef = useRef(onCanvasContainerReady);
   const precomputeTimestepRef = useRef(precomputeTimestepSeconds);
@@ -145,6 +169,7 @@ function BaseSimulation({
   const positionItersRef = useRef(positionIterations);
   useEffect(() => { onInitRef.current = onInit; }, [onInit]);
   useEffect(() => { onUpdateRef.current = onUpdate; }, [onUpdate]);
+  useEffect(() => { onPreStepRef.current = onPreStep; }, [onPreStep]);
   useEffect(() => { onControlsReadyRef.current = onControlsReady; }, [onControlsReady]);
   useEffect(() => { onCanvasContainerReadyRef.current = onCanvasContainerReady; }, [onCanvasContainerReady]);
   useEffect(() => { precomputeTimestepRef.current = precomputeTimestepSeconds; }, [precomputeTimestepSeconds]);
@@ -274,6 +299,7 @@ function BaseSimulation({
             if (onUpdateRef.current) {
               onUpdateRef.current(a, simulationTimeRef.current);
             }
+            onPreStepRef.current?.(a, FIXED_DT_SECONDS);
             a.step(FIXED_DT_SECONDS);
             simulationTimeRef.current += FIXED_DT_SECONDS;
             accumulator -= FIXED_TIME_STEP;
@@ -338,6 +364,7 @@ function BaseSimulation({
                   onUpdateRef.current(a, simulationTimeRef.current);
                 }
                 for (let i = 0; i < substeps; i++) {
+                  onPreStepRef.current?.(a, substepDt);
                   a.step(substepDt);
                 }
                 simulationTimeRef.current += FIXED_DT_SECONDS;

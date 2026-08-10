@@ -318,6 +318,79 @@ function DesignPhilosophy() {
         </li>
       </ul>
 
+      <h2>
+        The third concrete scoping: forceless acceleration, and which chapter a
+        field belongs to
+      </h2>
+      <p>
+        <em>Ratified 2026-08-09 — and deliberately kept visible.</em>{' '}
+        <code>ObjectConfig.acceleration</code> adds a constant acceleration on
+        top of gravity, and on top of any other force acting on the body. It is
+        a <strong>kinematic stipulation</strong> — "this body accelerates at{' '}
+        <em>a</em>" — whose cause is deliberately unmodelled. That is not a
+        shortcut; it is the point. Physics teachers cover acceleration{' '}
+        <em>before</em> Newton's laws, so GIST needs sims that show constant
+        acceleration without owing anyone a force story.
+      </p>
+      <p>
+        The cost is that the same field is <strong>silently surprising in a
+        forces scene</strong>. Motion it injects is real, so the
+        finite-difference readback sees it and <code>force-net</code> renders{' '}
+        <code>m·a</code> for it — but no component arrow explains it, because
+        there is no force behind it. A 5 kg body with{' '}
+        <code>acceleration: {'{x: 2}'}</code> shows a 10 N net force while
+        gravity, normal, friction and drag all sum to zero. The free-body
+        diagram cannot close, and it looks like a physics bug rather than an
+        authoring choice.
+      </p>
+      <p>
+        <strong>The split we settled on:</strong> the two vocabularies keep
+        distinct pedagogical domains rather than being merged or policed.
+      </p>
+      <ul>
+        <li>
+          <code>acceleration</code> — kinematics chapter. Cause stipulated. A
+          mass slider next to it does nothing, which is exactly right: mass is
+          not part of that lesson. Free-body diagrams are not meaningful here.
+        </li>
+        <li>
+          <code>appliedForce</code> (applied-forces refactor, not yet landed) —
+          dynamics chapter. Cause named and on the diagram.{' '}
+          <code>a = F/m</code> emerges, so the mass slider is <em>the</em>{' '}
+          lesson. The FBD closes by construction.
+        </li>
+      </ul>
+      <p>
+        Using both on one body stays <strong>legal</strong> — it is honest
+        physics (<code>a_total = a_cfg + F/m</code>) and the engine handles it.
+        Forbidding it would need runtime validation the system deliberately
+        does not do. So instead it is <strong>surfaced</strong>: the expansion
+        seam's <code>checkChapterSplit</code> pass reports the mixed-chapter
+        case on the diagnostics bus when forceless acceleration shares a body
+        with friction, air resistance, or (soon) an applied force. Gravity
+        alone is <em>not</em> a trigger — additivity over gravity is the
+        field's ratified contract.
+      </p>
+      <p>
+        <strong>Why this stays on the page:</strong> it is a design decision
+        that reads as a bug to anyone who does not know the field exists. Like
+        the reference-extent question above, it is held in the open on purpose
+        rather than allowed to settle into silence.
+      </p>
+      <p>
+        The invariant underneath it is worth stating separately, because it is
+        what keeps any of this safe:{' '}
+        <strong>net force is derived, never summed</strong>. Forces flow one
+        way — into the solver. Causes produce motion; motion is then measured
+        back out (<code>a_derived = Δv/Δt</code>,{' '}
+        <code>force-net = m·a_derived</code>). Component forces exist for
+        display, and closure onto the derived net is a{' '}
+        <em>validation</em>, not a construction. Feed the solver honestly, let
+        it do its job, and reconstruct the physics afterwards for display —
+        never pre-calculate a sum and integrate it, which is how an early
+        version of this codebase managed to count gravity twice.
+      </p>
+
       <h2>Future scoping decisions</h2>
       <p>
         Air resistance is the first one, not the last. Other affordances will

@@ -185,6 +185,46 @@ alongside `containerExpansion.ts`.
   pair-friction workstream. Interim: the `seat-friction-masked` diagnostic
   (below) makes the masking visible whenever it occurs.
 
+  **UPDATE 2026-08-09 — hold RE-AFFIRMED, scope narrowed, instrument
+  broadened, and the FORCING FUNCTION now named** (applied-forces session,
+  item #5; full lay-out in `Notes_on_Applied_Forces_Refactor.md` Findings
+  2026-08-09 item #5).
+  - **Scope is narrower than it read.** Walls are created at friction 0 on
+    BOTH engines (Rapier explicitly; Planck via `material.friction ?? 0`),
+    and an unauthored object also gets 0 (`ObjectRenderer.tsx:44`
+    destructuring default). Since both engines combine as Max,
+    `max(0, mover's µ) = mover's µ` — **the one-owner convention is already
+    the de-facto default.** The bug REQUIRES someone to author µ on another
+    body. B5 (crate on a floor, friction switch) therefore needs no
+    representation decision to be built.
+  - **Instrument broadened (Bill's call): `checkFrictionSliderMasking`
+    SHIPPED** (`objectExpansion.ts`, called from JsonSimulation inside the
+    bus-cleared window). Fires `friction-slider-masked:<targetObj>` when a
+    friction slider's target is out-µ'd by **ANY other object in the sim —
+    explicitly not just static ones.** Bill's rationale: we cannot know at
+    config time which bodies will touch, and guessing from geometry would be
+    a contact inference the seam has no business making; the rule this
+    encodes is a dev-facing EXPECTATION — *while exploring forces, the
+    friction slider's value should be the operative µ for all object
+    interactions in the scene.* The broad net deliberately sets the stage for
+    the pair-friction discussion rather than pre-empting it. Distinguishes
+    "dead from min to X" from "does NOTHING anywhere in its range"
+    (µ ≥ slider max). This SUPERSEDES `seat-friction-masked` in coverage —
+    that one only ever saw the declared seatOn pair — but both stay: seatOn
+    is a real contact and reports the delta.
+  - **FORCING FUNCTION (this is the part to schedule against): the
+    representation question must be RESOLVED before G6-with-friction ships.**
+    `PHYSICS_GRAPHS.md` G6 asserts *"E_total decays and the deficit equals
+    work done by friction"* — a QUANTITATIVE claim the student checks against
+    µ·N·d. If contact µ isn't the µ on the slider, that arithmetic simply
+    fails, and G6 is flagged ⭐ the single most curriculum-central graph for
+    ages 10–18. The subtler half: G6's dual duty as a SOLVER-DRIFT diagnostic
+    on frictionless scenes assumes you can be certain a scene IS frictionless
+    — under Max masking, authoring µ = 0 on the mover doesn't guarantee it,
+    so numerical drift and unintended friction become indistinguishable.
+    FBD step 5 (analytical friction needs a defensible contact µ) is the
+    second forcing function; they should be resolved together.
+
 ## Findings 2026-08-05 — v1 BUILT + headless-verified (factory, seat helper, two exhibits); pending Bill's drive (R2)
 
 Scoped and built same-day, container-v1 style. All numbers from the tsx

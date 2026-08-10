@@ -28,7 +28,8 @@ import {
  * These are ENGINE-ACTUAL values (solver impulses / dt) — they jitter at
  * resting contact and read zero on sleeping bodies; the analytical display
  * model that may replace them student-facing is Goal-1 step 5, decided after
- * the step-4 representation spike. Only `force-applied` still awaits a source.
+ * the step-4 representation spike. `force-applied` joined them 2026-08-09
+ * (Goal-2 Phase 1, debug-panel source only) — every kind now has a source.
  *
  * For `force-net`, the source is Newton's 2nd Law:
  *   F_net = m · a_derived
@@ -91,8 +92,16 @@ function drawVectorArrow(drawCtx: DrawContext, visual: PixelVisual) {
     vx = f.x;
     vy = f.y;
   } else {
-    // force-applied: awaits the applied-force pipeline (Phases 1–3 above).
-    return;
+    // force-applied. Source landed with Goal-2 Phase 1 (2026-08-09):
+    // JsonSimulation's onUpdate stashes the applied force in NEWTONS on
+    // userData at a single site, handlePreStep converts that same value to a
+    // per-engine-step impulse, and the Frame carries it so the arrow survives
+    // replay. Today only the debug-panel force writes it — there is no schema
+    // field and no prompt support yet (debug-first, like ?forces=1), so this
+    // reads {0,0} and self-suppresses on every ordinary sim.
+    const f = (body.userData.appliedForce as Vec2 | undefined) ?? { x: 0, y: 0 };
+    vx = f.x;
+    vy = f.y;
   }
 
   // Component decomposition: an axis-locked visual zeroes the off-axis

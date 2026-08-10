@@ -757,7 +757,7 @@ function VectorArrows() {
                 ['velocity', '20 px per (m/s)', 'body.velocity'],
                 ['acceleration', '10 px per (m/s²)', 'userData.derivedAcceleration'],
                 ['force-net', '2 px per N', 'm · a_derived'],
-                ['force-applied', '2 px per N', 'userData.appliedForce (unwired)'],
+                ['force-applied', '2 px per N', 'userData.appliedForce (debug-panel source only)'],
                 ['force-friction', '2 px per N', 'userData.frictionForce (engine-read)'],
                 ['force-normal', '2 px per N', 'userData.normalForce (engine-read)'],
                 ['force-drag', '2 px per N', 'userData.dragForce'],
@@ -1441,10 +1441,14 @@ function VectorArrows() {
         <li>
           <strong>Applied forces refactor.</strong> Its Phase 2 calls for a{' '}
           <code>ForceArrow</code> renderable; this work delivers a generalized version that
-          covers it. Once <code>userData.appliedForce</code> lands, the{' '}
-          <code>force-applied</code> kind lights up automatically —{' '}
-          <code>userData.frictionForce</code> proved the pattern when the engine
-          contact-force seam populated it (FBD step 3, 2026-08-06).
+          covers it. That prediction held: when applied-forces Phase 1 populated{' '}
+          <code>userData.appliedForce</code> (2026-08-09), the{' '}
+          <code>force-applied</code> kind lit up with a three-line change and no
+          renderer work — the same way <code>userData.frictionForce</code> did
+          when the engine contact-force seam populated it (FBD step 3,
+          2026-08-06). Every vector kind now has a source. Note the applied
+          force is written in NEWTONS at one site and converted to a per-step
+          impulse separately, so the arrow and the physics cannot disagree.
         </li>
         <li>
           <strong>Vector representation refactor.</strong> Its Phase 3 calls for a shared{' '}

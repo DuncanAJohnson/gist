@@ -38,6 +38,7 @@ import {
   expandObjects,
   applyEditCommitToObject,
   applyRampControlOverrides,
+  checkFrictionSliderMasking,
   type RampControlParam,
 } from '../lib/objectExpansion';
 import { clearDiagnostics } from '../lib/diagnosticsBus';
@@ -158,6 +159,12 @@ type FrameBodySnap = {
   normalFy: number;
   fricFx: number;
   fricFy: number;
+  // Per-frame DEBUG applied force in Newtons (Goal-2 Phase 1, 2026-08-09).
+  // Same standing rule again: userData-sourced arrows must ride the Frame or
+  // `force-applied` is invisible in replay. Zero unless the debug-panel force
+  // dropdown is set and this is its target body.
+  appFx: number;
+  appFy: number;
 };
 
 type Frame = {
@@ -322,15 +329,37 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     // carries duplicates) so such sims render best-effort instead of
     // white-paging on the adapter's (correct) duplicate-id throw. Derived-
     // only, like the expansion itself — never written back to editedConfig.
-    return expandObjects(
+    const expanded = expandObjects(
       applyRampControlOverrides(dedupeObjectIds(objects), rampOverrides),
       {
         sceneMin: Math.min(SIMULATION_WIDTH, SIMULATION_HEIGHT) / configPixelsPerUnit,
         hasBottomWall: (environment.walls ?? []).includes('bottom'),
         angleScale,
+        airResistanceEnabled: environment.airResistance?.enabled === true,
       },
     );
-  }, [objects, configPixelsPerUnit, environment.walls, angleScale, rampOverrides]);
+    // Controls-aware authoring check — lives here rather than inside the seam
+    // because expandObjects takes objects, not controls. Runs INSIDE the
+    // cleared window above so it re-reports on every re-expansion, like every
+    // other producer.
+    checkFrictionSliderMasking(expanded, controls);
+    return expanded;
+  }, [
+    objects,
+    controls,
+    configPixelsPerUnit,
+    environment.walls,
+    angleScale,
+    rampOverrides,
+    environment.airResistance?.enabled,
+  ]);
+
+  // Dynamic bodies eligible as debug-force targets. Derived from the expanded
+  // config (not objRefs) so the dropdown is populated before the first run.
+  const forceTargetOptions = useMemo(
+    () => expandedObjects.filter((o) => !o.isStatic).map((o) => o.id),
+    [expandedObjects],
+  );
 
   const siObjects = useMemo(
     () => expandedObjects.map((obj) => scaleObjectToSI(obj, unitScale, angleScale)),
@@ -467,6 +496,13 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   );
 
   const [precomputeTimestepHz, setPrecomputeTimestepHz] = useState<number>(480);
+  // DEBUG applied force (Goal-2 Phase 1, 2026-08-09) — debug-panel only, no
+  // schema, no prompt. Discrete signed values (a dropdown, like solver iters)
+  // rather than a slider: a continuous control rewrites the frame-cache key on
+  // every drag tick, and the two-engine acceptance test needs the SAME force on
+  // both engines, not approximately-the-same-slider-position.
+  const [debugForceN, setDebugForceN] = useState<number>(0);
+  const [debugForceTargetId, setDebugForceTargetId] = useState<string>('');
 
   // Constraint-solver iteration count; mapped per-engine in the adapters.
   // 8 matches Planck's velocityIterations default and is a reasonable bump
@@ -489,8 +525,12 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   );
   // Ref so handleUpdate (useCallback) reads the current mode without rebinding
   // on every toggle — same pattern as isRunningRef.
+  const debugForceRef = useRef(debugForceN);
+  const debugForceTargetRef = useRef(debugForceTargetId);
   const airResistanceModeRef = useRef<AirResistanceMode>(airResistanceMode);
   useEffect(() => { airResistanceModeRef.current = airResistanceMode; }, [airResistanceMode]);
+  useEffect(() => { debugForceRef.current = debugForceN; }, [debugForceN]);
+  useEffect(() => { debugForceTargetRef.current = debugForceTargetId; }, [debugForceTargetId]);
 
   // Air density (kg/m³) for the per-frame compute. Default Earth sea level.
   // Held as a ref so handleUpdate doesn't rebind when the JSON's density
@@ -554,6 +594,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
         // Same for the engine-read contact forces (FrameBodySnap.normalFx note).
         body.userData.normalForce = { x: snap.normalFx, y: snap.normalFy };
         body.userData.frictionForce = { x: snap.fricFx, y: snap.fricFy };
+        body.userData.appliedForce = { x: snap.appFx, y: snap.appFy };
       }
     });
 
@@ -747,6 +788,31 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     applyControlToBody(control, value);
   }, [applyControlToBody]);
 
+  // Per-ENGINE-STEP hook (Goal-2 Phase 1). Delivers the debug applied force on
+  // the engine's own cadence, exactly the way gravity is delivered: once per
+  // adapter.step(), converted with THAT step's dt.
+  //
+  // J = F · dt_of_the_next_step. Converting over the LOGICAL frame dt and
+  // handing the result to a 1/480 s step dumps eight steps' worth of tangential
+  // impulse into one step's friction budget — measured breakaway collapsed to
+  // 6 N against a true 19.6 N, and a crate crept 36 mm in 5 s at half of
+  // breakaway. Per-step delivery restores breakaway to ~3% and the creep to
+  // 0.3 mm. (Solver iterations are a different axis entirely and do not fix
+  // it: 1 → 32 iterations leaves the wrong number unchanged.)
+  //
+  // Reads the Newton value stashed by handleUpdate rather than the ref, so the
+  // engine and the `force-applied` arrow cannot disagree.
+  const handlePreStep = useCallback((_adapter: PhysicsAdapter, dtSeconds: number) => {
+    if (jsonModeRef.current === 'replay') return;
+    const targetId = debugForceTargetRef.current;
+    if (!targetId || debugForceRef.current === 0) return;
+    const body = objRefs.current[targetId];
+    if (!body || body.isStatic) return;
+    const F = (body.userData.appliedForce as { x: number; y: number } | undefined) ?? { x: 0, y: 0 };
+    if (F.x === 0 && F.y === 0) return;
+    body.applyImpulse({ x: F.x * dtSeconds, y: F.y * dtSeconds });
+  }, []);
+
   // Update loop: compute finite-difference acceleration, collect outputs, graphs.
   const handleUpdate = useCallback((_adapter: PhysicsAdapter, time: number) => {
     if (jsonModeRef.current === 'replay') return;
@@ -822,6 +888,17 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
           body.userData.frictionForce = contact.friction;
         }
 
+        // DEBUG applied force — the SINGLE compute site (invariant #14's drag
+        // precedent). Writes Newtons onto userData here, once per logical
+        // frame; handlePreStep below reads this same value back and converts
+        // it to an impulse per engine step, and the Frame capture below reads
+        // it for replay. One number, three consumers, no way for the physics
+        // and the `force-applied` arrow to drift apart.
+        body.userData.appliedForce =
+          !body.isStatic && body.id === debugForceTargetRef.current
+            ? { x: debugForceRef.current, y: 0 }
+            : { x: 0, y: 0 };
+
         const prevVelocity = prevVelocitiesRef.current[objectConfig.id];
         if (prevVelocity) {
           body.userData.derivedAcceleration = {
@@ -892,6 +969,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
           const drag = (body.userData.dragForce as Vec2 | undefined) ?? { x: 0, y: 0 };
           const normal = (body.userData.normalForce as Vec2 | undefined) ?? { x: 0, y: 0 };
           const fric = (body.userData.frictionForce as Vec2 | undefined) ?? { x: 0, y: 0 };
+          const app = (body.userData.appliedForce as Vec2 | undefined) ?? { x: 0, y: 0 };
           return {
             id: objectConfig.id,
             x: body.position.x,
@@ -903,6 +981,8 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
             ax: derived.x,
             ay: derived.y,
             alpha,
+            appFx: app.x,
+            appFy: app.y,
             dragFx: drag.x,
             dragFy: drag.y,
             normalFx: normal.x,
@@ -1414,6 +1494,11 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
       airResistance: airResistanceMode,
       solverIterations,
       positionIterations,
+      // Debug applied force is a physics-affecting input like any other
+      // (invariant #13). Discrete values keep this key space small enough
+      // that flipping between forces can actually reuse cached frames.
+      debugForce: debugForceN,
+      debugForceTarget: debugForceTargetId,
     });
 
     if (frameCacheRef.current && frameCacheRef.current.key === currentKey) {
@@ -1566,6 +1651,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
         positionIterations={positionIterations}
         playbackSpeed={playbackSpeed}
         onUpdate={handleUpdate}
+        onPreStep={handlePreStep}
         onControlsReady={handleControlsReady}
         onCanvasContainerReady={handleCanvasContainerReady}
         onCanvasClick={handleCanvasClick}
@@ -1629,6 +1715,12 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
             airResistanceMode={airResistanceMode}
             onAirResistanceModeChange={setAirResistanceMode}
             airResistanceDisabled={isRunning || precomputeState === 'precomputing'}
+            debugForceN={debugForceN}
+            onDebugForceChange={setDebugForceN}
+            debugForceTargetId={debugForceTargetId}
+            onDebugForceTargetChange={setDebugForceTargetId}
+            forceTargetOptions={forceTargetOptions}
+            debugForceDisabled={isRunning || precomputeState === 'precomputing'}
             showGrid={showGrid}
             onShowGridChange={setShowGrid}
             showColliders={showColliders}

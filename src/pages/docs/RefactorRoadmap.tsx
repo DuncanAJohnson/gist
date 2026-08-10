@@ -112,7 +112,7 @@ flowchart LR
 
   subgraph APPPHASES["4. Applied forces"]
     direction TB
-    APPP1["Phase 1: applyImpulse adapter<br/>+ debug-panel slider"]
+    APPP1["Phase 1 SHIPPED 2026-08-09:<br/>applyImpulse adapter + onPreStep<br/>+ debug-panel force dropdown"]
     APPP2["Phase 2: appliedForce schema<br/>+ force-arrow renderable"]
     APPP25["Phase 2.5: frictionDemo<br/>opt-in μs ≠ μk"]
     APPP3["Phase 3: appliedForces array<br/>multi-puller, sum arrow"]
@@ -191,8 +191,8 @@ flowchart LR
   classDef proposed fill:#fef3c7,stroke:#d97706,color:#92400e;
   classDef pending fill:#dbeafe,stroke:#2563eb,color:#1e40af;
 
-  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,VACOMP,FBD2,FBD3,FBD4,APPP4,CCP0,CC2,CC3,CC5,CC6,RP0,VECP1,RT1 done;
-  class APPP1,APPP2,APPP25,APPP3,APPP4,VECP2,VECP3,VAP3,VAP4,VAP5,CC4,CC8,RP1,RP2,RP3,RP4,RP5,RP6,RT2,RT3,RT4 pending;
+  class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,VACOMP,FBD2,FBD3,FBD4,APPP1,APPP4,CCP0,CC2,CC3,CC5,CC6,RP0,VECP1,RT1 done;
+  class APPP2,APPP25,APPP3,VECP2,VECP3,VAP3,VAP4,VAP5,CC4,CC8,RP1,RP2,RP3,RP4,RP5,RP6,RT2,RT3,RT4 pending;
   class CC1,CC7,RT5 proposed;
 `;
 

@@ -202,6 +202,18 @@ class PlanckPhysicsBody implements PhysicsBody {
     }
   }
 
+  applyImpulse(impulse: Vec2): void {
+    // Applied at the center of mass, so it produces no torque — matches
+    // Rapier's applyImpulse. (Off-center impulses are a separate, deferred
+    // applyImpulseAtPoint; see the applied-forces note, Decisions deferred #2.)
+    // wake: true — see the Rapier adapter's note.
+    this.body.applyLinearImpulse(
+      { x: impulse.x, y: impulse.y },
+      this.body.getWorldCenter(),
+      true,
+    );
+  }
+
   setLinearDamping(damping: number): void {
     this.body.setLinearDamping(damping);
   }
@@ -324,6 +336,12 @@ export class PlanckAdapter implements PhysicsAdapter {
       angle: def.angle ?? 0,
       linearVelocity: def.velocity ? { x: def.velocity.x, y: def.velocity.y } : undefined,
       angularVelocity: def.angularVelocity,
+      // Sleep disabled globally (decided 2026-08-09) — see the Rapier
+      // adapter's createBody for the full rationale; both engines sleep, and
+      // a sleeping body's solver impulses flatten, so getContactForces()
+      // returns zero and the FBD empties out on resting/below-breakaway
+      // scenes. Planck sleeps fastest (Settings.timeToSleep = 0.5 s).
+      allowSleep: false,
     });
 
     // Density maps the caller's intended mass across the shape's area. When no

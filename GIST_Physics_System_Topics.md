@@ -98,6 +98,15 @@ Use this to decide which engine a given sim type should run on.
   before the parity energy claim can be re-tested. See
   [Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md)
   Findings 2026-07-10 (first drive).
+  **UPDATE 2026-08-09 — the Planck blocker is GONE; the sentence above is
+  stale.** Planck aligned to the Max rule during the container work: a
+  `begin-contact` hook stamps `max(fA, fB)` on every new contact
+  (`PlanckAdapter.ts:246-252`), and the `friction` setter refreshes
+  already-existing contacts (`:196-202`), since Box2D stamps a contact's
+  friction once for its lifetime. **Both engines now combine friction as Max,
+  and both create walls at friction 0** (Rapier explicitly; Planck via
+  `material.friction ?? 0`). The open item is that nobody has re-run the
+  parity energy test since — not the mixer.
   **Suitability:** for sims whose pedagogy hinges on impact-induced tip/tumble or
   precise post-collision energy, **prefer Rapier**; do not assume a tumble tuned
   on Rapier reproduces on Planck. See
@@ -157,6 +166,19 @@ Planck's `fixture.setFriction(μ)` only affects *new* contacts. Existing contact
 - **Why it matters now:** the planned `frictionDemo` mode flips friction between μs and μk per-frame. Under Planck, without the contact reset, the per-frame change won't propagate to the active resting contact, and the demo silently breaks.
 - **Plan:** the eventual `setFriction(μ)` on `PhysicsBody` (Phase 2.5 of applied-forces) must reset live contacts under Planck. Document the asymmetry in the adapter, not at the call site.
 
+### 📋 Resting height differs by ~11 mm — Planck polygons carry a 10 mm skin (measured 2026-08-09)
+A box authored to rest on the floor settles at **different heights per engine**: Rapier sinks ~5 mm into the contact, Planck **floats ~11.25 mm above** where its collider geometrically should sit. Cause is Box2D's polygon skin — `Settings.linearSlop = 5e-3`, `polygonRadius = 2 × linearSlop = 0.01 m` — which Planck adds around every polygon; Rapier has no equivalent and instead allows a small penetration. At `pixelsPerUnit: 100` the two differ by ~1.6 px. Consequences: (1) any authored gap smaller than 10 mm is already "in contact" on Planck but a real free-fall on Rapier (see the collider-inset trap below); (2) this is the cause of the 0.4987 (Rapier) vs 0.5150 (Planck) rest-height divergence noted while verifying the sleep change. Not a bug in either engine and not worth normalizing — but it means "resting on the floor" is engine-dependent at the millimetre scale, so don't calibrate a sim's y-positions to sub-centimetre precision on one engine and expect the other to match.
+
+### 📋 Static friction has different CHARACTER per engine — Rapier compliant, Planck rigid (measured 2026-08-09)
+Below the breakaway threshold the two engines do not merely differ in magnitude, they behave differently in kind. Pushing a 5 kg block with µ = 0.51 (breakaway µ·m·g = 24.99 N), displacement over 5 s:
+
+| F | 20 N | 22 N | 24 N | 24.9 N |
+|---|---|---|---|---|
+| Rapier | 0.2 mm | 5.5 mm | 14.7 mm | 19.5 mm |
+| Planck | 0.0 mm | 0.0 mm | 0.0 mm | 0.0 mm |
+
+**Planck's static friction is hard** — exactly zero drift right up to the threshold. **Rapier's is compliant**, creeping asymptotically as F approaches µmg (TGS-soft). So a naive "did it move?" breakaway measurement reads ~4% low on Rapier and ~0.04% high on Planck — the Rapier gap is a creep tail crossing the test's motion criterion, NOT a wrong threshold. The **sliding** regime is exact on both: `a = (F − µmg)/m` to within 0.01% at +50 N and +100 N. Practical read: at `pixelsPerUnit: 100` Rapier's worst-case creep is 1.5 px over 5 s — invisible, so the default engine is fine for B5-style "it doesn't move until you push hard enough" teaching. Worth knowing before anyone tries to measure µs to better than a few percent from a breakaway observation. Specimen: `/simulation/applied-force-1d`.
+
 ### 📋 Y-axis convention — Y-up at the adapter boundary
 [`PhysicsAdapter`](src/physics/types.ts#L1-L14) docstring states Y-up. Both Rapier and Planck are Y-up natively, so no per-engine normalization is needed at the adapter layer.
 
@@ -199,8 +221,12 @@ Replay reads precomputed snapshots and never calls `step()`. Anything dynamic in
 
 These are libraries-offer-it / adapter-doesn't-expose-it gaps, prioritized by what unlocks the most pedagogy. Detail in [Physics_Chapters_with_Physics_Engines.md](Physics_Chapters_with_Physics_Engines.md).
 
-### 🟡 Force / impulse APIs
-No `applyForce` or `applyImpulse` on `PhysicsBody` today. Blocks PhET-Forces-and-Motion-style sims.
+### 🟢 Force / impulse APIs — `applyImpulse` SHIPPED 2026-08-09
+~~No `applyForce` or `applyImpulse` on `PhysicsBody` today. Blocks PhET-Forces-and-Motion-style sims.~~ **`applyImpulse(impulse: Vec2)` landed on `PhysicsBody` + both adapters** (Rapier `applyImpulse(v, true)`; Planck `applyLinearImpulse(v, getWorldCenter(), true)` — at the centre of mass, no torque). Callers above the adapter speak **Newtons** and convert once; the adapter speaks impulse.
+
+**There is deliberately no `applyForce`.** Both engines clear accumulated forces after every substep, so a per-frame `applyForce` would reach only the first of ~8 substeps in precompute. The delivery rule that matters — measured, not assumed — is **`J = F · dt_of_the_next_step`**: converting over the LOGICAL frame dt and handing the result to a 1/480 s step collapsed measured breakaway from 19.6 N to 6 N and made a sub-breakaway crate creep 36 mm in 5 s. Delivery is therefore per engine step via `BaseSimulation`'s new `onPreStep(adapter, dt)` hook — the same cadence the engine uses for gravity. **NOT a solver-iteration concern:** cranking iterations 1 → 32 leaves the wrong number unchanged, and neither engine allows (or should allow) an impulse between solver iterations.
+
+Still open: `applyImpulseAtPoint` (off-centre → torque) remains deferred, and there is no schema field yet — Phase 1 is debug-panel only by design. See [Notes_on_Applied_Forces_Refactor.md](Notes_on_Applied_Forces_Refactor.md) Findings 2026-08-09 items #3 and #6.
 - **Plan:** [Notes_on_Applied_Forces_Refactor.md](Notes_on_Applied_Forces_Refactor.md) Phase 1.
 
 ### 🔴 Joints (spring, revolute, prismatic, rope, pulley)
@@ -306,6 +332,19 @@ After a Reset, does a re-Play produce identical trajectories to the first Play? 
 
 ### 📋 Precompute substep count = `FIXED_DT / requestedTs` ≈ 8
 For ordinary sims this is plenty; for stiff systems (high-stiffness spring, very-fast collisions) it might not be. No mechanism today to override per-sim.
+
+### 🟢 Body sleep DISABLED globally at body creation — SHIPPED 2026-08-09 (with named revisit triggers)
+**Landed + DRIVE-CONFIRMED by Bill 2026-08-09** (`/simulation/ramp-slide`: no perceptible perf cost; vectors persist below the breaking-point angle; expected motion/friction/net force past breakaway). `PlanckAdapter.createBody` passes `allowSleep: false`; `RapierAdapter.createBody` calls `bd.setCanSleep(false)`. Both adapters funnel wall creation through `createBody`, so one edit each covers every body. **Verified through the real adapters:** a 5 kg box resting on ground reads `getContactForces().normal.y` = **49.00 N (exactly m·g, 100%) at every sample across 10 s on BOTH engines** — previously Planck's reading collapsed to 0 by ~0.5 s and Rapier's by ~1.5 s.
+
+Both engines put resting bodies to sleep (**not Planck-only** — Planck by ~0.5 s via `Settings.timeToSleep`, Rapier ~1 s later; measured). A sleeping body's solver impulses flatten, so `getContactForces()` returns zero and its normal/friction arrows vanish — the free-body diagram silently empties out on exactly the resting/below-breakaway scenes that teach static friction. Decision: **disable sleep for all bodies, in both adapters, at creation** (Planck `setSleepingAllowed(false)`; Rapier `RigidBodyDesc.setCanSleep(false)` — Rapier has **no runtime `canSleep` setter** in 0.19.3, which is why this is a creation-time decision rather than a per-body knob). Deliberately **not a debug toggle**: a knob that changes trajectories would have to join the frame-cache key (invariant #13), and keeping it out is worth more than the knob.
+
+**Measured cost** (planck 1.4.2, 10 s of sim = 4800 substepped `world.step` calls, dev Mac): 5 bodies 83 ms · 20 bodies 330 ms · 100 bodies 1488 ms · 500 bodies 7977 ms. At diorama scale that is **~0.5 ms per logical frame, ~3% of the 60 fps budget**. The 22–89× ratios against sleep-on are meaningless — sleeping costs ~0, so the ratio divides by nothing. **Stability cost: none** — a resting box drifts 0.0000 mm over 10 s with sleep off, max |v| 2.3e-18 m/s, on both engines.
+
+**REVISIT WHEN EITHER FIRES** (Bill, explicitly — this is reversible and should stay visible):
+- **Object count** — if sims start carrying more objects than we can comfortably handle. The knee is past ~100 bodies; 500 eats 80% of the frame budget. Cost is per-awake-body-that-would-have-slept, so it bites hardest in piles/stacks/bins that settle and stay settled.
+- **Low-performance hardware — Chromebooks especially.** The numbers above are from a dev Mac and should not be assumed to travel. Re-measure on target hardware; a 10–20× slower machine turns 0.5 ms/frame into something real.
+
+Graceful fallback if a trigger fires is **narrowing, not reverting**: sleep on by default, disabled only on bodies whose sim declares force display — which costs the Rapier body-recreate workaround this decision currently buys out of. Full data + rationale: [Notes_on_Applied_Forces_Refactor.md](Notes_on_Applied_Forces_Refactor.md) → Findings 2026-08-09 (Goal 2, item #4).
 
 ---
 

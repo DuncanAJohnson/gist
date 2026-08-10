@@ -263,6 +263,13 @@ class RapierPhysicsBody implements PhysicsBody {
     }
   }
 
+  applyImpulse(impulse: Vec2): void {
+    // wakeUp: true — a sub-breakaway push on a resting body must still register
+    // even though sleep is disabled globally (belt and braces; also correct if
+    // the sleep decision is ever narrowed per its revisit triggers).
+    this.rigid.applyImpulse({ x: impulse.x, y: impulse.y }, true);
+  }
+
   setLinearDamping(damping: number): void {
     this.rigid.setLinearDamping(damping);
   }
@@ -383,6 +390,31 @@ export class RapierAdapter implements PhysicsAdapter {
     if (def.angle !== undefined) bd.setRotation(def.angle);
     if (def.velocity) bd.setLinvel(def.velocity.x, def.velocity.y);
     if (def.angularVelocity !== undefined) bd.setAngvel(def.angularVelocity);
+
+    // SLEEP DISABLED GLOBALLY (decided 2026-08-09, Bill —
+    // Notes_on_Applied_Forces_Refactor.md Findings, Goal 2 item #4).
+    //
+    // Both engines sleep resting bodies (NOT Planck-only: measured, Planck by
+    // ~0.5 s, Rapier ~1 s later). A sleeping body's solver impulses flatten,
+    // so getContactForces() reads zero and its normal/friction arrows vanish —
+    // the free-body diagram silently empties on exactly the resting and
+    // below-breakaway scenes that teach static friction.
+    //
+    // Global at CREATION rather than a per-body knob because Rapier exposes no
+    // runtime canSleep setter (0.19.3): setCanSleep lives on RigidBodyDesc, so
+    // a runtime toggle would mean recreating the body. Deliberately NOT a
+    // debug toggle either — a knob that changes trajectories would have to
+    // join the frame-cache key (invariant #13); a constant doesn't.
+    //
+    // Measured cost: ~0.5 ms per logical frame at diorama scale (~3% of the
+    // 60 fps budget), and ZERO stability cost (a resting box drifts 0.0000 mm
+    // over 10 s, max |v| 2.3e-18 m/s, both engines).
+    //
+    // DON'T re-enable this to fix a perf problem — read the revisit triggers
+    // (object count past ~100 bodies; low-performance hardware, especially
+    // Chromebooks) in GIST_Physics_System_Topics.md → Performance & tuning.
+    // The intended fallback is narrowing scope, not reverting.
+    bd.setCanSleep(false);
 
     const world = this.requireWorld();
     const rigid = world.createRigidBody(bd);

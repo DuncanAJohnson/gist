@@ -248,6 +248,37 @@ To add or tweak a shape by hand (what Phase 0 did for the cup):
 
 ---
 
+### `y = height/2` does NOT rest an object on the floor (measured 2026-08-09)
+
+A manifest collider is authored in its SVG's viewBox and is usually **inset**
+from it, so the physics box is smaller than the authored bounding box. Worked
+example — `ice_block`: collider `57.37` tall in a `58.1818` viewBox, i.e.
+**98.6%**. Author it at `height: 0.5, y: 0.25` and the collider's bottom edge
+sits **3.75 mm above** the floor, not on it.
+
+What you see when this bites:
+- **Rapier** — the object free-falls the gap before contact. For the example
+  above that is 27.7 ms (measured `vy` at 17 ms = −0.163 m/s, exactly `g·t`),
+  so the first ~4 frames carry a landing transient: velocity spikes, and any
+  net-force arrow swings either side of horizontal before settling.
+- **Planck** — usually *nothing*, because its polygons carry a 10 mm skin
+  (`polygonRadius = 2 × linearSlop`) that already spans a gap this small. Same
+  reason it rests ~11 mm higher than Rapier (see
+  `GIST_Physics_System_Topics.md` → Cross-engine inconsistencies).
+
+The gap scales with authored size, so it is worst on large objects. Fixes:
+
+1. **Compute the seat**: `y = (height × colliderHeight / viewBoxHeight) / 2`,
+   adjusted for any collider centre offset. For the example, `y: 0.2462`.
+2. **Let it drop** and ignore the first few frames — fine when the transient
+   is not the lesson. `/simulation/applied-force-1d` keeps its drop on purpose
+   as a specimen of exactly this.
+3. **Check the real collider** with `?colliders=1`, which draws engine-truth
+   geometry rather than the sprite's bounding box.
+
+Don't calibrate y-positions to sub-centimetre precision on one engine and
+expect the other to agree — resting height is engine-dependent at that scale.
+
 ## Quick reference — files you'll touch
 
 | What | Where |

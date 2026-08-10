@@ -29,6 +29,15 @@ interface AdvancedDebugPanelProps {
   airResistanceMode: AirResistanceMode;
   onAirResistanceModeChange: (mode: AirResistanceMode) => void;
   airResistanceDisabled: boolean;
+  /** DEBUG applied force in Newtons, +X = rightward (Goal-2 Phase 1). */
+  debugForceN: number;
+  onDebugForceChange: (n: number) => void;
+  /** Body id the debug force acts on; '' = none selected. */
+  debugForceTargetId: string;
+  onDebugForceTargetChange: (id: string) => void;
+  /** Dynamic body ids available as force targets. */
+  forceTargetOptions: string[];
+  debugForceDisabled: boolean;
   showGrid: boolean;
   onShowGridChange: (v: boolean) => void;
   showColliders: boolean;
@@ -43,6 +52,11 @@ interface AdvancedDebugPanelProps {
 
 const TIMESTEP_OPTIONS = [60, 120, 240, 480, 960, 1920];
 const ITER_OPTIONS = [1, 2, 3, 4, 8, 16, 32, 64];
+// Signed, spanning two decades. Discrete rather than a slider on purpose: a
+// continuous control rewrites the frame-cache key on every drag tick, and the
+// two-engine acceptance test needs the SAME force on both engines. ±1/±2 are
+// kept because they probe the sub-breakaway band on a light test body.
+const FORCE_OPTIONS = [-100, -50, -25, -10, -5, -2, -1, 0, 1, 2, 5, 10, 25, 50, 100];
 
 function IterRow({
   label,
@@ -95,6 +109,12 @@ function AdvancedDebugPanel({
   airResistanceMode,
   onAirResistanceModeChange,
   airResistanceDisabled,
+  debugForceN,
+  onDebugForceChange,
+  debugForceTargetId,
+  onDebugForceTargetChange,
+  forceTargetOptions,
+  debugForceDisabled,
   showGrid,
   onShowGridChange,
   showColliders,
@@ -235,6 +255,47 @@ function AdvancedDebugPanel({
             >
               <option value="off">Off</option>
               <option value="quadratic">Quadratic (v²)</option>
+            </select>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span
+              className="text-xs text-gray-600"
+              title="DEBUG-ONLY applied force (Newtons, +X = rightward), delivered as an impulse once per engine step — the same cadence gravity uses. Not authorable: no schema field, no LLM prompt. Phase 1 of the applied-forces refactor."
+            >
+              Applied force
+            </span>
+            <select
+              value={debugForceN}
+              onChange={(e) => onDebugForceChange(Number(e.target.value))}
+              disabled={debugForceDisabled}
+              className={`px-2 py-1 rounded-md border border-gray-300 bg-white text-xs text-gray-700 focus:outline-none cursor-pointer disabled:cursor-not-allowed ${debugForceDisabled ? 'opacity-50' : ''}`}
+            >
+              {FORCE_OPTIONS.map((n) => (
+                <option key={n} value={n}>
+                  {n > 0 ? `+${n} N` : `${n} N`}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span
+              className="text-xs text-gray-600"
+              title="Which dynamic body the applied force pushes. An id dropdown rather than canvas selection: once a sim has run, the bodies have left their authored poses and selection is locked until Reset."
+            >
+              Force on
+            </span>
+            <select
+              value={debugForceTargetId}
+              onChange={(e) => onDebugForceTargetChange(e.target.value)}
+              disabled={debugForceDisabled || forceTargetOptions.length === 0}
+              className={`px-2 py-1 rounded-md border border-gray-300 bg-white text-xs text-gray-700 focus:outline-none cursor-pointer disabled:cursor-not-allowed max-w-[9rem] truncate ${debugForceDisabled || forceTargetOptions.length === 0 ? 'opacity-50' : ''}`}
+            >
+              <option value="">(none)</option>
+              {forceTargetOptions.map((id) => (
+                <option key={id} value={id}>
+                  {id}
+                </option>
+              ))}
             </select>
           </div>
           <div className="flex items-center justify-between gap-3">

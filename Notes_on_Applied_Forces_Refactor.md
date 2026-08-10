@@ -1,7 +1,15 @@
 # Notes on Applied Forces Refactor
 
-Status: design notes for review (not yet implemented).
+Status: **Goal 1 (free-body diagrams) largely shipped; Goal 2 (applied forces)
+plan reconciled 2026-08-09, not yet implemented.**
 Scope: Planck and Rapier adapters.
+
+> ⚠️ **Read the plan below against Findings 2026-08-09 §A.** Sections written
+> in May 2026 predate the entire Goal-1 workstream, and three of their claims
+> are stale: `setFriction` already exists, Phase 4's engine contact-force
+> readback already SHIPPED (and inverted its own premise — zero jitter), and
+> the force-arrow renderer already SHIPPED. The remaining Goal-2 surface is
+> the adapter seam, the per-frame wiring, and the schema.
 Reference target: PhET's *Forces and Motion: Basics* — applied-force slider, force arrows, sum-of-forces arrow, friction toggle.
 
 > **Note (2026-05-11):** these notes were written while Matter was still in-tree. Matter has since been removed; "Matter no-op" mentions below are historical. The plan itself is unaffected — it always targeted Planck/Rapier.
@@ -116,6 +124,14 @@ Skip if static or mass ≤ 0. Cache `F` on `userData` so the visualization layer
 
 ## Force-arrow visualization
 
+> **STALE (see Findings 2026-08-09 §A):** the renderer shipped as
+> `VectorArrow` + `synthesizeForceDebugRenderables` + `?forces=1`, not as
+> `ForceArrow.tsx`. `force-applied` is the last unwired kind and its branch
+> already waits at `VectorArrow.ts:94` — no renderer work is owed. The
+> "render the sum arrow analytically" instruction below is ALSO superseded:
+> engine readback shipped early and measured zero jitter, so analytical-vs-
+> engine is now the open step-4 decision, not a settled default.
+
 PhET's arrows are the engaging bit. Where it goes:
 
 - New `renderables/visuals/ForceArrow.tsx` that takes `{ origin, vector, color, label }` and renders an SVG arrow scaled to the body.
@@ -196,6 +212,12 @@ The sticky `isSliding` flag prevents chattering near the threshold: once the bod
 
 ### Adapter additions
 
+> **STALE (see Findings 2026-08-09 §A):** this already landed as a live
+> `friction` property setter — `types.ts:76`, `RapierAdapter.ts:262`,
+> `PlanckAdapter.ts:191` (including the contact-reset anticipated below).
+> Only the `frictionDemo` schema field and the sticky-`isSliding` switching
+> remain in Phase 2.5.
+
 Add `setFriction(μ: number): void` to [`PhysicsBody`](src/physics/types.ts#L60-L80). Both engines support it natively:
 
 - **Planck**: iterate fixtures, `fixture.setFriction(μ)` (then call `contact.resetFriction()` on existing contacts so the change takes effect — Planck caches per-contact friction at contact creation).
@@ -229,6 +251,8 @@ This is the "added complication fits in intentionally designed circumstances" pr
 - `JsonSimulation.onUpdate` reads it, computes `J = F · dt`, calls `applyImpulse`.
 - **No schema changes, no LLM updates.** Validates the wiring end-to-end.
 - **Acceptance test**: push a 2 kg body with 10 N on a frictionless surface → expect 5 m/s² → confirm with velocity slope on the existing graphs. Repeat under Rapier and Planck.
+- **AMENDED 2026-08-09 — two grounded cases join it**, because the frictionless test above passes even if contact behaviour is badly wrong: (2) **breakaway** — ramp F from 0 on a crate with authored µ, measure the breakaway F against `µ·m·g`; (3) **sub-breakaway creep** — hold F at ≈0.5·µmg for 5 s, expect ZERO displacement. Isolate against the `ramp-slide` 1% baseline (µ = 0.404 vs 0.4 authored, gravity-driven). Rationale and the predicted artifact: Findings 2026-08-09 (Goal 2, item #3).
+- **TWO INVARIANT-ERA ADDITIONS the May-2026 plan could not know:** the debug-panel slider MUST join the frame-cache key (invariant #13 — `JsonSimulation.tsx:1409-1417`; otherwise it silently replays stale frames, the air-toggle bug verbatim), and `userData.appliedForce` MUST ride `FrameBodySnap` (the standing replay rule from FBD step 2) or the arrow is invisible in replay. Write F at ONE site, drag-style (invariant #14).
 
 ### Phase 2 — schema field + force-arrow visualization
 
@@ -257,6 +281,12 @@ Independent of Phases 3–4; can run alongside Phase 2 once `applyImpulse` exist
 
 ### Phase 4 (optional) — engine-read contact forces
 
+> **SHIPPED EARLY 2026-08-06, out of order** — pulled forward by the Goal-1
+> FBD workstream as its step 3 (`getContactForces()`, `types.ts:97`, both
+> engines). It also inverted its own gating premise: the spike measured ZERO
+> jitter, so "only worth it if the analytical approach feels wrong" no longer
+> decides it. See Findings 2026-08-06 and 2026-08-09 §A.
+
 - For non-flat surfaces or stacks, read `postSolve` impulses (Planck) / `ContactForceEvent` (Rapier) and surface real friction/normal vectors.
 - Only worth it if Phase 3's analytical approach feels wrong on a real demo.
 
@@ -279,11 +309,11 @@ vector-rep Phase 1 the moment the field lands.
 
 ## Decisions deferred
 
-1. **Force vs impulse semantics in the JSON.** Schema says "force in N" (pedagogical); implementation translates to impulse internally. User-facing units stay clean. Lean: keep this.
+1. **Force vs impulse semantics in the JSON.** ~~Lean: keep this.~~ **RATIFIED 2026-08-09 (Bill)** — Newtons at every surface a human or an LLM touches; one conversion line in `onUpdate`; the adapter speaks impulse. `J = F · FIXED_DT_SECONDS` (verified against the loop, NOT `substepDt` — that under-delivers 8×). Two properties earned free: both engines are natively impulse solvers, and the mass slider works by construction since mass never enters the conversion. See **Findings 2026-08-09 (Goal 2, item #3)** — which also records the one place the abstraction leaks (delivery is a frame-boundary kick, not a spread push, unlike gravity) and the revised Phase 1 acceptance test that measures it.
 2. **Off-center forces (torque from a force).** PhET Basics doesn't need them — bodies are translation-only on flat ground. Defer `applyImpulseAtPoint` until a sim actually needs torque-from-force.
 3. **`frictionStatic` field — alias or remove?** Done: **removed** from `BodyDef` + schema + prompt (2026-05-11). The principled `μs / μk` story will return as part of the opt-in `frictionDemo` mode (see the Static-friction demo section), not as a per-body field that's silently a no-op for ordinary sims.
 4. **Camera follow / scrolling background.** Not a physics concern — separate UI work; flag for whoever owns the canvas/viewport code.
-5. **Per-body `applyForce` (truly continuous) vs impulse-per-frame.** Stick with impulse. Revisit only if a sim shows visible artifacts at 60 Hz.
+5. **Per-body `applyForce` (truly continuous) vs impulse-per-frame.** Stick with impulse. ~~Revisit only if a sim shows visible artifacts at 60 Hz.~~ **The artifact to watch for is now NAMED (2026-08-09): sub-breakaway creep.** A whole frame's impulse lands before substep 1, but substep 1's friction budget is only `µmg·dt_substep`, so for `µmg/8 < F < µmg` the body may creep when it should be dead still — ≈7 mm/s predicted on a 50 kg / µ=0.3 crate. Phase 1's revised acceptance test measures it directly against the `ramp-slide` 1% baseline. If it reproduces, the fix is the deferred per-substep `onPreStep(body, dt)` hook, earned empirically rather than pre-built. See Findings 2026-08-09 (Goal 2, item #3).
 
 ---
 
@@ -1139,3 +1169,797 @@ and therefore the reason the loupe self-triggers.
 Verification: `tsc` and `npm run lint` both at the known baseline (4
 react-refresh context splits; `da.ts` locale typing). No behavior change — pure
 rename plus comments; the truth table is identical.
+
+---
+
+### Findings 2026-08-09 — Goal 2 opened: plan drift reconciled, and the force-flow architecture RATIFIED
+
+Bill re-opened the applied-force half of this note (Goal 2 — the 1D
+applied-force sims, `BENCHMARK_SIMS.md` coverage-matrix **cell 7 / B5**, the
+one cell marked 🔴 BLOCKED). Two products from the session: the plan above is
+reconciled against what the Goal-1 FBD detour actually shipped, and the
+question Bill raised about double-counting got a ratified architectural
+answer.
+
+#### A. Plan drift — three claims above are stale, all in our favor
+
+The plan (lines 1–310) was written in May 2026 and predates the entire
+Goal-1 workstream. Corrections, recorded rather than edited away:
+
+1. **"`setFriction` needs adding to `PhysicsBody`" (Phase 2.5, §Adapter
+   additions) — ALREADY LANDED.** It exists as a live `friction` property
+   setter: `src/physics/types.ts:76`, wired at
+   `RapierAdapter.ts:262` (per-collider) and `PlanckAdapter.ts:191`
+   (per-fixture, with the contact-reset the note correctly anticipated).
+   Phase 2.5's adapter work is done; only the `frictionDemo` schema field and
+   the sticky-`isSliding` switching remain.
+2. **Phase 4 ("engine-read contact forces — only worth it if Phase 3's
+   analytical approach feels wrong") — SHIPPED EARLY, and it inverted its own
+   premise.** `getContactForces()` landed 2026-08-06 (`types.ts:97`) and the
+   spike measured ZERO jitter in canonical scenarios. So the Phase 2/3
+   instruction to draw the sum-of-forces arrow *analytically* is no longer the
+   default choice — it is now exactly the open step-4 primary-representation
+   decision (analytical-primary vs engine-primary). **Consequence for
+   sequencing: applied force does NOT need to wait on that decision, but the
+   sum arrow does.**
+3. **"Force-arrow visualization — new `renderables/visuals/ForceArrow.tsx`
+   … a debug toggle for Show force vectors" — SHIPPED** as `VectorArrow` +
+   `synthesizeForceDebugRenderables` + `?forces=1`. `force-applied` is the
+   LAST unwired kind, and its branch is already waiting at
+   `VectorArrow.ts:94`. No renderer work is owed.
+
+Net: the remaining Goal-2 surface is narrower than the plan reads — the
+adapter seam, the per-frame wiring, and the schema.
+
+#### B. The double-count question, and the invariant it produced
+
+**Bill's concern, stated precisely:** don't end up firing both
+`ObjectConfig.acceleration` AND an acceleration derived as ΣF/m from a force
+sum that now includes applied force. He recalls this class of bug biting us
+very early, over the acceleration of gravity.
+
+**Finding: the system is already immune, but only by accident of how the code
+happens to be written.** `force-net` is not a sum. It reads
+`userData.derivedAcceleration` (`VectorArrow.ts:64-65`), which is a finite
+difference of actual velocity (`JsonSimulation.tsx:827-830`):
+
+```
+a_derived = (v_now − v_prev) / dt      →      force-net = m · a_derived
+```
+
+There is no summation anywhere on the causal path, so there is nothing to
+double-count. The early gravity bug is precisely what happens when that loop
+closes: the engine integrates g, and an app-side sum re-integrates it.
+
+**RATIFIED (Bill, 2026-08-09) — promoted to CLAUDE.md invariant #14: net
+force is DERIVED, never SUMMED. Forces flow one way, into the engine.**
+Bill's framing: *we want the solver to do its job, and we want to be smart
+about how we feed the solver so we don't lose any physics AND so we can
+reconstruct physics after the fact for display purposes* — with no
+pre-calculation that double-counts and undermines either the position solve
+or the displayed quantities (vector, numeric, or graph). Component forces
+exist for DISPLAY; closure onto the derived net is a validation, not a
+construction. The precedent to copy is drag (`JsonSimulation.tsx:800-806`):
+`k` is computed once, handed to `setLinearDamping` for the physics *and*
+stashed on `userData.dragForce` for the arrow — one site, one value, so
+physics and display cannot drift. `appliedForce` will be written the same way
+in the same loop.
+
+**Bonus property, and it is the validator this note has wanted since the
+2026-07-19 research entry:** if the component arrows ever fail to close onto
+the derived net, something is injecting unmodelled motion. The FBD becomes
+the double-count alarm — self-reporting, not something we have to reason
+about.
+
+**Decided against: unifying the integrators.** Routing
+`configuredAcceleration` through `applyImpulse` (J = m·a·dt) for
+one-mechanism tidiness was considered and REJECTED. In free flight it is
+arithmetically identical; grounded, both are pre-solve velocity
+modifications the solver resists identically; both wake sleeping bodies. It
+is a cosmetic change with a nonzero regression surface and no physics
+payoff — the immunity comes from the derivation rule, not from having one
+integrator. (Correcting a claim made earlier in the same session that
+velocity writes "bypass the solver": they do not. `onUpdate` runs before
+`world.step()`. The impulse-over-force argument in §Recommended approach is
+untouched — forces really are cleared per substep.)
+
+#### C. The chapter split — `acceleration` vs `appliedForce`
+
+This is why the two fields are NOT redundant, and it came from Bill's
+teaching side: **physics teachers cover acceleration BEFORE Newton's laws**,
+so GIST needs sims with acceleration in them before applied forces have ever
+been taught.
+
+| | `acceleration` | `appliedForce` (coming) |
+|---|---|---|
+| Claim | "this body accelerates at *a*" | "something pushes with *F*" |
+| Chapter | kinematics — taught first | dynamics / Newton's 2nd |
+| Cause | stipulated, deliberately unmodelled | named, and on the diagram |
+| Mass slider | does nothing (that is the point) | `a = F/m` — **the lesson** |
+| FBD | not meaningful | closes by construction |
+
+Bill's characterization: acceleration is "like an *override* that adds
+acceleration to the system for users that have not specified any applied
+forces." It is there for THAT chapter, **and its use in other chapters can
+lead to outcomes that are unexpected — unexpected if you don't know it's
+there.**
+
+The concrete failure: a 5 kg body with `acceleration: {x: 2}` renders
+`force-net` = 10 N (measured, correct), while gravity + normal + friction +
+drag sum to 0. **The parts don't close onto the whole.** From the FBD's point
+of view, `ObjectConfig.acceleration` is an unmodelled force. This is a live
+gap today, not something applied force creates — applied force merely makes
+it visible by finally giving the FBD something to close with.
+
+**Ratified disposition:** the two fields keep distinct pedagogical domains
+rather than being unified or forbidden. Superposition stays LEGAL (it is
+honest physics: `a_total = a_cfg + F/m`, and the engine handles it), because
+forbidding it would need runtime validation the system deliberately doesn't
+do — nothing runs Zod `.parse()` at runtime (invariant #1), so a `.refine()`
+would be dead code. Instead it is **surfaced**.
+
+#### D. SHIPPED — the `checkChapterSplit` diagnostic
+
+New fourth pass at the expansion seam, `src/lib/objectExpansion.ts`
+(`checkChapterSplit`, called from `expandObjects` after `seatRiders`, on
+settled ids; mutates nothing). Fires
+`kinematic-acceleration-in-force-scene:<id>` when a body carries non-zero
+`acceleration` AND at least one real force:
+
+- authored non-zero `friction` (absent really means absent — invariant #1);
+- air resistance enabled AND the body hasn't opted out via
+  `dragCoefficient: 0`;
+- **applied force — the one-line addition marked in the code, to land with
+  Phase 2.** It is the sharpest case, since it is the field the author
+  probably meant to reach for.
+
+**Gravity is deliberately NOT a trigger** — additivity over gravity is the
+field's ratified contract (invariant #9), and the prompt already teaches the
+gravity double-count separately at FILL CONTROLS. `ObjectExpansionEnv` gained
+`airResistanceEnabled`; the `JsonSimulation` call site passes
+`environment.airResistance?.enabled === true` and joins the memo deps.
+Consistent with the ratified bus semantic: authored config-state truth,
+cleared on every re-expansion, never runtime events.
+
+**Three places, LANDED** (unusually, all three in one pass — the chapter
+split is exactly the choice the LLM makes blind today):
+- **Schema** — `acceleration`'s `.describe()` (`simulation.ts:152`) now names
+  it a kinematic stipulation, names the chapter, and carries the
+  FBD-won't-close caution; JSON schema regenerated.
+- **Prompt** — `gist_instructions.py` FILL OBJECTS step 4 gained the chapter
+  rule ("author it when the prompt describes MOTION rather than a CAUSE";
+  don't reach for it on a push/pull/force prompt); FILL CONTROLS' existing
+  gravity-double-count paragraph gained the companion warning that an
+  acceleration slider deliberately ignores mass, so pairing one with a mass
+  slider teaches the opposite of `a = F/m`.
+- **Docs** — this entry, plus invariants #9 (extended) and #14 (new) in
+  `CLAUDE.md`.
+
+**Bill's standing instruction: KEEP SURFACING the chapter split.** It is a
+design decision that reads as a bug to anyone who doesn't know the field
+exists, so it should stay visible to him and the dev team (Ethan, Duncan)
+rather than settling into silence — same disposition as air-resistance Q6.
+
+#### E. Recommended next step (Phase 1, unchanged in shape)
+
+Adapter seam only: `applyImpulse` on `PhysicsBody` + both engines, a
+debug-panel slider **added to the frame-cache key** (invariant #13 — the
+plan's Phase 1 predates that invariant and a debug-panel force would
+otherwise replay stale frames, the air-toggle bug verbatim), and
+`userData.appliedForce` riding `FrameBodySnap` (the standing replay rule).
+That lights up `force-applied` for free and runs the plan's acceptance test
+(2 kg, 10 N, frictionless → 5 m/s²) on both engines before any authoring
+surface is committed to.
+
+**Two scope questions still open for Bill** (raised, not yet answered):
+whether the **all-vectors polar-authoring sweep** stays pinned to this
+refactor's closing phase, and whether B5 adopts the interim **ground-µ-zero
+convention** so building it doesn't force the held pair-friction decision.
+
+Verification: `tsc` clean on all touched files (`da.ts` locale typing is the
+known baseline); `npm run lint` at the known baseline (4 react-refresh
+context splits). `npm run generate:schema` re-run after the `.describe()`
+change.
+
+---
+
+### Findings 2026-08-09 (Goal 2, item #3) — force-in / impulse-under RATIFIED; the substep-delivery asymmetry and what it costs at breakaway
+
+Bill, ratifying: *"Since we don't want anything cleared in a substep then I
+think we are talking about impulses. From a higher level abstraction, the user
+can think in terms of applied Force but the system delivers expected outcomes
+via an impulse path."* This closes **Decisions deferred #1** (force-vs-impulse
+semantics in the JSON) — see that entry, now marked RATIFIED.
+
+#### The boundary
+
+**Newtons at every surface a human or an LLM touches** — schema field, slider,
+output readout, graph series, arrow label, diagnostic text. **One line in
+`onUpdate` converts. The adapter speaks impulse.** That is the entire
+abstraction.
+
+Two properties make this more than a convenient fiction:
+
+- **Both engines are natively impulse solvers.** Rapier and Box2D/Planck
+  resolve contacts by accumulating impulses, so `applyImpulse` is the
+  primitive the solver already thinks in — not a workaround for a missing
+  force API. We are not translating into a foreign vocabulary.
+- **The mass slider then works BY CONSTRUCTION.** The conversion uses `dt`
+  only; mass never enters it. The engine divides by mass when it applies the
+  impulse, so `Δv = F·dt/m` falls out and a mass slider immediately changes
+  the acceleration with no extra code. **B5's core lesson — same force,
+  different mass, different acceleration — comes free from the arithmetic
+  rather than being staged.** (Contrast `acceleration`, which deliberately
+  ignores mass: the chapter split, Findings 2026-08-09 §C.)
+- `userData.appliedForce` in Newtons joins `dragForce` / `normalForce` /
+  `frictionForce`, which are already N. Same unit convention, so the
+  `force-applied` arrow's 2 px/N default scale needs no special-casing.
+
+#### The dt, verified — and the 8× trap next door
+
+Read the loop rather than trusting the plan
+(`BaseSimulation.tsx:337-343`):
+
+```
+onUpdate(a, t)                                   // ONCE per logical frame
+for (i = 0; i < substeps; i++) a.step(substepDt) // 8 substeps at the default
+simulationTime += FIXED_DT_SECONDS               // 1/60 s
+```
+
+`FIXED_DT_SECONDS = 1/60` (`BaseSimulation.tsx:60-61`); default
+`precomputeTimestepHz = 480` (`JsonSimulation.tsx:477`) →
+`substeps = round((1/60)/(1/480)) = 8`, `substepDt = 1/480`.
+
+So **`J = F · FIXED_DT_SECONDS` is correct** — the impulse covers exactly the
+span the substep loop then advances. **NOT `substepDt`**, which would
+under-deliver by 8× — the same trap as the cleared-per-substep `applyForce`
+in a different costume. Write the constant, not a derived local.
+
+#### Where the abstraction leaks: delivery is a kick, not a push
+
+The impulse arrives **entirely at the frame boundary**; the engine then
+integrates 8 substeps. A true continuous force would be spread across all 8 —
+and **gravity IS spread across all 8**, applied internally by the engine per
+substep. So `F_applied` and `F_gravity` are **not delivered symmetrically**.
+
+In free flight that is an O(dt²) difference, below visual threshold. **In
+contact it may not be**, and the mechanism is specific:
+
+An impulse solver clamps the tangential (friction) impulse each substep to
+`µ × (normal impulse that substep)` ≈ `µ·m·g·dt_substep`. We inject a whole
+frame's worth — `F/60`, i.e. `8F/480` — before substep 1, but substep 1's
+friction budget is only `µmg/480`. Friction can absorb the kick outright only
+when `8F ≤ µmg`.
+
+**Prediction:** for `µmg/8 < F < µmg` — comfortably BELOW breakaway — the body
+picks up velocity in substep 1 and creeps before the remaining substeps brake
+it. B5-scale worked estimate (50 kg crate, µ = 0.3 → breakaway 147 N, push
+100 N): ≈0.03 m/s after substep 1, arrested around substep 5, ≈0.1 mm per
+frame — **≈7 mm/s of steady creep on a crate that should be perfectly
+stationary**, recurring every frame.
+
+If that holds, *"the box doesn't move until you push hard enough"* degrades to
+*"…until you push one eighth as hard"* — **precisely the lesson B5 exists to
+teach**, and precisely the regime the sub-floor force stub was built to make
+legible (Findings 2026-08-06, step-4 drive round 1).
+
+**Stated uncertainty, deliberately not designed around:** this is a
+first-principles prediction. Warm-starting and the joint normal/friction solve
+could soften or erase it. It is a thing to MEASURE in Phase 1, not a thing to
+pre-emptively engineer against.
+
+#### Phase 1 acceptance test — REVISED (this is the actionable change)
+
+The plan's acceptance test (§Phase 1: *2 kg body, 10 N, frictionless →
+5 m/s²*) **would not catch this** — no contact, so it passes regardless. It
+stays, and a grounded case joins it:
+
+1. **Free-body (unchanged):** 2 kg, 10 N, frictionless → 5 m/s², confirmed on
+   the velocity-slope graph, both engines.
+2. **NEW — grounded breakaway:** crate on flat ground, µ authored. Ramp F from
+   0 and measure the F at which it actually breaks away, against `µ·m·g`.
+3. **NEW — sub-breakaway creep:** hold F at ≈0.5·µmg for 5 s and measure total
+   displacement. **Expect zero. Any monotonic drift is the delivery
+   artifact.**
+
+**Isolation baseline (why this experiment is clean and cheap):** `ramp-slide`
+already measures µ = 0.404 against an authored 0.4 — about a 1% instrument —
+with GRAVITY as the driving force, i.e. delivered per-substep by the engine.
+If applied-force breakaway reads materially worse than that 1%, **the
+difference IS the delivery artifact**, separated from ordinary solver error by
+construction. The instrument exists; no new harness is owed.
+
+#### If it shows up: the escape hatch is already scoped
+
+The fix is the per-substep `onPreStep(body, dt)` hook deferred in §Recommended
+approach ("strictly more accurate… defer until something genuinely needs it")
+and again as Decisions deferred #5. **This would be the thing that needs it**,
+and the loop it touches is the four lines quoted above. Deliberately NOT
+pre-built: keep Phase 1 small, earn the hook empirically. Decisions deferred
+#5 now names the artifact to watch for instead of the vague "visible artifacts
+at 60 Hz".
+
+---
+
+### Findings 2026-08-09 (Goal 2, item #4) — sleep RATIFIED OFF globally at body creation; measured, with named revisit triggers
+
+The FBD step-3 spike (Findings 2026-08-06) left **sleep flattening** as its one
+unresolved caveat: a resting body loses its normal/friction arrows when the
+engine puts it to sleep, and that is exactly the sub-breakaway regime B5
+teaches. Item #4 resolves it. Bill asked three questions; all three were
+measured against the pinned versions (planck 1.4.2, rapier2d-compat 0.19.3)
+rather than reasoned about.
+
+#### Q1 — "I take it this is a Planck issue only?" — NO. Both engines sleep.
+
+Same scene (1 kg box resting on ground, 1 s settle, then 10 s observed):
+
+| engine | slept at |
+|---|---|
+| Planck | already asleep by the end of the 1 s settle (`timeToSleep` = 0.5 s) |
+| Rapier | 1.0 s AFTER the settle |
+
+Rapier is roughly twice as slow to nod off — which is why the step-3 spike
+recorded it as "laxer" — but **it sleeps.** A B5 crate sitting below breakaway
+loses its arrows on BOTH engines, just a beat apart. **Fixing Planck alone
+would have left the bug on the default engine**, which is the trap this
+question caught.
+
+#### Q2 — "Can we turn sleep off for certain objects?" — Yes, and the control is asymmetric in an inconvenient direction
+
+| | Planck 1.4.2 | Rapier 0.19.3 |
+|---|---|---|
+| Per-body | `body.setSleepingAllowed(bool)` — **runtime** | `RigidBodyDesc.setCanSleep(bool)` — **creation-time ONLY** |
+| World-level | `world.setAllowSleeping(bool)` | — |
+| Runtime escape | — | `wakeUp()` / `sleep()` / `isSleeping()` |
+| Tunables | `timeToSleep` 0.5 s, `linearSleepTolerance` 0.01 m/s, `angularSleepTolerance` 2°/s (`Settings` statics) | not exposed in the JS bindings |
+
+Rapier has **no runtime `canSleep` setter** in the pinned version. A per-body
+runtime toggle there would mean recreating the body or calling `wakeUp()`
+every step as a workaround. **That asymmetry is the argument for deciding once
+at creation rather than building a per-body knob.**
+
+#### Q3 — "What's the performance hit?" — negligible at diorama scale
+
+Planck, sleep on vs off, 10 s of sim time (600 frames × 8 substeps = 4800
+`world.step` calls), measured:
+
+| bodies | sleep ON | sleep OFF | ratio | per logical frame (OFF) | % of 60 fps budget |
+|---|---|---|---|---|---|
+| 5 | 1 ms | 83 ms | 66× | 0.14 ms | 0.8% |
+| 20 | 4 ms | 330 ms | 89× | 0.55 ms | 3.3% |
+| 100 | 44 ms | 1488 ms | 34× | 2.5 ms | 15% |
+| 500 | 359 ms | 7977 ms | 22× | 13.3 ms | 80% |
+
+**READ THE ABSOLUTE COLUMN, NOT THE RATIO.** The 22–89× ratios look alarming
+and mean nothing: sleeping bodies cost essentially zero (1–4 ms), so the ratio
+divides by ~nothing. At diorama scale the real cost is **about half a
+millisecond per logical frame, ~3% of the 60 fps budget**; a 10 s precompute
+gets a third of a second longer. Bill's read of why the feature exists is
+confirmed by the 500-body row — that is the regime it was built for.
+
+#### The measurement that actually settled it: there is no stability cost
+
+The expected tradeoff was that sleep freezes a body EXACTLY, so an awake body
+keeps being integrated and might micro-drift — which would trade one FBD
+problem for another. **It does not:**
+
+| | drift over 10 s | max \|v\| |
+|---|---|---|
+| Planck, sleep ON | 0.0000 mm | 0 |
+| Planck, sleep OFF | 0.0000 mm | 2.3 × 10⁻¹⁸ m/s |
+| Rapier, canSleep true | 0.0000 mm | — |
+| Rapier, canSleep false | 0.0000 mm | — |
+
+Machine epsilon. Nothing to pay.
+
+#### DECISION (Bill, 2026-08-09): disable sleep GLOBALLY at body creation, in both adapters
+
+Not per-body, and **not a debug toggle.** Four reasons:
+
+1. **It is ~free** (0.5 ms/frame at diorama scale) and measurably costs nothing
+   in stability.
+2. **This is not an applied-force problem — it is an FBD problem we already
+   ship.** Any resting body loses its normal/friction arrows TODAY;
+   `ramp-slide` below breakaway has this bug right now, on both engines.
+   Scoping the fix to bodies carrying an applied force would fix the new sim
+   and leave the shipped one broken.
+3. **Per-body is a false economy** given Rapier's creation-time-only control.
+4. **Not a toggle, on purpose.** Invariant #13 — a debug knob that changes
+   trajectories must join the frame-cache key. A constant does not. Keeping it
+   OUT of the key is worth more than the knob.
+
+Engine-specific logic stays in the adapters (invariant #4): Planck sets
+`allowSleep: false` / `setSleepingAllowed(false)` at create; Rapier sets
+`RigidBodyDesc.setCanSleep(false)`. Nothing above the adapter changes.
+
+#### REVISIT TRIGGERS (Bill's explicit instruction — communicate thoroughly, this is reversible)
+
+This decision buys display correctness with CPU we currently have to spare.
+**Both halves of that sentence can change.** Re-open it when either fires:
+
+- **TRIGGER 1 — object count.** If GIST starts authoring sims with more
+  objects than we can comfortably handle. The table above is the sizing data:
+  the knee is somewhere past 100 bodies, and 500 eats 80% of the frame budget.
+  Note the cost is per-AWAKE-body-that-would-have-slept, so it bites hardest
+  in exactly the scenes that motivated the feature — many bodies that settle
+  and stay settled (a pile, a stack, a bin of objects).
+- **TRIGGER 2 — low-performance hardware.** These numbers are from a dev Mac.
+  **Chromebooks are a real target for GIST** and are the likeliest place this
+  shows first. Re-measure there before assuming the 3% figure travels; a
+  10–20× slower machine turns 0.55 ms/frame into something that matters.
+  Benchmark method is reproducible — see the scratchpad harness described
+  above (build N resting bodies, settle, time 600 substepped frames both ways).
+
+If a trigger fires, the graceful fallback is **not** re-enabling sleep
+wholesale — it is narrowing the scope: sleep allowed by default, disabled only
+on bodies whose sim declares force display. That costs the Rapier body-recreate
+workaround, which is exactly the complexity this decision is buying out of
+today.
+
+#### Consequence for the still-open step-4 decision
+
+The step-3 spike left analytical-vs-engine primary representation balanced on
+"zero jitter weakens the anti-engine case, but **sleep flattening keeps hybrid
+alive**." **With sleep off, that second argument disappears** — the engine
+readback now survives at rest, which is where it used to fail. This pushes the
+primary-representation call further toward engine-primary. Weigh it there;
+this entry does not decide it.
+
+#### SHIPPED same day (2026-08-09)
+
+- `PlanckAdapter.createBody` — `allowSleep: false` in the body def
+  (`PlanckAdapter.ts:321-333`).
+- `RapierAdapter.createBody` — `bd.setCanSleep(false)`
+  (`RapierAdapter.ts:387`), carrying the full rationale + the "don't re-enable
+  this to fix a perf problem" warning as a comment at the callsite, since that
+  is where a future dev meets the decision.
+- Both adapters funnel `createWalls` through `createBody`, so one edit each
+  covers every body in the world.
+
+**Verified through the real adapters** (not raw engines): 5 kg box resting on
+ground, 10 s, sampled every 2 s —
+
+| engine | expected N | N at t = 0, 2, 4, 6, 8, 10 s |
+|---|---|---|
+| Rapier | 49.0 | 49.00, 49.00, 49.00, 49.00, 49.00, 49.00 |
+| Planck | 49.0 | 49.00, 49.00, 49.00, 49.00, 49.00, 49.00 |
+
+Exactly m·g, 100%, held for the full run on both engines. Before the change
+Planck's reading collapsed to zero at ~0.5 s and Rapier's at ~1.5 s. **The
+step-3 spike's sleep-flattening caveat is closed.**
+
+`tsc` clean on all touched files; `npm run lint` at the known baseline (4
+react-refresh context splits). Incidental confirmation of an unrelated known
+divergence: resting y settles at 0.498727 (Rapier) vs 0.515000 (Planck) —
+engine penetration-allowance difference, not sleep-related.
+
+**DRIVE-CONFIRMED by Bill, same day** — `/simulation/ramp-slide`: performance
+fine (no perceptible cost from the always-awake bodies), **vectors stay visible
+below the breaking-point angle** — the exact failure this fixed — and past
+breakaway the expected motion, friction force and net force all read correctly.
+Item #4 is closed.
+
+---
+
+### Findings 2026-08-09 (Goal 2, item #5) — friction representation: hold RE-AFFIRMED, scope narrowed, instrument broadened + SHIPPED, forcing function NAMED
+
+Item #5 of the Goal-2 walk-through. The held question (Bill 2026-08-06,
+`Notes_on_Ramps_and_Tracks_Refactor.md` → Open questions) is *how GIST should
+represent friction to users and the LLM*, given that µ is physically a
+surface-PAIR property while both engines fake it per-body with a Max combine
+rule. That note remains the question's home; this entry records what the
+applied-force work changed about it.
+
+#### Scope is narrower than it read — B5 needs no decision
+
+Checked rather than assumed:
+
+- Walls are created at **friction 0 on both engines** — Rapier explicitly
+  (`RapierAdapter.ts:478`), Planck via `material.friction ?? 0`
+  (`PlanckAdapter.ts:62`).
+- An object with no authored friction also gets **0**
+  (`ObjectRenderer.tsx:44`, a destructuring default).
+- Both engines combine as **Max** (Rapier natively; Planck aligned by the
+  begin-contact hook, `PlanckAdapter.ts:246-252`).
+
+So `max(0, mover's µ) = mover's µ`: **the one-owner convention is already the
+de-facto default**, and the masking bug REQUIRES someone to author µ on
+another body. **B5's crate-on-a-floor scene with a friction switch is
+therefore safe to build with the hold still in place** — which retires the
+"does B5 force pair-friction?" scope question raised at the start of this
+session. It does not.
+
+(Bonus catch: `GIST_Physics_System_Topics.md` still claimed Planck needed a
+friction-mixer fix before the cross-engine parity energy claim could be
+re-tested. Stale — the Max alignment shipped during the container work. Fixed
+there; the real open item is that nobody has re-run the parity test.)
+
+#### Instrument broadened + SHIPPED — `checkFrictionSliderMasking`
+
+`seat-friction-masked` only ever covered the DECLARED `seatOn` pair, so it
+missed every other geometry — including the case that actually bit us. New
+producer `checkFrictionSliderMasking` (`objectExpansion.ts`, called from
+`JsonSimulation` inside the bus-cleared window, since `expandObjects` takes
+objects and not controls) fires `friction-slider-masked:<targetObj>` when a
+friction slider's target is out-µ'd by another body.
+
+**Bill's scoping call: compare against ANY other object in the sim, not just
+static ones.** Rationale, recorded because it is the interesting part: we
+cannot know at config time which bodies will touch, and inferring contact from
+geometry is not the seam's business. The rule this encodes is a **dev-facing
+expectation** instead — *while exploring forces, the friction slider's value
+should be the operative µ for all object interactions in the scene.* The broad
+net deliberately **sets the stage for the pair-friction discussion rather than
+pre-empting it**.
+
+Distinguishes two severities: "dead from `min` to X" vs. **"does NOTHING
+anywhere in its range"** when µ ≥ slider max, which reads as a broken sim
+rather than a floored control. Config-state truth only; a slider drag does not
+re-evaluate it (matching `seat-friction-masked`, per the ratified bus
+semantic). Both producers stay — `seatOn` is a real declared contact and
+reports the pair delta.
+
+Verified headless, 6/6:
+
+| case | result |
+|---|---|
+| ramps remix failure (slider 0–1, ramp authored 0.6) | FIRES — "dead from 0 to 0.6" |
+| correct authoring (surface µ 0, the taught pairing rule) | quiet |
+| surface µ unauthored (the default; floor/walls) | quiet |
+| slider tops out 0.5, shelf carries 0.8 | FIRES — "does NOTHING anywhere in its range" |
+| **non-static** offender (dynamic box at 0.7) | FIRES — Bill's broadening |
+| no friction slider present | quiet |
+
+#### FORCING FUNCTION — named (this is the schedulable output)
+
+Bill asked for the conservation angle in the discussion, and it is what turns
+this from an authoring wart into a correctness precondition.
+
+**The friction-representation decision must be RESOLVED before
+G6-with-friction ships.** `PHYSICS_GRAPHS.md` G6 asserts *"E_total decays and
+the deficit equals work done by friction — area bookkeeping meets
+conservation."* That is a QUANTITATIVE claim: the student checks ΔE against
+µ·N·d. Under Max masking the operative contact µ need not be the µ on the
+slider, and **the arithmetic simply fails**. G6 is flagged ⭐ *the single most
+curriculum-central graph for ages 10–18*, so this is a hard dependency of the
+most important graph in the roadmap.
+
+**The frictionless half carries the subtler version of the same dependency.**
+G6's dual duty is that on a frictionless scene, E_total drift is *numerical
+artifact by definition* — the "the simulation is also an approximation"
+lesson. That inference needs certainty that the scene IS frictionless, and
+under Max masking, authoring µ = 0 on the mover does not guarantee it. **Solver
+drift and unintended friction become indistinguishable**, quietly invalidating
+the diagnostic.
+
+**Second forcing function, same decision:** FBD step 5 — an analytical friction
+model needs a defensible contact µ. Resolve the two together.
+
+Dependency recorded at BOTH ends: `PHYSICS_GRAPHS.md` G6 (found from the graph
+side) and the ramps note's Open questions (found from the question side).
+
+#### Energy follows invariant #14 — derived, never summed
+
+`PHYSICS_GRAPHS.md` harness rule 4 already says derived quantities are computed
+outside the engine from sampled state, never trusting engine-internal energy
+reporting. That is invariant #14's shape applied to energy, and it is now
+stated explicitly at G6: **compute E_total(t) from measured state and let the
+friction loss be the RESIDUAL — do not integrate ∫F_fric·v dt to construct
+it.** The analytical µ·N·d prediction is the overlay you compare against, which
+makes energy closure a *validation* rather than a construction — the same
+protection, for the same reason, as force closure.
+
+#### Adjacent capability gap, deliberately NOT bundled here
+
+Checking the conservation thread surfaced that the recorded gap is worse than
+the matrix states. It reads "outputs/graphs take per-object property paths so
+system totals (Σp, ΣKE) are inexpressible." In fact **KE, PE and p are not
+expressible AT ALL** — no such property path exists anywhere in `src/`, and
+every output and graph is anchored to a single `targetObj`. The workaround is
+visible in the wild: `CupCatchSimulation.tsx` teaches momentum conservation by
+watching *"the two vx traces converge"* — a proxy for momentum, not momentum.
+
+**Consequence: G6 and G8 (both ⭐) are currently unbuildable, and B2/B3/B8 with
+them.** This gates more benchmarks than friction representation does, it is
+INDEPENDENT of it, and it already has a design rule written down that matches
+invariant #14. Flagged as its own scoping item — not opened here.
+
+---
+
+### Findings 2026-08-09 (Goal 2, item #6) — Phase 1 BUILT: `applyImpulse` seam, the `onPreStep` hook (earned, not assumed), and the debug-panel force dropdown
+
+Item #6 was meant to be the short one — "the two invariants that bite
+mechanically." The acceptance test turned it into the most consequential entry
+of the session.
+
+#### The finding that changed Phase 1's shape
+
+`J = F · FIXED_DT_SECONDS` applied once per LOGICAL FRAME is arithmetically
+correct and **passes the free-body test exactly** — but it breaks contact
+behaviour, because our precompute loop then takes 8 substeps of 1/480 s. Item
+#3 predicted this; item #6 measured it:
+
+| delivery | F = ma (2 kg, 10 N) | breakaway (truth 19.6 N) | creep @ 9.8 N over 5 s |
+|---|---|---|---|
+| frame boundary | 5.0000 m/s² ✅ | Rapier **6 N** (−69%), Planck **8 N** (−59%) | **35.6 / 30.6 mm** |
+| per engine step | 5.0000 m/s² ✅ | Rapier **19 N** (−3.1%), Planck **20 N** (+2.0%) | **0.333 / 0.000 mm** |
+
+Mechanism confirmed to the threshold: at F = 2 N — just below the predicted
+`µmg/8 = 2.45 N` — drift is 0.09 / 0.0000 mm; above it, creep. A crate that
+should sit still until 19.6 N began sliding at 6 N. **That is B5's entire
+lesson, inverted.** Bill: *"an applied force less than a static friction force
+should not move an object"* — a must-have, and explicitly WITHOUT resorting to
+an analytical/logical override: keep letting the solver do its job, just feed
+it honestly.
+
+#### Two axes, and the one that mattered (Bill's clarifying question)
+
+Bill asked whether "substep" meant solver iterations. It does not, and the
+distinction is load-bearing enough to measure:
+
+| axis | result | conclusion |
+|---|---|---|
+| **Solver iterations** (1→32), broken cadence | Rapier 8, 6, 6, 6, 6 N | **cranking iterations does NOTHING** |
+| **Substeps** (1→16), impulse per `world.step()` | Rapier 18, 18, 18, 19, 20 N | correct at every count |
+
+A *substep* is a full `world.step(1/480)` — integrate forces, solve
+constraints, integrate positions. *Solver iterations* are convergence passes
+INSIDE one step. **Neither engine lets you inject an impulse between solver
+iterations, and we do not want that** — those iterations converge a single
+time-step's constraint system, and injecting mid-convergence would corrupt it.
+**No new engine API is needed:** `applyImpulse` before each `world.step()` IS
+the cadence gravity uses. (Refinement on "as gravity does": gravity is not
+applied per solver iteration either — the engine applies it once per step,
+before the constraint solve. Right instinct, one level up.)
+
+**The rule, stated as unit consistency rather than "spread it out":
+`J = F · dt_of_the_next_step`.** The bug was handing an impulse computed over
+1/60 s to a 1/480 s step, dumping eight steps' worth of tangential impulse into
+one step's friction budget. The 1-substep column reading 18 N is the tell — at
+one step per frame the two cadences coincide, which is why the error scales
+with substep count. Corollary: applied force stays correct at every timestep
+dropdown setting.
+
+#### BUILT
+
+- **`applyImpulse(impulse: Vec2)` on `PhysicsBody`** (`types.ts`) + both
+  adapters. Rapier `rigid.applyImpulse(v, true)`; Planck
+  `applyLinearImpulse(v, getWorldCenter(), true)` — at the center of mass, so
+  no torque (off-center stays Decisions-deferred #2). `wake: true` on both.
+- **`onPreStep(adapter, dtSeconds)` on `BaseSimulation`** — the hook this note
+  deferred with *"defer until something genuinely needs it."* It genuinely
+  needed it, and the deferral was right: we now have numbers instead of an
+  assertion. Fires before EVERY `adapter.step(dt)` with that step's own dt, at
+  both step sites (live: one full-dt step; precompute: 8 substeps).
+  **`onUpdate` is untouched and still strictly once per logical frame** —
+  graphs, outputs and finite differences depend on that
+  (`GIST_Physics_System_Topics.md` → Loop-mode semantics), so this is a
+  separate lightweight hook, not a relocation.
+- **`handlePreStep`** in JsonSimulation reads the Newton value stashed by
+  `handleUpdate` and converts per step. **ONE compute site** (invariant #14's
+  drag precedent): `handleUpdate` writes `userData.appliedForce` in Newtons;
+  the engine path, the Frame capture, and the arrow all consume that same
+  number, so physics and display cannot drift.
+- **`force-applied` is now WIRED** (`VectorArrow.ts`) — the last unwired kind
+  in `vectorTheme.ts`; its branch had been waiting since Phase 1 of the vector
+  work. Added to `FORCE_DEBUG_KINDS` so `?forces=1` draws all six. Reads
+  {0,0} and self-suppresses on every sim except the debug target.
+
+#### The debug UI (Bill's spec: a dropdown, like solver iterations)
+
+Two selects in `AdvancedDebugPanel`, both disabled while running/precomputing:
+
+- **"Applied force"** — discrete signed values
+  `0, ±1, ±2, ±5, ±10, ±25, ±50, ±100 N`. **Discrete rather than a slider for
+  two reasons worth recording:** a continuous control rewrites the frame-cache
+  key on every drag tick, so every micro-adjustment forces a fresh precompute;
+  and the two-engine acceptance test needs the SAME force on both engines, not
+  approximately-the-same-slider-position. ±1/±2 are kept deliberately — they
+  probe the sub-breakaway band on a light test body.
+- **"Force on"** — a body-id dropdown of dynamic bodies. An id list rather
+  than canvas selection because **selection is impossible after a run**
+  (`editModeActive` requires `simAtInitialConditions`, which Play clears) —
+  the same blocker the force loupe hit.
+- **X-only for Phase 1.** B5 and PhET Forces-and-Motion are 1D horizontal and
+  gravity already supplies Y. The schema field can still be `{x, y}` in Phase 2;
+  this is only the harness.
+
+#### The two invariants, honoured
+
+- **#13 frame-cache key** — both the force value AND the target id join the
+  key at `handlePlay`. The May-2026 plan predates this invariant, and a
+  debug-panel force outside the key would have silently replayed stale frames:
+  the air-toggle bug verbatim. Discrete values keep the key space small enough
+  that flipping between forces can genuinely REUSE cached frames.
+- **Standing replay rule** — `appFx`/`appFy` ride `FrameBodySnap` beside
+  `dragFx`/`normalFx`, restored in `handleReplayFrame`. Without it
+  `force-applied` would be invisible in replay, exactly as `force-drag` was
+  until the step-2 drive caught it.
+
+#### Three places: deliberately UNTOUCHED
+
+No schema field, no prompt, no LLM support — debug-first, exactly as
+`?forces=1` and the loupe were. Per invariant #2 that IS the landed state, not
+a gap. Bill's framing for the sequence: **test an applied force on both engines
+through the debug panel BEFORE it enters the authoring system.** Phase 2 is
+where `appliedForce` becomes authorable.
+
+Verification: `tsc` clean on all touched files; `npm run lint` at the known
+baseline (4 react-refresh context splits). Physics measured headless through
+the real adapters at the app's exact cadence. **Owed: Bill's drive** — the
+headless harness cannot exercise the React wiring (dropdowns → cache key →
+precompute → replay → arrow).
+
+---
+
+### Findings 2026-08-09 (Goal 2, item #6 cont.) — Bill's drive PASSED; `appliedForce1D` hardwired as the applied-force test case
+
+Bill drove the Phase 1 debug force on a modified ramp-slide scene and reported
+it working: *"things work great … the comparison between analytical and
+numerical solutions is within acceptable limits."* The sim is now hardwired as
+a permanent fixture so **Phase 2's authoring surface has something to be tested
+against rather than a fresh scene**: `src/simulations/appliedForce1D.json` +
+`AppliedForce1DSimulation.tsx` + route `/simulation/applied-force-1d`.
+
+**Design of the fixture (Bill's):** m = 5 kg, µ = 0.51, g = 9.8 → breakaway
+µ·m·g = **24.99 N**, chosen so the dropdown's **±25 N step lands right on the
+threshold**. The sim is built around the one menu value that can straddle it.
+
+**`g` is exactly 9.8** — asked and answered: three places (schema default
+`simulation.ts:276`, and both adapter fallbacks), all `9.8`. Not 9.81, not
+9.80665. Paper calculations at 9.8 are the sim's own number.
+
+#### Headless verification, both engines
+
+| regime | result |
+|---|---|
+| **sliding**, `a = (F − µmg)/m` | +50 N and +100 N → **0.01% error** on both engines. Exact. |
+| **breakaway** | Planck **25 N** (+0.04%), Rapier **24 N** (−3.96%) |
+
+**The Rapier gap is not a breakaway error — it is a difference in the CHARACTER
+of static friction**, and that is the finding worth keeping. Drift over 5 s
+below the 24.99 N threshold:
+
+| F | 20 N | 22 N | 24 N | 24.9 N |
+|---|---|---|---|---|
+| Rapier | 0.2 mm | 5.5 mm | 14.7 mm | 19.5 mm |
+| Planck | 0.0 mm | 0.0 mm | 0.0 mm | 0.0 mm |
+
+Planck's static friction is **rigid** (exactly zero until it breaks); Rapier's
+is **compliant**, creeping asymptotically toward the threshold (TGS-soft). So a
+"did it move?" criterion reads Rapier ~4% low. At `pixelsPerUnit: 100` that
+worst-case creep is **1.5 px over 5 s** — invisible, which is precisely Bill's
+"within the noise of the simulation system overall". Recorded in
+`GIST_Physics_System_Topics.md` → Cross-engine inconsistencies.
+
+#### Bill's observed start transient — explained exactly
+
+Bill: *"my initial location of the ice block 'drops' before the block engages
+with the floor … the net force arrow points both above and below the horizontal
+from 0 to 0.07 seconds."* Cause: **`y = height/2` does not rest a manifest
+sprite on the floor.** `ice_block`'s collider is 98.6% of its bounding box
+(57.37 of a 58.1818 viewBox), so at `y: 0.25, height: 0.5` the collider bottom
+starts **3.75 mm above** the floor. Predicted free fall 27.7 ms; measured
+Rapier `vy` at 17 ms = **−0.163 m/s**, and `g × 0.01667 = 0.163` — exact. His
+0–70 ms noise window is that fall plus settling.
+
+**Planck never drops** — its 10 mm polygon skin (`polygonRadius =
+2 × linearSlop`, `linearSlop = 5e-3`) already spans a 3.75 mm gap. Same cause
+as its resting **11.25 mm higher** than Rapier, which also explains the
+0.4987 / 0.5150 rest-height divergence noticed while verifying the sleep
+change. Both recorded — the authoring trap in `Local_Sim_Workflow.md`, the
+engine divergence in the topics tracker.
+
+**Kept as authored, deliberately.** `y: 0.2462` would remove the transient;
+the fixture keeps `0.25` because it is what Bill drove and validated, and
+because the drop is a useful in-repo specimen of the collider-inset trap.
+
+#### Harness honesty
+
+The first headless run reported the +50 N case running 42% fast. That was a
+harness bug, not physics: an 8.8 m floor, and the block slid 26 m — off the
+end, losing friction, and continuing at F/m. Re-run on a long floor it matches
+theory to 0.01%. Recorded because the failure mode is easy to repeat: **an
+above-breakaway push covers real distance fast** (22.5 m in 3 s at +50 N), so
+any harness testing sustained force needs a floor sized for it.
