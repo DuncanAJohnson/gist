@@ -643,18 +643,29 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   // undefined), so we fall back to held state instead of reading it.
   const POLAR_EPS = 1e-9;
 
-  // Seed held polar state from polar-AUTHORED velocities, so an authored
-  // direction with zero magnitude ({magnitude: 0, angle: 60}) isn't lost when
+  // Seed held polar state from polar-AUTHORED vectors, so an authored direction
+  // with zero magnitude ({magnitude: 0, angle: 60}) isn't lost when
   // normalization produces {x: 0, y: 0}: the first magnitude-slider drag
   // launches along the authored angle. Non-degenerate vectors refresh held
   // state on every polar write, so this seed only decides the degenerate case.
+  //
+  // Covers EVERY polar-authorable vector (2026-08-13): velocity, acceleration,
+  // and appliedForce. Missing one is a live bug, not a nicety — author
+  // `appliedForce: {magnitude: 0, angle: 30}` with a strength slider at 0 and
+  // the first drag would push HORIZONTALLY instead of along the authored 30°.
+  // All three scale their magnitude by the length unit (force carries a length
+  // dimension too), so one loop serves them.
   useEffect(() => {
+    const POLAR_BASES = ['velocity', 'acceleration', 'appliedForce'] as const;
     expandedObjects.forEach((obj) => {
-      if (obj.velocity && isPolarVector(obj.velocity)) {
-        heldVectorStateRef.current[`${obj.id}.velocity`] = {
-          angle: obj.velocity.angle * angleScale,
-          magnitude: Math.max(0, obj.velocity.magnitude) * unitScale,
-        };
+      for (const base of POLAR_BASES) {
+        const v = obj[base];
+        if (v && isPolarVector(v)) {
+          heldVectorStateRef.current[`${obj.id}.${base}`] = {
+            angle: v.angle * angleScale,
+            magnitude: Math.max(0, v.magnitude) * unitScale,
+          };
+        }
       }
     });
   }, [expandedObjects, unitScale, angleScale]);

@@ -265,6 +265,23 @@ Ratio of ~45× between the two — dramatic and visible within a 60-meter canvas
 
 **Status**: identified, confirmed, fixed, verified. Planck was never affected.
 
+> ⚠️ **SUPERSEDED 2026-08-13 — the fix below was correct about the oscillation
+> and still left the setter BROKEN.** The `baseMass` formula stopped the
+> oscillation, but two deeper defects survived it, both measured through the
+> real adapters while driving `/simulation/applied-force-2d`:
+> (1) `setAdditionalMass` does not change `rigid.mass()` **at all** until
+> `recomputeMassPropertiesFromColliders()` runs — which neither version called
+> — so `body.mass = X` was a **total no-op on Rapier, in both directions**;
+> (2) even with the recompute, `total = collider base + additional (≥ 0)`, so
+> mass could only ever go **UP** — a body could never be made lighter than
+> authored, which is half of the `a = F/m` lesson.
+> The setter now scales each collider's mass by `target/current_total` and
+> recomputes; `baseMass` is gone. **Why this entry's verification missed it:**
+> the observable it checked was *oscillation between repeated calls*, and a
+> no-op is perfectly stable — it never oscillates. Full account:
+> `Notes_on_Applied_Forces_Refactor.md` → Findings 2026-08-13 (cont.).
+> The confound analysis below is unaffected and still stands.
+
 **The bug** (now fixed) was at the previous Rapier wrapper setter:
 
 ```ts

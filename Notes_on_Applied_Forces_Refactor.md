@@ -2336,3 +2336,65 @@ optimum expressed as "the value at which X is cheapest" are different animals,
 and a fixed-input sweep turns the second into a RANGE bounded by two instances
 of the first. Worth checking any future fixture comment that says "breaks away
 at" against a fixed-input sweep rather than against the minimiser.
+
+---
+
+### Findings 2026-08-13 (close-out) — straggler sweep after the Phase 2 commit
+
+A deliberate pass for work the main entries implied but did not land. Four
+items; one was a live bug.
+
+#### 1. LIVE BUG — polar held-state was seeded for `velocity` only
+
+`JsonSimulation` seeds `heldVectorStateRef` from polar-AUTHORED vectors so an
+authored direction with zero magnitude (`{magnitude: 0, angle: 30}`) survives
+normalization to `{x: 0, y: 0}` — otherwise the first magnitude-slider drag
+launches along angle 0 instead of the authored direction. That effect covered
+**`velocity` only**, and extending polar authoring to `acceleration` and
+`appliedForce` left it behind.
+
+Concretely: author `appliedForce: {magnitude: 0, angle: 30}` with a strength
+slider defaulting to 0, drag it up, and the crate is pushed **horizontally**
+rather than at 30°. Now loops over all three polar-authorable bases. One loop
+serves them because all three scale their magnitude by the length unit (force
+carries a length dimension too).
+
+**The shape of this miss is worth naming, because it is the second instance in
+one session:** extending a field-level capability (polar authoring) requires
+finding every place that ENUMERATES the fields it applies to. `checkChapterSplit`
+was the first (it tested `.x`/`.y` on a value that might now be polar); this
+seeding effect is the second. Both were single-field lists that silently became
+incomplete. A grep for the OLD field name (`velocity`) next to the new capability
+finds them; a grep for the new field name does not.
+
+#### 2. Lifecycle — the `body.velocity = {...}` trap is FIXED, entry retired
+
+Parked earlier the same day with "mark the interface members `readonly`" as the
+preferred fix. Landed: `PhysicsBody.position` and `.velocity` are now `readonly`
+in the INTERFACE (the concrete wrappers always were), carrying a docstring that
+explains the accessor. `tsc` is clean, so no caller legitimately reassigned —
+the check the parking-lot entry asked for. **Entry deleted from
+`parking_lot.md`** per the holding-pen discipline: it had a clear, cheap fix, so
+it graduated rather than accumulating. The rationale lives at the seam now,
+where the next person meets it.
+
+#### 3. Superseded rationale linked, not overwritten
+
+`Notes_on_Air_Resistance_Refactor.md` still presented its `baseMass` fix as the
+resolution of the Rapier mass setter. It is now marked SUPERSEDED with a
+forward link and, more usefully, **an account of why its verification passed on
+a broken setter**: that entry's observable was *oscillation between repeated
+calls*, and a no-op is perfectly stable — it never oscillates. A test that only
+watches for instability cannot see a value that never changes at all.
+
+#### 4. Stale in-app doc summaries
+
+`DocsIndex.tsx` still summarised this note as "Per-frame impulse = F·dt" — the
+rule superseded 2026-08-09 — and `AppOverview.tsx` described applied forces
+without `onPreStep` or the now-shipped schema field. Both updated. This is the
+third distinct surface carrying that superseded rule (after `types.ts` on 08-10
+and `RuntimeLoop.tsx` earlier today), which retires the last of them.
+
+Verification: `tsc` clean on all touched files (`da.ts` locale typing is the
+known baseline); `npm run lint` at the known baseline (4 react-refresh context
+splits).

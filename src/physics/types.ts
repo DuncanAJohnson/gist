@@ -62,8 +62,19 @@ export interface WorldSnapshot {
 export interface PhysicsBody {
   readonly id: string;
   readonly shape: ShapeDescriptor;
-  position: Vec2;
-  velocity: Vec2;
+  /**
+   * READONLY BY DESIGN — write COMPONENTS (`body.position.x = …`), never the
+   * whole vector. Both adapters back these with a live Vec2Accessor whose
+   * getters/setters route through the engine; assigning a plain object replaces
+   * the accessor outright, after which the body keeps moving while every read
+   * returns the frozen value you assigned. The implementations always declared
+   * these `readonly`; the interface did not, so `body.velocity = {x: 0, y: 0}`
+   * type-checked cleanly through it and failed silently at runtime (cost ~10
+   * minutes of "is the physics broken?" while writing a 2D force harness,
+   * 2026-08-13). The accessor objects are mutable; the SLOTS are not.
+   */
+  readonly position: Vec2;
+  readonly velocity: Vec2;
   angle: number;
   angularVelocity: number;
   mass: number;

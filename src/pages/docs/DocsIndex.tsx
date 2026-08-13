@@ -51,7 +51,7 @@ const diagrams = [
 
 const docFiles = [
   { name: 'Notes_on_Air_Resistance_Refactor.md', summary: 'Speed-driven linear damping for mass-dependent quadratic drag (Planck/Rapier). Phase 1 lands a debug toggle; Phase 2 lands schema. Bundles the Rapier mass-setter fix.' },
-  { name: 'Notes_on_Applied_Forces_Refactor.md', summary: 'PhET Forces-and-Motion analogue. Per-frame impulse = F·dt. New PhysicsBody.applyImpulse method. Includes opt-in static-friction demo mode (μs ≠ μk via per-frame setFriction switching).' },
+  { name: 'Notes_on_Applied_Forces_Refactor.md', summary: 'PhET Forces-and-Motion analogue. PhysicsBody.applyImpulse, delivered once per ENGINE STEP via BaseSimulation.onPreStep with J = F · dt_of_that_step (converting over the logical frame dt collapses breakaway ~3×). Authorable since Phase 2 as ObjectConfig.appliedForce — newtons, polar or components, 2D. Includes opt-in static-friction demo mode (μs ≠ μk via per-frame setFriction switching).' },
   { name: 'Notes_on_Vector_Representation_Refactor.md', summary: 'Polar projections (.magnitude / .angle) as derived path suffixes. Held-angle / held-magnitude for zero-vector edge cases. No engine changes.' },
   { name: 'Physics_Chapters_with_Physics_Engines.md', summary: 'Engine affordances mapped to seven introductory-physics units. Cross-engine cheat sheet for which engine wins per use case.' },
   { name: 'GIST_Physics_System_Topics.md', summary: 'Living index of system-level physics concerns: legacy items, cross-engine inconsistencies, idempotency patterns, adapter feature gaps. Status-tracked.' },

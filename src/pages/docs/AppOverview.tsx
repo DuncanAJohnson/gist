@@ -96,8 +96,10 @@ function AppOverview() {
         </li>
         <li>
           <strong>Applied forces</strong> — adds <code>applyImpulse</code> and{' '}
-          <code>setFriction</code> on PhysicsBody; also schema additions and force-arrow
-          renderables.
+          <code>setFriction</code> on PhysicsBody, plus a <code>BaseSimulation.onPreStep</code>{' '}
+          hook that delivers the impulse on the engine's own step cadence. Authorable since
+          Phase 2 (2026-08-13) as <code>ObjectConfig.appliedForce</code>, with force-family
+          property paths for controls, outputs and graphs.
         </li>
         <li>
           <strong>Vector representation</strong> — binding-layer change in the controls /
