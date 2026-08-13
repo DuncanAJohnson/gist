@@ -113,7 +113,7 @@ flowchart LR
   subgraph APPPHASES["4. Applied forces"]
     direction TB
     APPP1["Phase 1 SHIPPED 2026-08-09:<br/>applyImpulse adapter + onPreStep<br/>+ debug-panel force dropdown"]
-    APPP2["Phase 2: appliedForce schema<br/>+ force-arrow renderable"]
+    APPP2["Phase 2 SHIPPED 2026-08-13:<br/>appliedForce schema #40;2D, polar#41;<br/>+ force property paths"]
     APPP25["Phase 2.5: frictionDemo<br/>opt-in μs ≠ μk"]
     APPP3["Phase 3: appliedForces array<br/>multi-puller, sum arrow"]
     APPP4["Phase 4: engine-read<br/>contact forces<br/><b>REALIZED by FBD step 3</b><br/>(2026-08-06, adapter seam)"]
@@ -282,8 +282,13 @@ function RefactorRoadmap() {
           (<code>velocity: {'{magnitude, angle}'}</code>, velocity only), normalized
           at the config→SI ingestion seam (<code>scaleObjectToSI</code>) — see the
           seam node on <a href="/docs/app-overview">the app overview</a>. Close-out
-          dispositions: the all-vectors polar-authoring sweep (acceleration, gravity,
-          appliedForce) is pinned to the <em>end of applied-forces</em>; the paired{' '}
+          dispositions: the all-vectors polar-authoring sweep was pinned to the{' '}
+          <em>end of applied-forces</em> and <strong>landed early, 2026-08-13</strong>,
+          with applied-forces Phase 2 — <code>appliedForce</code> needed polar
+          (&quot;50 N at 30°&quot; is how a 2D force is actually phrased) and{' '}
+          <code>acceleration</code> came along in the same pass for consistency.{' '}
+          <code>environment.gravity</code> stays a signed scalar, not a vector, so it
+          is out of scope by construction. The paired{' '}
           <code>polarSlider</code> seeds a future UI-refactor track (parking lot);{' '}
           <code>VectorArrow</code> transferred to the vector-arrows / applied-forces
           tracks; the angle-wrap graph toggle is parked. Canonical rationale:{' '}
@@ -406,15 +411,22 @@ function RefactorRoadmap() {
           + force-angle sliders. The polar layer's held-angle / held-magnitude state is what makes
           &quot;set force magnitude while preserving direction&quot; work correctly. The polar
           layer shipped first (vector-rep closed 2026-07-04), so when{' '}
-          <code>appliedForce</code> lands, its polar projections come free — and the
-          closing phase of applied-forces sweeps polar <em>authoring</em> across all
-          remaining vector fields (acceleration, gravity, appliedForce), pinned there
-          at vector-rep close-out.
+          <code>appliedForce</code> landed (Phase 2, 2026-08-13) its polar projections
+          came free — <code>writeVectorPolar</code> needed one redirect branch, exactly
+          the one <code>acceleration</code> already had. Polar <em>authoring</em> swept
+          across the vector fields in the same pass rather than waiting for the closing
+          phase: a 2D force is phrased &quot;50 N at 30°&quot;, so shipping the field
+          components-only would have meant migrating it later.
         </li>
         <li>
-          <strong>Applied forces + air resistance</strong> — both rely on the substep-invariant
-          formulation pattern. Drag uses damping; force uses impulse. Same{' '}
-          <code>onUpdate</code> hook, no per-substep callback needed.
+          <strong>Applied forces + air resistance</strong> — both rely on a
+          substep-correct formulation, but they reach it differently, and the difference
+          is measured rather than assumed. Drag is a body PROPERTY (<code>linearDamping</code>),
+          so the engine applies it inside every substep. Force is an IMPULSE, and it must
+          be delivered per engine step via <code>onPreStep(adapter, dt)</code> with{' '}
+          <code>J = F · dt_of_that_step</code>; converting over the logical frame dt
+          collapsed measured breakaway from 19.6 N to 6 N. Drag needs no per-step hook;
+          force does.
         </li>
         <li>
           <strong>Vector representation + LLM prompting</strong> — the schema description prose

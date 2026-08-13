@@ -2003,3 +2003,336 @@ before committing.
 Verification: `tsc` clean on the touched file; comment-only change, no behavior
 delta. Numbers re-checked against Findings 2026-08-09 items #3 and #6 rather
 than restated from memory.
+
+---
+
+### Findings 2026-08-13 — Phase 2 SHIPPED: `appliedForce` is authorable, in 2D, in polar; and the 2D delivery rule MEASURED
+
+Bill: *"Since it worked well in 1D, there is no reason to think it won't work
+well in 2D. Any issues we should discuss before developing a 2D applied force
+ready for json authoring?"* The premise held — `applyImpulse` takes a `Vec2` and
+both adapters already passed both components through, so nothing about the
+second dimension was new to the *delivery* path. The risk was all in the
+*authoring* surface, and four of its decisions were much cheaper to make before
+the field shipped than after.
+
+#### A. What 2D actually earns a measurement for — and the result
+
+A y-component is not symmetric with x: it changes the normal force, hence the
+friction budget µN. The "pull the sled at 30°" scene is therefore COUPLED —
+F_x drives the motion while F_y changes what resists it — and the 1D breakaway
+numbers were all taken with N constant. Measured through the real adapters at
+the app's exact cadence (8 substeps of 1/480 s per 1/60 s frame), on the
+`appliedForce1D` fixture's numbers (m = 5 kg, µ = 0.51, g = 9.8):
+
+```
+F* = µmg / (cosθ + µ·sinθ)        a_slide = (F·cosθ − µ(mg − F·sinθ)) / m
+```
+
+| θ | −15° | 0° | 15° | 27.02° | 30° | 45° |
+|---|---|---|---|---|---|---|
+| analytic F* (N) | 29.97 | 24.99 | 22.76 | **22.26** | 22.29 | 23.40 |
+| Planck breakaway | +0.0% | +0.0% | +0.0% | +0.0% | +0.0% | +0.0% |
+| sliding a, both engines | ≤0.02% | ≤0.02% | ≤0.02% | ≤0.02% | ≤0.02% | ≤0.02% |
+
+**The delivery rule generalizes to 2D — unchanged, no fix owed.** Two reasons
+this is a strong result rather than a weak one:
+
+1. **The sliding row is the coupled case** and it is exact on BOTH engines at
+   every angle, including θ < 0 where the force pushes DOWN and *increases* N.
+   That is the only genuinely new physics in 2D, and the solver gets it right
+   because we feed it causes and let it resolve them (invariant #14).
+2. **Planck's breakaway is a threshold-free test.** Its static friction is
+   rigid — exactly zero drift until it breaks — so "did it move?" has an
+   unambiguous answer, and that answer matches `F*` at every angle.
+
+#### B. A correction to the 1D record: Rapier's breakaway error is the INSTRUMENT, not the engine
+
+Findings 2026-08-09 (item #6 cont.) recorded Rapier's breakaway as −3.96% and
+attributed it to compliant friction. The attribution was right; the NUMBER was
+never a property of the engine. Sweeping the motion criterion shows it directly:
+
+| criterion (5 s window) | 1 mm | 10 mm | 50 mm |
+|---|---|---|---|
+| Rapier breakaway error, θ = 0 | −18.0% | −7.5% | **+0.0%** |
+| Rapier breakaway error, θ = 45° | −21.7% | −9.7% | **+0.0%** |
+| Planck, any θ | +0.0% | +0.0% | +0.1% |
+
+**Rapier's true threshold is exact.** Everything between is the creep tail
+crossing whatever bar the test sets. So the honest statement is not "Rapier
+reads ~4% low" but "a compliant-friction engine has no threshold-free breakaway
+measurement, and any single number you quote is a property of your motion
+criterion." The apparent error grows mildly with angle (creep at 0.99·F* rises
+18.5 mm → 23.4 mm from 0° to 45°) — expected, since a lifting pull reduces N.
+At `pixelsPerUnit: 100` the worst case is 2.3 px over 5 s: still invisible,
+still Bill's "within the noise of the simulation system overall".
+
+#### C. The four authoring decisions (Bill ratified all four)
+
+1. **Polar authoring — and it broke a pin, deliberately.** The all-vectors
+   polar-authoring sweep was PINNED to the *end* of applied-forces at vector-rep
+   close-out. It landed with Phase 2 instead, because "50 N at 30° above
+   horizontal" is how a 2D force is actually phrased — most of the pedagogical
+   value of the second dimension is in that sentence — and shipping the field
+   components-only would have meant migrating the field AND its accumulated
+   prompt corpus later. Bill: *"I agree on polar authoring for applied force.
+   And definitely make the change for acceleration as well. Just to keep
+   everything consistent."* So `acceleration` swept in the same pass.
+   **`gravity` is not in the sweep and never was in scope** — it is a signed
+   scalar on `environment`, not a 2D vector. The sweep is COMPLETE.
+   Normalization is now one shared `vectorToSI` helper at the seam
+   (`unitConversion.ts`), so a future vector field cannot silently skip it —
+   which matters precisely because nothing Zod-parses at runtime (invariant #1).
+2. **Singular now, array later, and the migration is free.** Phase 3's
+   `appliedForces` array (multi-puller, sum arrow) stays where it is: a later
+   widening union (`Vec | Vec[]`) is backward compatible, so the Phase 2/3 split
+   costs nothing. Decided deliberately rather than by default.
+3. **Duration DEFERRED, and now it has a home.** Bill: *"I want to add that in
+   when we work on it as a general feature for element duration (like applied
+   force), sim sequence, and event detection. The latter enables us to stop an
+   applied force when we hit the simulation walls for instance."* This is the
+   important scoping move in the session: "push for 2 seconds" is not an
+   applied-force feature, it is one instance of a **general temporal/event
+   layer** — element duration, sim sequencing, and event detection — and
+   event detection is what makes it interesting (stop the force ON a wall
+   contact, not at a wall-clock time). Building a one-off `duration` field on
+   `appliedForce` would have pre-empted that design with the weakest possible
+   version of it. The schema `.describe()` says the force is constant and points
+   authors at a slider; the prompt says the same and forbids inventing a
+   time-varying field. **New parking-lot entry owns the general feature.**
+4. **World-frame, at the centre of mass, no torque.** Never came up in 1D with a
+   non-rotating block. World-frame is right for a push or a wind and wrong for a
+   body-fixed thruster; COM-only means an off-centre push cannot tip a box, which
+   is a student's likely mental model. Both are now stated in the schema and the
+   prompt so the LLM cannot assume otherwise, and the prompt explicitly says not
+   to fake rocket thrust. `applyImpulseAtPoint` remains Decisions-deferred #2.
+
+#### D. Superposition, not override — where authored force meets the debug force
+
+`handleUpdate` resolves ONE number per body per frame
+(`JsonSimulation.tsx`): `userData.appliedForce = configuredAppliedForce +
+debugForce`. Two sources ADD rather than one overriding the other, because two
+pushes on a crate add — and because the debug harness stays usable on a sim that
+already authors a force instead of silently discarding it. The single-compute-site
+discipline is unchanged and is the whole point (invariant #14, drag precedent):
+one number, now four consumers — the engine path (`handlePreStep`), the
+`force-applied` arrow, the outputs/graphs readback, and the `FrameBodySnap`
+replay capture. They cannot drift apart because there is nothing to drift.
+
+Reads and writes deliberately target DIFFERENT fields, mirroring `acceleration`:
+a slider bound to `appliedForce.magnitude` writes `configuredAppliedForce`;
+an output bound to `appliedForce.magnitude` reads the RESOLVED
+`appliedForce`. So a readout always shows the force that actually acted.
+
+**`handlePreStep` had to stop being single-target.** Phase 1 visited only the
+debug body; with authoring, every body may carry a force, and the shortcut would
+have silently dropped authored ones.
+
+#### E. Force is length-scaled at the seam (a units judgment call, recorded)
+
+`appliedForce` multiplies by `unitScale` exactly as `acceleration` does, and
+`unitScaleFor` returns the length scale for `appliedForce.*`. Rationale: force
+carries a length dimension (N = kg·m/s²) while MASS does not (kg is kg in every
+sim). Scale it and `F = m·a` holds in authored numbers; don't, and a cm-unit sim
+authoring `F: 10` with `m: 5` reads an acceleration of 200 in its own display
+units. Verified: `{x: 10}` in a cm sim → `{x: 0.1}` SI. The consequence worth
+naming is that in a non-metre sim the authored force unit is kg·(unit)/s², not
+newtons — the same bargain velocity and acceleration already make, and
+consistent with invariant #10 (units describe the diorama).
+
+#### F. `checkChapterSplit` — the marked one-liner landed, and the pass was quietly broken
+
+The `NEXT: when appliedForce lands` comment (`objectExpansion.ts`) is now the
+third trigger, and the message ADAPTS: when the body already names its cause it
+says so, explains that the two superpose (`a_total = a_authored + F/m`), and
+tells the author to drop the acceleration rather than the force.
+
+**The polar sweep exposed a latent bug in the same pass.** `checkChapterSplit`
+tested `a.x === 0 && a.y === 0`. It runs BEFORE `scaleObjectToSI`, so the moment
+`acceleration` accepted polar, a `{magnitude, angle}` acceleration would read
+`undefined === 0` → false → **the diagnostic would have gone silent on exactly
+the authoring form we just added**. Now compared by magnitude through a
+`vectorMagnitude` helper that handles both forms. Generalizable: *any* seam
+predicate that reaches into `.x`/`.y` is a polar-authoring hazard, because the
+seam is upstream of normalization by design.
+
+#### G. Doc drift, again — this time in the architecture manual
+
+The 2026-08-10 entry fixed the superseded `J = F · FIXED_DT_SECONDS` rule in the
+`applyImpulse` docstring and drew the lesson that a same-session reversal must
+sweep code comments too. It did not sweep far enough: `src/pages/docs/RuntimeLoop.tsx`
+still taught the superseded rule in THREE places — the Mermaid node
+(`F · FIXED_DT`), the bullet ("once per logical frame"), and a bullet stating the
+per-substep `onPreStep(body, dt)` hook "was considered and deferred — both
+refactors found a substep-invariant formulation that doesn't need it." That hook
+shipped 2026-08-09 and is what makes applied force correct. Fixed: the diagram
+now shows the `userData → onPreStep → applyImpulse` path with the frame-boundary
+rule as an explicit red DON'T carrying the measured 19.6 → 6 N collapse.
+
+**Sharper version of the 2026-08-10 lesson:** grepping the *touched files* is not
+enough, because the in-app docs site describes code it does not import. The
+check after a reversal is "who TEACHES this rule?", not "who calls it?".
+
+#### H. Verification
+
+- `tsc` clean on all touched files (`da.ts` locale typing is the known baseline);
+  `npm run lint` at the known baseline (4 react-refresh context splits).
+- `npm run generate:schema` re-run (+92/−23 lines).
+- Physics measured headless through the real adapters at the app's cadence.
+- Authored path verified end-to-end headless: polar → seam → SI
+  (`{magnitude: 50, angle: 30}` → `{x: 43.3013, y: 25.0000}`), components
+  unchanged, cm scaling, `checkChapterSplit` fires on the mixed case and stays
+  quiet on force-alone, and the fixture's headline claim reproduced on both
+  engines (23 N at 0° → 9.4 mm / 0.0 mm; 23 N at 27.02° → 2.13 m / 2.07 m).
+- **New fixture** `/simulation/applied-force-2d` (`appliedForce2D.json`): the
+  AUTHORING fixture, where `applied-force-1d` is the DELIVERY fixture. Seated
+  flush at `y: 0.2462` (the collider-inset trap), so its FBD is clean from
+  frame 1.
+- **OWED: Bill's drive.** The headless harness cannot exercise the React wiring —
+  polar sliders through `writeVectorPolar`, the frame-cache key, precompute →
+  replay, and the arrows. Same gate as Phase 1.
+
+#### I. Still open (unchanged by this entry)
+
+The FBD step-4 primary-representation call; the friction-representation hold
+(B5 remains safe to build under it — walls are µ 0, so one-owner is the de-facto
+default); and the KE/PE/momentum inexpressibility that gates G6/G8 and B2/B3/B8,
+which is independent of both and still un-scoped.
+
+---
+
+### Findings 2026-08-13 (cont.) — Bill's drive found it: `body.mass = X` was a NO-OP on Rapier
+
+The Phase 2 entry above closed with "OWED: Bill's drive." The drive paid for
+itself immediately, and what it found was not in Phase 2's diff at all.
+
+**Bill's report:** at 27° the crate stayed on the ground; then, playing out
+*"a move students would do — max the force, max the pull angle, min the mass"*
+(40 N, 60°, 2 kg), it still would not lift. His arithmetic was exactly right:
+`F·sin60° = 34.64 N` against `mg = 19.6 N` at 2 kg, so the lift threshold is
+`mg/sin60° = 22.63 N` and 40 N should clear it comfortably.
+
+**Cause — and it is a pre-existing adapter bug, not an applied-force one.**
+`RapierAdapter`'s mass setter was:
+
+```
+set mass(value) { this.rigid.setAdditionalMass(Math.max(0, value - this.baseMass), true); }
+```
+
+Two independent defects, measured through the real adapters:
+
+1. **`setAdditionalMass` alone does not change `rigid.mass()` at all.** It only
+   takes effect after `recomputeMassPropertiesFromColliders()`, which was never
+   called. So `body.mass = X` was a **complete no-op on Rapier — in BOTH
+   directions** (setting 2 *or* 10 on a 5 kg body left it at 5.0000).
+2. **Even with the recompute it could only ever ADD.** Total mass is
+   `collider base + additional`, and additional is clamped ≥ 0, so a body could
+   never be made LIGHTER than its authored mass. A mass slider that cannot go
+   down is precisely the wrong half of `a = F/m`.
+
+Planck was correct throughout (2 → 2.0000, 0.5 → 0.5000), so this was a
+**silent cross-engine divergence on the DEFAULT engine**, in the one control
+B5's whole lesson rests on. Bill's crate was never 2 kg; it was still 5 kg, so
+34.64 N < 49 N and the engine was right to keep it on the floor.
+
+**Fix.** Mass in Rapier lives on the COLLIDERS — creation already sets it there
+(`addCollidersForShape`, `cd.setMass(...)`, split evenly across compound parts)
+— so the runtime setter now goes back to the same place: scale every collider's
+mass by `target / current_total`, then
+`recomputeMassPropertiesFromColliders()`. Scaling (rather than assigning) keeps
+the compound's mass DISTRIBUTION, so the centre of mass stays put and the
+recomputed inertia stays physical. The now-unused `baseMass` field is gone.
+
+Verified through both adapters: 5 kg authored, then set to 2 / 10 / 2 / 20 /
+0.5 — every value lands exactly, on both engines, idempotently, and survives
+stepping; compound colliders track too (2.0000 kg). Bill's scenario end-to-end:
+**rise 15.07 m (Rapier) / 15.06 m (Planck)**, with the 5 kg control correctly
+staying down (0.001 m).
+
+**The lesson worth keeping — a headless harness that calls the ADAPTER can
+still miss an adapter bug if it never uses the setter the UI uses.** Every
+measurement in the entry above created bodies with `mass` in the `BodyDef` and
+never touched `body.mass = X`. The delivery physics was verified exactly right,
+and the feature was still broken for the student's first move. When a control
+writes through a setter, the harness has to write through that setter too.
+
+#### The fixture was also mis-tuned — the lesson was invisible
+
+Separately, and found while checking Bill's 27° observation: the window in
+which the optimal-angle lesson lives is `F*(0)/F*(θ_opt) = √(1 + µ²)`, so a low
+µ squeezes the whole demonstration into a sliver. At the 1D fixture's µ = 0.51
+the window is 12% wide, and the default 23 N at 27° accelerates the crate at
+**0.166 m/s²** — about 2 m over a full 5 s run, which reads as *nothing
+happened*. Retuned to **µ = 0.8, default 35 N** (window 28%, optimal angle
+38.66°, F* = 30.61 N): the same move now gives **1.12 m/s² and 14 m in 5 s**.
+
+Verified on the retuned fixture, both engines: 35 N at 0° → 7.9 mm (Rapier
+creep) / 0.0 mm — stuck; 35 N at 38.66° → 14.1 m — moves; 60 N at 60° on 2 kg
+→ rises 32 m — lifts. The two fixtures are now tuned for different jobs and say
+so in their headers: `applied-force-1d` is built so the debug dropdown's ±25 N
+step lands exactly on breakaway; `applied-force-2d` is built so the angle
+slider produces motion you can SEE.
+
+Verification: `tsc` clean on all touched files; `npm run lint` at the known
+baseline (4 react-refresh context splits).
+
+---
+
+### Findings 2026-08-13 (cont.) — Bill measured the 2D fixture's breakaway at ~10°, and it corrects a conflation in the entry above
+
+**Bill's drive, and his hand-calculation, both say ~10°** for the default scene
+(m = 5 kg, µ = 0.8, F = 35 N), confirmed on BOTH engines. At θ = 10°:
+
+```
+N   = mg − F·sinθ = 49 − 35(0.1736) = 42.92 N
+F_f = µN          = 0.8 × 42.92     = 34.34 N
+F_x = F·cosθ      = 35 × 0.9848     = 34.47 N      → F_x just exceeds F_f
+```
+
+(His write-up says "horizontal applied force = F·sin10" — a slip for `cos`; the
+number he quotes, 34.5 N, is the cosine. Same conclusion.)
+
+**He is right, and the previous entry's framing was wrong.** It said the crate
+"breaks loose as you raise the angle toward ~39°", which silently conflated two
+different angles. Solving `F ≥ F*(θ) = µmg/(cosθ + µ·sinθ)` for fixed F gives a
+WINDOW, not a threshold:
+
+```
+cosθ + µ·sinθ ≥ µmg/F   ⇔   √(1+µ²)·cos(θ − arctan µ) ≥ µmg/F
+```
+
+which for F = 35 N is **θ ∈ [9.65°, 67.67°]**. Three distinct angles, and only
+the first is a breakaway:
+
+| angle | what it is |
+|---|---|
+| **9.65°** | **BREAKAWAY** — the crate is stuck at 0° and lets go here. What a student finds first. **NOT arctan µ.** |
+| **38.66°** | **MAXIMUM ACCELERATION** (1.12 m/s²). `arctan µ` minimises the REQUIRED force, so at fixed F the surplus `F − F*(θ)` peaks here. Not a threshold at all. |
+| **67.67°** | **RE-STICKS** — the horizontal component dies faster than friction does. |
+
+Measured, 3 s of pull, dx in metres:
+
+| θ | 0° | 9° | 9.72° | 15° | 38.66° | 60° | 67.6° | 70° |
+|---|---|---|---|---|---|---|---|---|
+| Rapier | 0.005 | 0.022 | 0.102 | 1.799 | 5.081 | 2.314 | 0.046 | 0.018 |
+| Planck | 0.000 | 0.000 | 0.023 | 1.670 | 5.063 | 2.295 | 0.023 | 0.000 |
+
+Analytic edges 9.65° / 67.67°; the sub-threshold millimetres on Rapier are its
+compliant-friction creep, not motion (see the breakaway-criterion note in
+`GIST_Physics_System_Topics.md`).
+
+**Why this matters beyond a comment fix:** the window is a BETTER lesson than
+the one the fixture was built for. "Tilt a little and it lets go; tilt more and
+it accelerates hardest around 39°; tilt too far and it stops again" is a
+two-edged investigation with an interior optimum — and the optimum is
+observable as *fastest*, not as *starts moving*. The fixture header now names
+all three angles and warns against exactly the conflation it used to make. The
+prompt's phrasing was already correct and is unchanged — it says `arctan(µ)` is
+the angle that makes the sled *easiest to pull*, which is the F*-minimising
+statement, not a breakaway claim.
+
+**Generalisable:** a threshold expressed as "the value at which X starts" and an
+optimum expressed as "the value at which X is cheapest" are different animals,
+and a fixed-input sweep turns the second into a RANGE bounded by two instances
+of the first. Worth checking any future fixture comment that says "breaks away
+at" against a fixed-input sweep rather than against the minimiser.

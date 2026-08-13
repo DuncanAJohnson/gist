@@ -176,9 +176,18 @@ type Frame = {
 // Resolve the {x, y} of a vector base path for reading. Acceleration is the
 // finite-difference on userData, not a body field.
 const getVectorComponents = (obj: any, base: string): { x: number; y: number } | undefined => {
-  const v = base === 'acceleration'
-    ? obj?.userData?.derivedAcceleration
-    : base.split('.').reduce((current: any, key) => current?.[key], obj);
+  let v: any;
+  if (base === 'acceleration') {
+    v = obj?.userData?.derivedAcceleration;
+  } else if (base === 'appliedForce') {
+    // Read the RESOLVED force (authored + control + debug), which is what the
+    // physics consumed and what the `force-applied` arrow draws — so a numeric
+    // readout and its arrow can never disagree. Writes go to
+    // `configuredAppliedForce` instead; see setNestedValue.
+    v = obj?.userData?.appliedForce;
+  } else {
+    v = base.split('.').reduce((current: any, key) => current?.[key], obj);
+  }
   return v && typeof v.x === 'number' && typeof v.y === 'number' ? { x: v.x, y: v.y } : undefined;
 };
 
@@ -200,6 +209,12 @@ const getNestedValue = (obj: any, path: string): any => {
     const axis = path.slice('acceleration.'.length);
     const derived = obj?.userData?.derivedAcceleration;
     return derived?.[axis];
+  }
+  // Redirect appliedForce.* to the resolved per-frame force (see
+  // getVectorComponents for why reads and writes target different fields).
+  if (path.startsWith('appliedForce.')) {
+    const axis = path.slice('appliedForce.'.length);
+    return (obj?.userData?.appliedForce as any)?.[axis];
   }
   return path.split('.').reduce((current, key) => current?.[key], obj);
 };
@@ -695,6 +710,19 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
       obj.userData.configuredAcceleration[axis] = value;
       return;
     }
+    // Same story for applied force: not a native PhysicsBody field. Writes land
+    // on the CONFIGURED value; handleUpdate folds it (plus any debug force)
+    // into userData.appliedForce, which is what the solver and every display
+    // consumer read.
+    if (path.startsWith('appliedForce.')) {
+      const axis = path.slice('appliedForce.'.length);
+      if (!obj?.userData) return;
+      if (!obj.userData.configuredAppliedForce) {
+        obj.userData.configuredAppliedForce = { x: 0, y: 0 };
+      }
+      obj.userData.configuredAppliedForce[axis] = value;
+      return;
+    }
     const keys = path.split('.');
     const lastKey = keys.pop()!;
     const target = keys.reduce((current, key) => current[key], obj);
@@ -721,6 +749,12 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
         obj.userData.configuredAcceleration = { x: 0, y: 0 };
       }
       target = obj.userData.configuredAcceleration;
+    } else if (base === 'appliedForce') {
+      if (!obj?.userData) return;
+      if (!obj.userData.configuredAppliedForce) {
+        obj.userData.configuredAppliedForce = { x: 0, y: 0 };
+      }
+      target = obj.userData.configuredAppliedForce;
     } else {
       target = base.split('.').reduce((current: any, k) => current?.[k], obj);
     }
@@ -804,13 +838,17 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   // engine and the `force-applied` arrow cannot disagree.
   const handlePreStep = useCallback((_adapter: PhysicsAdapter, dtSeconds: number) => {
     if (jsonModeRef.current === 'replay') return;
-    const targetId = debugForceTargetRef.current;
-    if (!targetId || debugForceRef.current === 0) return;
-    const body = objRefs.current[targetId];
-    if (!body || body.isStatic) return;
-    const F = (body.userData.appliedForce as { x: number; y: number } | undefined) ?? { x: 0, y: 0 };
-    if (F.x === 0 && F.y === 0) return;
-    body.applyImpulse({ x: F.x * dtSeconds, y: F.y * dtSeconds });
+    // Every body may carry a force now that `appliedForce` is authorable — the
+    // Phase 1 shortcut of visiting only the debug target would silently drop
+    // authored forces. Reads the resolved Newton value handleUpdate stashed,
+    // never the debug ref, so the engine and the arrow cannot disagree.
+    for (const id in objRefs.current) {
+      const body = objRefs.current[id];
+      if (!body || body.isStatic) continue;
+      const F = body.userData.appliedForce as Vec2 | undefined;
+      if (!F || (F.x === 0 && F.y === 0)) continue;
+      body.applyImpulse({ x: F.x * dtSeconds, y: F.y * dtSeconds });
+    }
   }, []);
 
   // Update loop: compute finite-difference acceleration, collect outputs, graphs.
@@ -888,16 +926,25 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
           body.userData.frictionForce = contact.friction;
         }
 
-        // DEBUG applied force — the SINGLE compute site (invariant #14's drag
+        // APPLIED FORCE — the SINGLE compute site (invariant #14's drag
         // precedent). Writes Newtons onto userData here, once per logical
         // frame; handlePreStep below reads this same value back and converts
         // it to an impulse per engine step, and the Frame capture below reads
-        // it for replay. One number, three consumers, no way for the physics
-        // and the `force-applied` arrow to drift apart.
-        body.userData.appliedForce =
-          !body.isStatic && body.id === debugForceTargetRef.current
-            ? { x: debugForceRef.current, y: 0 }
-            : { x: 0, y: 0 };
+        // it for replay. One number, four consumers (physics, arrow, outputs/
+        // graphs, replay), no way for them to drift apart.
+        //
+        // Two sources SUPERPOSE rather than override: the authored
+        // `appliedForce` (Phase 2, SI newtons, also the target of any
+        // "appliedForce.*" slider) and the debug-panel force. Superposition is
+        // the physically honest combination — two pushes on a crate add — and
+        // it keeps the debug harness usable on a sim that already authors a
+        // force instead of silently discarding the authored value.
+        const cfgForce = body.userData.configuredAppliedForce as Vec2 | undefined;
+        const debugFx =
+          !body.isStatic && body.id === debugForceTargetRef.current ? debugForceRef.current : 0;
+        body.userData.appliedForce = body.isStatic
+          ? { x: 0, y: 0 }
+          : { x: (cfgForce?.x ?? 0) + debugFx, y: cfgForce?.y ?? 0 };
 
         const prevVelocity = prevVelocitiesRef.current[objectConfig.id];
         if (prevVelocity) {
@@ -1499,6 +1546,13 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
       // that flipping between forces can actually reuse cached frames.
       debugForce: debugForceN,
       debugForceTarget: debugForceTargetId,
+      // AUTHORED applied force (Phase 2). A slider bound to "appliedForce.*"
+      // already rides `controls` above, but the authored baseline does not —
+      // and Tweak JSON can change it without recreating bodies. Cheap
+      // insurance, and exactly what invariant #13 asks for.
+      authoredForces: siObjects
+        .filter((o) => o.appliedForce)
+        .map((o) => [o.id, o.appliedForce!.x, o.appliedForce!.y]),
     });
 
     if (frameCacheRef.current && frameCacheRef.current.key === currentKey) {

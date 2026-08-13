@@ -40,6 +40,7 @@ const ObjectRenderer = forwardRef<PhysicsBody, SIObjectConfig>(function ObjectRe
     svg,
     velocity,
     acceleration,
+    appliedForce,
     restitution = 0.8,
     friction = 0,
     dragCoefficient,
@@ -111,6 +112,22 @@ const ObjectRenderer = forwardRef<PhysicsBody, SIObjectConfig>(function ObjectRe
     created.userData.configuredAcceleration = acceleration
       ? { x: acceleration.x, y: acceleration.y }
       : { x: 0, y: 0 };
+    // Authored applied force in NEWTONS (applied-forces Phase 2). Like
+    // acceleration this is a per-body config rather than an engine field, but
+    // it reaches the solver very differently: handleUpdate resolves it into
+    // userData.appliedForce each frame and handlePreStep converts it to an
+    // impulse per engine step (J = F · dt_of_that_step). Sliders bound to
+    // "appliedForce.*" write HERE; the resolved total is what the physics, the
+    // arrow, the outputs and the replay snapshot all read.
+    created.userData.configuredAppliedForce = appliedForce
+      ? { x: appliedForce.x, y: appliedForce.y }
+      : { x: 0, y: 0 };
+    // Seed the RESOLVED value too. handleUpdate rewrites it every frame, but
+    // its body loop is gated on deltaTime > 0, so without this the first frame
+    // would deliver no force and a paused, never-stepped sim would draw no
+    // force-applied arrow. Unlike contact forces (which genuinely do not exist
+    // before the first step) an authored force is known at t = 0.
+    created.userData.appliedForce = { ...(created.userData.configuredAppliedForce as object) };
     // Per-body drag coefficient combination (Cd · A), factored apart from
     // air density. JsonSimulation reads this each frame when air resistance is
     // active and computes k = ½ · airDensity · dragCdA, then writes

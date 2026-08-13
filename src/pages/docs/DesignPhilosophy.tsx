@@ -354,7 +354,7 @@ function DesignPhilosophy() {
           not part of that lesson. Free-body diagrams are not meaningful here.
         </li>
         <li>
-          <code>appliedForce</code> (applied-forces refactor, not yet landed) —
+          <code>appliedForce</code> (applied-forces Phase 2, SHIPPED 2026-08-13) —
           dynamics chapter. Cause named and on the diagram.{' '}
           <code>a = F/m</code> emerges, so the mass slider is <em>the</em>{' '}
           lesson. The FBD closes by construction.

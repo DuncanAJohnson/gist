@@ -157,15 +157,6 @@ class RapierPhysicsBody implements PhysicsBody {
   readonly position: Vec2;
   readonly velocity: Vec2;
 
-  // Captured once at construction, before any setAdditionalMass calls. Used
-  // by `set mass` to compute the delta correctly. Without this, repeated
-  // `body.mass = X` calls oscillate total mass between X and the base value
-  // because Rapier's setAdditionalMass replaces (not accumulates) the
-  // additional component, while the previous formula computed the delta
-  // against the live total — which already includes the prior delta.
-  // See Notes_on_Air_Resistance_Refactor.md ("Bug found: Rapier `mass` setter").
-  private readonly baseMass: number;
-
   constructor(
     id: string,
     shape: ShapeDescriptor,
@@ -174,7 +165,6 @@ class RapierPhysicsBody implements PhysicsBody {
   ) {
     this.id = id;
     this.shape = shape;
-    this.baseMass = this.rigid.mass();
 
     this.position = new Vec2Accessor(
       () => {
@@ -219,13 +209,46 @@ class RapierPhysicsBody implements PhysicsBody {
     return this.rigid.mass();
   }
   set mass(value: number) {
-    // Rapier has no direct runtime "setMass" on the body — mass comes from
-    // collider density/mass plus an "additional mass" component. We compute
-    // the delta against the captured baseMass (not against the live total),
-    // so calling `mass = X` is idempotent: it always lands at total mass = X
-    // regardless of how many times it's been called. Math.max clamps because
-    // setAdditionalMass cannot reduce mass below the collider-derived base.
-    this.rigid.setAdditionalMass(Math.max(0, value - this.baseMass), true);
+    // Rapier has no body-level setMass. Mass lives on the COLLIDERS — each is
+    // created with `cd.setMass(...)` in addCollidersForShape — so the runtime
+    // setter has to go back to the same place and then ask the body to
+    // recompute.
+    //
+    // WHY NOT setAdditionalMass (what this did until 2026-08-13): it is a
+    // TOTAL NO-OP for `rigid.mass()` unless
+    // `recomputeMassPropertiesFromColliders()` runs afterwards — measured, on
+    // 0.19.3 — so `body.mass = X` silently did nothing at all on Rapier while
+    // working correctly on Planck. And even with the recompute it can only
+    // ADD (mass = collider base + additional, additional ≥ 0), so it could
+    // never model a LIGHTER body: a mass slider could not go down, which is
+    // half of the a = F/m lesson it exists to teach. Found by Bill driving
+    // `/simulation/applied-force-2d` — a 2 kg crate that stayed 5 kg refused
+    // to lift under a force that should have lifted it.
+    //
+    // Scaling every collider by the same factor preserves the compound's mass
+    // DISTRIBUTION, so the centre of mass stays put and the recomputed inertia
+    // stays physical (heavier body → proportionally harder to spin).
+    const n = this.rigid.numColliders();
+    if (n === 0) return;
+    // A dynamic body at exactly 0 kg is degenerate (infinite acceleration);
+    // clamp to something small and positive instead of dividing by zero.
+    const target = Math.max(1e-6, value);
+    const cols: RAPIER_NS.Collider[] = [];
+    let total = 0;
+    for (let i = 0; i < n; i++) {
+      const c = this.rigid.collider(i);
+      cols.push(c);
+      total += c.mass();
+    }
+    if (total > 0) {
+      const k = target / total;
+      for (const c of cols) c.setMass(c.mass() * k);
+    } else {
+      // No collider carries mass yet (all massless): split evenly, matching
+      // addCollidersForShape's compound behaviour.
+      for (const c of cols) c.setMass(target / n);
+    }
+    this.rigid.recomputeMassPropertiesFromColliders();
   }
 
   get isStatic(): boolean {

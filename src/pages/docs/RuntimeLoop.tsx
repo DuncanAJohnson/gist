@@ -44,20 +44,23 @@ flowchart TB
 
 const forceChart = `
 flowchart LR
-  subgraph FRAME["One logical frame in onUpdate"]
+  subgraph FRAME["One logical frame"]
     direction TB
-    OU["onUpdate fires once<br/>(both live and precompute)"]
+    OU["onUpdate fires ONCE<br/>#40;both live and precompute#41;"]
     DECISION{What kind of<br/>per-frame work?}
-    DRAG["Drag<br/>(air resistance refactor)"]
-    FORCE["Applied force<br/>(applied-forces refactor)"]
+    DRAG["Drag<br/>#40;air resistance refactor#41;"]
+    FORCE["Applied force<br/>#40;applied-forces refactor#41;"]
 
     OU --> DECISION
     DECISION --> DRAG
     DECISION --> FORCE
 
-    DRAG --> DRAGOK["body.setLinearDamping(<br/>(k/m)·|v|)<br/>← survives all 8 substeps ✓"]
-    FORCE --> FORCEOK["body.applyImpulse(<br/>F · FIXED_DT)<br/>← velocity change persists ✓"]
+    DRAG --> DRAGOK["body.setLinearDamping(<br/>(k/m)·|v|)<br/>← a body PROPERTY, so it<br/>survives all 8 substeps ✓"]
+    FORCE --> FORCEN["userData.appliedForce = F<br/>#40;newtons, one compute site#41;"]
+    FORCEN --> PRESTEP["onPreStep(adapter, dt)<br/>fires before EVERY step"]
+    PRESTEP --> FORCEOK["body.applyImpulse(<br/>F · dt_of_THAT_step)<br/>← same cadence as gravity ✓"]
     FORCE -.->|"Why not applyForce?<br/>cleared after each step#40;#41;"| FORCEBAD["applyForce in onUpdate<br/>only reaches substep 1<br/>#40;under-delivers in precompute#41; ✗"]
+    PRESTEP -.->|"Why not once per frame?<br/>measured 2026-08-09"| FRAMEBAD["J = F · FIXED_DT into a<br/>1/480 s step: breakaway<br/>collapsed 19.6 N → 6 N ✗"]
   end
 
   classDef good fill:#dcfce7,stroke:#16a34a,color:#166534;
@@ -65,8 +68,8 @@ flowchart LR
   classDef neutral fill:#fef3c7,stroke:#d97706,color:#92400e;
 
   class DRAGOK,FORCEOK good;
-  class FORCEBAD bad;
-  class OU neutral;
+  class FORCEBAD,FRAMEBAD bad;
+  class OU,PRESTEP neutral;
 `;
 
 function RuntimeLoop() {
@@ -94,7 +97,7 @@ function RuntimeLoop() {
         both physics refactors:
       </p>
 
-      <MermaidDiagram chart={forceChart} caption="Why drag is set as damping and applied force is delivered as impulse." />
+      <MermaidDiagram chart={forceChart} caption="Why drag is set as damping and applied force is delivered as a per-step impulse." />
 
       <ul>
         <li>
@@ -104,13 +107,26 @@ function RuntimeLoop() {
         </li>
         <li>
           <strong>Applied force (PhET Forces and Motion)</strong> — delivered as an{' '}
-          <strong>impulse</strong>{' '}
-          (<code>J = F · FIXED_DT_SECONDS</code>) once per logical frame. Impulse changes velocity
-          once; the new velocity persists across all substeps. No under-delivery.
+          <strong>impulse</strong>, once per <em>engine step</em>, from the{' '}
+          <code>onPreStep(adapter, dt)</code> hook. The conversion rule is unit consistency with
+          the step the impulse precedes: <code>J = F · dt_of_the_NEXT_STEP</code>. That is the same
+          cadence the engine itself uses for gravity.
         </li>
         <li>
-          A per-substep <code>onPreStep(body, dt)</code> hook was considered and deferred — both
-          refactors found a substep-invariant formulation that doesn't need it.
+          <strong>Do not convert over the logical frame dt.</strong> Handing{' '}
+          <code>F · FIXED_DT_SECONDS</code> (1/60 s) to a 1/480 s step dumps eight steps' worth of
+          tangential impulse into one step's friction budget. Measured 2026-08-09: breakaway
+          collapsed to <strong>6 N against a true 19.6 N</strong>, and a crate below threshold crept
+          36 mm in 5 s. Per-step delivery restores breakaway to ~3% and the creep to 0.3 mm. This is{' '}
+          <em>not</em> a solver-iteration concern — cranking iterations 1 → 32 leaves the wrong
+          number unchanged.
+        </li>
+        <li>
+          <code>onUpdate</code> is still strictly once per logical frame — graphs, outputs and the
+          finite-difference acceleration all depend on that, so <code>onPreStep</code> is a separate
+          lightweight hook rather than a relocation. An earlier revision of this page described the
+          hook as "considered and deferred"; it shipped 2026-08-09 once the measurement above
+          justified it.
         </li>
       </ul>
 

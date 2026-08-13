@@ -14,6 +14,7 @@ import BowlingBallAndFeatherSimulation from './simulations/BowlingBallAndFeather
 import MonkeyAndAppleSimulation from './simulations/MonkeyAndAppleSimulation'
 import RampSlideSimulation from './simulations/RampSlideSimulation'
 import AppliedForce1DSimulation from './simulations/AppliedForce1DSimulation'
+import AppliedForce2DSimulation from './simulations/AppliedForce2DSimulation'
 import RampEnergySimulation from './simulations/RampEnergySimulation'
 import PolarAuthoredVelocitySimulation from './simulations/PolarAuthoredVelocitySimulation'
 import CupCatchSimulation from './simulations/CupCatchSimulation'
@@ -61,6 +62,7 @@ function AppContent() {
         <Route path="/simulation/monkey-and-apple" element={<MonkeyAndAppleSimulation />} />
         <Route path="/simulation/ramp-slide" element={<RampSlideSimulation />} />
         <Route path="/simulation/applied-force-1d" element={<AppliedForce1DSimulation />} />
+        <Route path="/simulation/applied-force-2d" element={<AppliedForce2DSimulation />} />
         <Route path="/simulation/ramp-energy" element={<RampEnergySimulation />} />
         <Route path="/simulation/polar-authored-velocity" element={<PolarAuthoredVelocitySimulation />} />
         <Route path="/simulation/cup-catch" element={<CupCatchSimulation />} />

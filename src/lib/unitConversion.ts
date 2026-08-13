@@ -89,7 +89,10 @@ export function unitScaleFor(
   if (
     path.startsWith('position.') ||
     path.startsWith('velocity.') ||
-    path.startsWith('acceleration.')
+    path.startsWith('acceleration.') ||
+    // Force carries a length dimension (N = kg·m/s²); mass does not. Scaling it
+    // with the length unit is what keeps F = m·a true in authored numbers.
+    path.startsWith('appliedForce.')
   ) {
     return lengthScale;
   }
@@ -114,7 +117,38 @@ export function isPolarVector(v: Vector2DInput): v is PolarVector2D {
  * (width/height/svg required): container expansion precedes this boundary, so
  * the SI layer never sees an incomplete object.
  */
-export type SIObjectConfig = Omit<ExpandedObjectConfig, 'velocity'> & { velocity?: Vector2D };
+export type SIObjectConfig = Omit<ExpandedObjectConfig, 'velocity' | 'acceleration' | 'appliedForce'> & {
+  velocity?: Vector2D;
+  acceleration?: Vector2D;
+  appliedForce?: Vector2D;
+};
+
+/**
+ * Polar → cartesian + unit scaling for ONE authored vector field. Shared by
+ * every dimensional vector on ObjectConfig so a new field cannot accidentally
+ * skip normalization (the trap invariant #1 sets: nothing Zod-parses at
+ * runtime, so this seam is the only place it can happen).
+ *
+ * `scale` is the field's own dimensional scale — length-per-unit for velocity
+ * and acceleration, and for appliedForce too: force carries a length dimension
+ * (N = kg·m/s²) while mass does not, so a force must scale with env.unit
+ * exactly as acceleration does or F = m·a stops holding in authored numbers.
+ */
+function vectorToSI(
+  v: Vector2DInput | undefined,
+  scale: number,
+  angleScale: number,
+): Vector2D | undefined {
+  if (!v) return undefined;
+  if (isPolarVector(v)) {
+    // Defensive clamp mirrors writeVectorPolar: magnitude is ≥ 0 by contract,
+    // but nothing runtime-enforces the schema's .min(0).
+    const m = Math.max(0, v.magnitude) * scale;
+    const theta = v.angle * angleScale;
+    return { x: m * Math.cos(theta), y: m * Math.sin(theta) };
+  }
+  return { x: v.x * scale, y: v.y * scale };
+}
 
 /**
  * The config→SI boundary. Besides length scaling, this is where polar-authored
@@ -127,27 +161,14 @@ export type SIObjectConfig = Omit<ExpandedObjectConfig, 'velocity'> & { velocity
  * width/height/svg for `container` objects and drops incomplete ones).
  */
 export function scaleObjectToSI(obj: ExpandedObjectConfig, scale: number, angleScale: number): SIObjectConfig {
-  let velocity: Vector2D | undefined;
-  if (obj.velocity) {
-    if (isPolarVector(obj.velocity)) {
-      // Defensive clamp mirrors writeVectorPolar: magnitude is ≥ 0 by contract,
-      // but nothing runtime-enforces the schema's .min(0).
-      const m = Math.max(0, obj.velocity.magnitude) * scale;
-      const theta = obj.velocity.angle * angleScale;
-      velocity = { x: m * Math.cos(theta), y: m * Math.sin(theta) };
-    } else {
-      velocity = { x: obj.velocity.x * scale, y: obj.velocity.y * scale };
-    }
-  }
   return {
     ...obj,
     x: obj.x * scale,
     y: obj.y * scale,
     width: obj.width * scale,
     height: obj.height * scale,
-    velocity,
-    acceleration: obj.acceleration
-      ? { x: obj.acceleration.x * scale, y: obj.acceleration.y * scale }
-      : obj.acceleration,
+    velocity: vectorToSI(obj.velocity, scale, angleScale),
+    acceleration: vectorToSI(obj.acceleration, scale, angleScale),
+    appliedForce: vectorToSI(obj.appliedForce, scale, angleScale),
   };
 }

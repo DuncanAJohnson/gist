@@ -257,7 +257,7 @@ The one display improvement worth bundling: a small **vector arrow visual** over
 ### Phase 2 — polar input form for initial conditions — SHIPPED 2026-07-04 (velocity only)
 
 - Schema accepts `velocity: { magnitude, angle }` as an alternative to `{ x, y }`. ~~Parser normalizes at load time.~~ Normalization happens at the config→SI boundary (`scaleObjectToSI`) — the ONE runtime site all three ingestion paths share, since nothing runtime-parses (see Findings 2026-07-04).
-- ~~Same for `gravity`, `appliedForce`, etc.~~ PINNED to the end of the applied-forces refactor: once `appliedForce` exists, one mechanical sweep applies the union to all remaining vector fields (acceleration, gravity, appliedForce) over the complete field set.
+- ~~Same for `gravity`, `appliedForce`, etc.~~ ~~PINNED to the end of the applied-forces refactor: once `appliedForce` exists, one mechanical sweep applies the union to all remaining vector fields (acceleration, gravity, appliedForce) over the complete field set.~~ **DONE 2026-08-13** with applied-forces Phase 2 — `acceleration` and `appliedForce` both take the union, normalized through the shared `vectorToSI` helper at the same seam. `gravity` is out of scope by construction (a signed scalar, not a vector). See the close-out disposition below.
 - LLM gets a second authoring style for vectors; LLM prompt examples updated. ✓
 
 ### Phase 3 — paired `polarSlider` control variant + `VectorArrow` renderable — SPLIT AT CLOSE-OUT (2026-07-04, never built here)
@@ -454,10 +454,19 @@ The refactor is CLOSED with Phases 1 + 2 shipped and verified. Dispositions
 (all decided by Bill this session; lifecycle moves executed):
 
 - **All-vectors polar-authoring sweep** (acceleration, gravity, appliedForce) —
-  PINNED to the end of the applied-forces refactor, because `appliedForce`
+  ~~PINNED to the end of the applied-forces refactor, because `appliedForce`
   doesn't exist until that refactor creates it; one mechanical sweep over the
-  complete field set beats piecemeal extension. Recorded in
-  `Notes_on_Applied_Forces_Refactor.md`.
+  complete field set beats piecemeal extension.~~ **REDEEMED EARLY 2026-08-13**,
+  with applied-forces **Phase 2** rather than at its end. The pin's reasoning
+  held — the sweep did wait for `appliedForce` to exist — but it turned out to
+  land in the same pass that created the field, because a 2D force is phrased
+  "50 N at 30° above horizontal" and shipping the field components-only would
+  have meant migrating it (and its prompt corpus) later. `acceleration` came
+  along for consistency, as the pin intended. **`gravity` is deliberately NOT
+  in the sweep and never was in scope:** it is a signed SCALAR on `environment`
+  with its own downward sign convention, not a 2D vector, so the union does not
+  apply to it. The sweep is therefore COMPLETE at velocity + acceleration +
+  appliedForce. See `Notes_on_Applied_Forces_Refactor.md` Findings 2026-08-13.
 - **Phase 3 split** — `polarSlider` → `parking_lot.md` (seed of a future
   UI-refactor track); `VectorArrow` → vector-arrows / applied-forces tracks.
 - **Phase 4 (angle-wrap)** → `parking_lot.md`, trigger condition intact.

@@ -766,3 +766,102 @@ and a fix built now may be thrown away.
 **Diagnostic.** `/simulation/bowling-ball-and-feather`, play to ~frame 26 and
 look at the bowling ball. Any 1D vertical sim drawing both `force-net` and
 `force-gravity` reproduces it.
+
+---
+
+## General temporal / event layer — element duration, sim sequencing, event detection (2026-08-13)
+
+**Symptom.** `appliedForce` (applied-forces Phase 2) is constant for the whole
+run. A large fraction of natural force prompts are not: "push the crate for two
+seconds and let go", "cut the engine at the top of the arc", "stop pushing when
+it hits the wall". The same gap shows up elsewhere the moment you look for it —
+a sim that should run a staged sequence, an initial velocity that should be
+imparted as a kick rather than a state, a graph annotation that should fire at
+an event.
+
+**Cause.** There is no time or event vocabulary in the schema at all. Every
+authored quantity is either an initial condition (applied once at t = 0) or a
+constant (applied every frame forever). Nothing can start, stop, or react.
+
+**Why parked — and this is a scoping decision, not an omission.** Bill,
+2026-08-13: *"I want to add that in when we work on it as a general feature for
+element duration (like applied force), sim sequence, and event detection. The
+latter enables us to stop an applied force when we hit the simulation walls for
+instance."* A one-off `duration` field on `appliedForce` would have shipped the
+weakest possible version of this and pre-empted the general design — and it
+would have had to be repeated, differently, on every future field that wants a
+lifetime. The three capabilities named are one feature seen from three angles:
+
+1. **Element duration** — any authored element carries an optional lifetime
+   (start/stop), of which a timed applied force is the first instance.
+2. **Sim sequence** — staged scenes: this, then that. The container for
+   multi-step lessons.
+3. **Event detection** — the interesting half. A force that stops **on a wall
+   contact** is qualitatively better than one that stops at t = 2.0 s, because
+   the condition is physical rather than clairvoyant. Wall/body contact is the
+   obvious first predicate; the adapters already surface contacts
+   (`getContactForces`, and Planck's `begin-contact` hook), so the engine-side
+   input exists.
+
+Until then, the authoring answer for a varying force is a SLIDER — the student's
+hand is the time dependence, which is also how PhET's *Forces and Motion* does
+it. Both the schema `.describe()` and the prompt say the force is constant and
+point at a slider, and the prompt explicitly forbids inventing a time-varying
+field.
+
+**Suggested fix paths, ranked.**
+1. **Design the temporal layer as its own refactor note** before any field grows
+   a time knob, with event detection scoped in from the start (not bolted on).
+   Determinism is the constraint that shapes it: precompute→replay means every
+   trigger must be a pure function of simulation state, and anything that
+   changes trajectories joins the frame-cache key (invariant #13). Preferred.
+2. **A minimal `duration` on `appliedForce` alone**, as a stopgap if a benchmark
+   needs it before the general design exists. Explicitly rejected for Phase 2 —
+   recorded here so the rejection is visible rather than relitigated.
+3. **Do nothing; sliders only.** Viable for B5 and PhET-parity work, which is
+   why this is parked rather than blocking.
+
+**Diagnostic.** `/simulation/applied-force-2d` — the pull runs forever; there is
+no authoring way to stop it. Any prompt of the form "push it for N seconds"
+currently has to be re-scoped to "let the student push it".
+
+---
+
+## `body.velocity = {...}` silently breaks the accessor (2026-08-13)
+
+**Symptom.** Assigning a whole vector to a `PhysicsBody` — `body.velocity = {x: 0, y: v.y}`
+— appears to work, but from then on **every read returns the frozen assigned
+value while the body keeps moving**. Hit while writing the 2D breakaway harness:
+a block visibly travelled 2.5 m with `body.velocity.x` reading 0.0000 the whole
+way, which read as a physics bug for a good few minutes.
+
+**Cause.** `position` and `velocity` are live `Vec2Accessor` instances created
+once per body (`RapierAdapter.ts:179,189`; `PlanckAdapter.ts:117,127`) whose
+`.x`/`.y` getters and setters route through the engine. Assigning a plain object
+replaces the instance property outright, so the accessor — and its engine
+connection — is gone. The concrete wrapper classes declare `readonly velocity`,
+which would catch it, but the **`PhysicsBody` INTERFACE declares
+`velocity: Vec2` (mutable)** (`types.ts:65-66`), so through the interface the
+assignment type-checks cleanly.
+
+**Why parked.** **No live bug: nothing in `src/` assigns a whole vector** —
+every call site writes components (`body.velocity.x = …`), which is the correct
+pattern and the one the controls layer, `handleUpdate`, and the seam all use.
+This is a latent trap for the next person writing adapter-level code (harnesses
+especially), not a defect in shipped behaviour.
+
+**Suggested fix paths, ranked.**
+1. **Mark the interface members `readonly`** (`readonly position: Vec2`,
+   `readonly velocity: Vec2`), matching what the implementations already declare.
+   The assignment then fails to compile, which is exactly when you want to hear
+   about it. Cheap; needs a check that no caller legitimately reassigns.
+   Preferred.
+2. **Document it on the interface** — a docstring warning next to the fields.
+   Weaker (docstrings do not fail builds) but zero risk.
+3. **Make the setter work** — define `velocity` as an accessor property whose
+   setter writes components through. Most forgiving, most machinery, and it
+   rewards a pattern we do not otherwise want.
+
+**Diagnostic.** Against either adapter: create a dynamic body, step it, then
+`body.velocity = {x: 0, y: 0}`; apply an impulse and step. `body.position.x`
+advances while `body.velocity.x` stays 0.

@@ -383,13 +383,36 @@ export function applyEditCommitToObject(
  *
  * Authored config state only, never runtime — the ratified bus semantic.
  */
+/**
+ * Magnitude of an authored vector in EITHER form. The seam's diagnostics run
+ * pre-normalization, so every "is this field non-zero?" test has to survive a
+ * polar authoring (velocity, acceleration and appliedForce all accept it).
+ * Returns 0 for an absent field, which is what "not authored" means here.
+ */
+function vectorMagnitude(v: ObjectConfig['acceleration']): number {
+  if (!v) return 0;
+  return isPolarVector(v) ? Math.abs(v.magnitude) : Math.hypot(v.x, v.y);
+}
+
+/** Render an authored vector back in the form its author wrote it in. */
+function describeVector(v: ObjectConfig['acceleration']): string {
+  if (!v) return '(none)';
+  return isPolarVector(v)
+    ? `{magnitude: ${v.magnitude}, angle: ${v.angle}}`
+    : `{x: ${v.x}, y: ${v.y}}`;
+}
+
 function checkChapterSplit(
   objects: ExpandedObjectConfig[],
   airResistanceEnabled: boolean,
 ): void {
   for (const obj of objects) {
-    const a = obj.acceleration;
-    if (!a || (a.x === 0 && a.y === 0)) continue;
+    // Runs BEFORE scaleObjectToSI, so vectors here are still in the authoring
+    // union — polar or cartesian. Compare magnitudes, never raw .x/.y (a polar
+    // {magnitude, angle} has no .x, so the old component test read undefined
+    // and silently never fired).
+    const a = vectorMagnitude(obj.acceleration);
+    if (a === 0) continue;
 
     const reasons: string[] = [];
     // Authored non-zero µ. Nothing runs Zod at runtime (invariant #1), so an
@@ -397,21 +420,30 @@ function checkChapterSplit(
     if ((obj.friction ?? 0) !== 0) reasons.push(`friction ${obj.friction}`);
     // dragCoefficient 0 is the documented per-body opt-out of air resistance.
     if (airResistanceEnabled && obj.dragCoefficient !== 0) reasons.push('air resistance');
-    // NEXT: when `appliedForce` lands (applied-forces Phase 2), add it here —
-    // it is the sharpest case of all, since it is the field this object's
-    // author probably meant to reach for.
+    // The sharpest case of all (landed with applied-forces Phase 2): the body
+    // carries BOTH a forceless kinematic stipulation and the named force that
+    // its author probably meant to reach for instead.
+    if (vectorMagnitude(obj.appliedForce) !== 0) reasons.push('an applied force');
 
     if (reasons.length === 0) continue;
 
     reportDiagnostic(
       `kinematic-acceleration-in-force-scene:${obj.id}`,
-      `checkChapterSplit: "${obj.id}" authors acceleration {x: ${a.x}, y: ${a.y}} ` +
+      `checkChapterSplit: "${obj.id}" authors acceleration ${describeVector(obj.acceleration)} ` +
         `(a forceless KINEMATIC stipulation, added on top of gravity) while also ` +
         `carrying ${reasons.join(' and ')}. The acceleration is applied as authored ` +
         `and shows up in force-net as m·a, but no force arrow accounts for it, so a ` +
         `free-body diagram on this body will NOT close. That is expected for a ` +
-        `kinematics-chapter sim and surprising in a forces sim — if you meant "a ` +
-        `force pushes this", author the force instead of the acceleration.`,
+        `kinematics-chapter sim and surprising in a forces sim — ` +
+        (vectorMagnitude(obj.appliedForce) !== 0
+          ? `and this body ALREADY names its cause as appliedForce ` +
+            `${describeVector(obj.appliedForce)}. The two superpose ` +
+            `(a_total = a_authored + F/m), so the body accelerates faster than F/m ` +
+            `predicts and the mass slider no longer tells the whole story. If the ` +
+            `lesson is Newton's 2nd law, drop the acceleration and let the force ` +
+            `do the work.`
+          : `if you meant "a force pushes this", author appliedForce instead of ` +
+            `the acceleration.`),
     );
   }
 }
