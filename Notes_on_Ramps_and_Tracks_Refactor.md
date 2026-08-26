@@ -159,6 +159,29 @@ alongside `containerExpansion.ts`.
 
 ## Open questions
 
+- ✅ **Generalized seating — `seatOn: "<any object id>"` (raised 2026-08-14) —
+  DISCUSSED AND MOVED OUT the same day. SUPERSEDED by "Object-to-object relative
+  positioning," `GIST_Physics_Wishlist.md` §1.** The lead-off discussion
+  happened; its outcome was that the idea does not belong to this workstream.
+  Stacking promoted it, but the general case is *any* t = 0 pose expressed
+  relative to another object — a rack of billiard balls, three rocks whose
+  bottoms start level for a Galileo drop, two bodies whose centers of mass sit
+  on one line for a top-down 1D collision, "two carts 3 m apart." Only the first
+  of those is seating at all, and three of them derive ONE axis while leaving
+  the other authored, which `seatOn` cannot express. Bill also invited a rename
+  (`seatOn` implies support-contact). **All five design questions raised here
+  migrated intact to the wishlist entry** — start-pose-vs-constraint, which
+  surface for an irregular collider, ordering/chains/cycles, the collider-inset
+  and initial-overlap hazard, and the field name — where they are joined by the
+  ones the wider framing raised. Ramps keep `seatOn: "<ramp id>"` as shipped
+  sugar regardless: it derives an ANGLE, which no alignment relation does.
+- **Pair-friction disclosure shipped 2026-08-26 (bears on the held
+  friction-representation question, T11).** ⇧-click info boxes
+  (`InfoBoxes.tsx`, gesture in `EditOverlay.tsx`) show any two targets'
+  µ / e and the pair's EFFECTIVE contact values under the max rule, naming
+  which body governs — walls included (zero material). The hold is NOT
+  resolved by this; it is made observable, which is the precondition. See
+  `Notes_on_Applied_Forces_Refactor.md` Findings 2026-08-26.
 - **Angle units at the JSON seam (R3).** The factory takes degrees; raw
   `ObjectConfig.angle` is radians; env `angleUnit` exists. When the `ramp`
   field lands, should its angle respect `angleUnit` (unit-preservation
@@ -634,3 +657,67 @@ baseline. Note: the badge reflects AUTHORED friction — a friction slider
 moved at runtime doesn't re-evaluate it (config truth, not runtime events;
 consistent with the bus semantic). **Drive-confirmed same evening:** Bill
 sees the badge in the debug panel's Diagnostics box on the remix exhibit.
+
+---
+
+### Findings 2026-08-14 — `seatOn: "ground"` SHIPPED (the flat-ground twin)
+
+`seatOn` was ramp-only. It now also takes the reserved literal `"ground"`,
+resting an object on the top of the bottom wall (y = 0 — `Environment.tsx`
+builds that wall at `bounds.minY − thickness/2` with `minY = 0`, so its top face
+is exactly the origin, which is also `makeRamp`'s `groundLevel` default; the two
+therefore agree by construction).
+
+**Why the field exists — the cause was misdiagnosed first.** Sim #1434 ("seat
+the sled on the ground") came back with `y: 0` and the sled buried 0.17 m
+through the floor. First read blamed the collider-inset trap. **Wrong**:
+measured insets are millimetres (sled 5.4 mm, dynamics_cart 24 mm), and
+`y = height/2` would have been fine. The real cause is that **the schema teaches
+the `y: 0` placeholder idiom** — for grounded containers, ramps, and `seatOn`
+riders, "author 0, the runtime derives it" — and the model applied it to a plain
+object, where nothing derives anything. Sim #1426 guessed `height/2` on the same
+instruction and got away with it. Same instruction, two strategies, coin flip.
+
+That diagnosis picked the fix: rather than adding a prompt rule that has to
+out-argue an idiom the schema itself taught, make the `y: 0` the model already
+writes **literally correct**, in the vocabulary it already reaches for.
+
+**Behaviour**
+- Reserved literal, checked BEFORE the ramp lookup — no object need be named
+  `ground`. If a ramp IS named that it is shadowed, and the seam reports it
+  (`seat-ground-shadowed`) rather than silently preferring one.
+- No bottom wall → seats at y = 0 anyway and reports `seat-ground-no-bottom`,
+  mirroring the grounded-container precedent (`containerExpansion.ts`).
+- Unlike a ramp seat, it does NOT set `angle` — the ground is flat, so an
+  authored tilt is the author's business. It is honoured in the EXTENT instead:
+  `(w·|sin θ| + h·|cos θ|)/2`, so a tilted box rests on its corner rather than
+  sinking. Degenerates to `height/2` at θ = 0 and 180°.
+- Angle is read through `angleScale`, so a radians-authored sim seats correctly.
+
+**Bounding box, not collider — a deliberate call.** Matches `seatAtX`, which
+also uses `objHeight / 2`, so both seatOn targets place a body the same way. A
+collider-flush seat would need the sprite's collider inset at the expansion
+seam, but `expandObjects` runs in a JsonSimulation memo that can evaluate before
+`BaseSimulation` finishes gating on `loadManifest()` — the seat would then
+depend on load order (bbox first render, collider-aware later). **Invariant #8
+closed exactly that class of race; not reopening it for a millimetre.** The
+residual settles on the first step and is invisible at any real
+`pixelsPerUnit`. Compare the 0.17 m burial it replaces.
+
+**Three places:** schema (`seatOn` describe rewritten to lead with the ground
+form; the `y` describe now states outright that `y: 0` puts an object half below
+the floor) + regenerated · prompt (FILL OBJECTS gains the resting-on-the-floor
+rule, and the incline bullet now cross-references it as the same field) ·
+`/docs/authoring-json` (new subsection, including why bbox-not-collider).
+
+**Verified headless** through `expandObjects`: flat box seats at `height/2`;
+authored y overridden; an object WITHOUT `seatOn` is untouched (regression
+guard — `y: 0` still buries it, which is correct, that is the authored value);
+rotations at 45°/90°/180° match the extent formula; radians env; no-bottom-wall
+still seats AND fires its diagnostic; unknown seatOn target keeps the old
+behaviour and diagnostic. `tsc` clean, `npm run lint` at the known baseline.
+
+**Not addressed:** the same y-is-the-center confusion applies to stacking
+(sitting a box ON another box), which still requires hand arithmetic. Promoted
+out of this aside into **Open questions → "Generalized seating"** (2026-08-14,
+Bill's call) — it is next session's lead-off discussion, not a someday-maybe.

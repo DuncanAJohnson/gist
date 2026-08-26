@@ -183,8 +183,10 @@ flowchart LR
     RT3["R3 · ramp + seatOn (SO1–SO7)<br/>+ ramp-dimension sliders<br/>(expansion-aware controls, tilt-until-slip)<br/>three places <b>LANDED 2026-08-06</b>;<br/>serve-tested (3 rounds) · <b>SHIPPED 2026-08-06</b>"]
     RT4["R4 · rotated-basis components<br/>+ FBD normal/friction on incline<br/>(converges w/ FBD steps 3+5)"]
     RT5["R5 · track generator<br/>chains / hills / coasters<br/>energy-drift harness first"]
+    RT6["object-to-object relative positioning<br/><b>SPUN OUT of this workstream 2026-08-14</b><br/>stacks / billiard rack / Galileo level drop /<br/>CM-aligned collision / 'N m apart'<br/>→ GIST_Physics_Wishlist.md §1 · candidate next dev task"]
     RT1 --> RT2 --> RT3 --> RT4
     RT2 --> RT5
+    RT3 -.reframed, no longer ramp-scoped.-> RT6
   end
 
   classDef done fill:#dcfce7,stroke:#16a34a,color:#166534;
@@ -193,7 +195,7 @@ flowchart LR
 
   class AIRP1,AIRP2,AIRP3,VAP1A,VAP1B,VAP1C,VAP2,VACOMP,FBD2,FBD3,FBD4,APPP1,APPP4,CCP0,CC2,CC3,CC5,CC6,RP0,VECP1,RT1 done;
   class APPP2,APPP25,APPP3,VECP2,VECP3,VAP3,VAP4,VAP5,CC4,CC8,RP1,RP2,RP3,RP4,RP5,RP6,RT2,RT3,RT4 pending;
-  class CC1,CC7,RT5 proposed;
+  class CC1,CC7,RT5,RT6 proposed;
 `;
 
 const cameraChart = `

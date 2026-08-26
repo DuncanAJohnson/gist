@@ -184,16 +184,97 @@ function downSlopeAngleRad(ramp: Ramp): number {
   return highSide === 'left' ? -angleRad : angleRad - Math.PI;
 }
 
+/**
+ * The reserved `seatOn` target meaning "the flat ground", i.e. the top surface
+ * of the bottom wall. Not an object id — no object needs to exist.
+ */
+const GROUND_SEAT_TARGET = 'ground';
+
+/**
+ * Top of the ground, in SI world units. The bottom wall is built at
+ * `y = bounds.minY - thickness/2` with `bounds.minY = 0`
+ * (`Environment.tsx` → `adapter.createWalls`), so it lies entirely BELOW the
+ * origin and its top face is exactly y = 0. Same constant `makeRamp` defaults
+ * its `groundLevel` to, which is why a ground-seated object and a ground-seated
+ * ramp agree.
+ */
+const GROUND_LEVEL = 0;
+
+/**
+ * Center y that rests an object's bounding box on the ground, honouring an
+ * authored rotation. For an axis-aligned box this is just `height/2`; a rotated
+ * box reaches lower, by exactly `(w·|sin θ| + h·|cos θ|) / 2`.
+ *
+ * DELIBERATELY bounding-box, not collider (2026-08-14). Two reasons:
+ *   1. CONSISTENCY — ramp seating (`seatAtX`) also uses `objHeight / 2`, so
+ *      both seatOn targets place a body the same way.
+ *   2. NO MANIFEST AT THIS SEAM — a collider-flush seat needs the sprite's
+ *      collider inset, and `expandObjects` runs in a JsonSimulation memo that
+ *      can evaluate before `BaseSimulation` has finished gating on
+ *      `loadManifest()`. Reading it here would make the seat depend on load
+ *      order: bbox on first render, collider-aware later. Invariant #8 closed
+ *      exactly that class of race and we are not reopening it.
+ *
+ * The residual is the collider's bottom inset — MILLIMETRES for real sprites
+ * (measured 2026-08-14: sled 5.4 mm, dynamics_cart 24 mm), so the body settles
+ * imperceptibly on the first step. Compare the bug this replaces: an LLM
+ * writing `y: 0` buried the same sled 0.17 m THROUGH the floor.
+ */
+function groundSeatY(width: number, height: number, angleRad: number): number {
+  const halfExtent =
+    (Math.abs(width * Math.sin(angleRad)) + Math.abs(height * Math.cos(angleRad))) / 2;
+  return GROUND_LEVEL + halfExtent;
+}
+
 function seatRiders(
   objects: ExpandedObjectConfig[],
   ramps: Map<string, Ramp>,
   angleScale: number,
+  hasBottomWall: boolean,
 ): ExpandedObjectConfig[] {
   const out: ExpandedObjectConfig[] = [];
 
   for (const obj of objects) {
     if (!obj.seatOn) {
       out.push(obj);
+      continue;
+    }
+
+    // GROUND SEATING (2026-08-14). `seatOn: "ground"` is a reserved literal,
+    // checked before the ramp lookup — no object named "ground" need exist.
+    //
+    // WHY THIS FIELD EXISTS: the schema teaches "author y: 0 as a placeholder"
+    // for every case where the runtime derives y (grounded containers, ramps,
+    // seatOn riders). Asked to "seat the sled on the ground", the LLM reached
+    // for that idiom on a PLAIN object — where nothing derives anything — and
+    // buried it half through the floor (sim #1434). A sibling sim used
+    // `height/2` and got away with it: same instruction, two strategies, coin
+    // flip. This makes the `y: 0` the model already writes literally correct,
+    // in the vocabulary it already reaches for, instead of adding a rule that
+    // has to out-argue an idiom the schema itself taught.
+    if (obj.seatOn === GROUND_SEAT_TARGET) {
+      if (ramps.has(GROUND_SEAT_TARGET)) {
+        reportDiagnostic(
+          `seat-ground-shadowed:${obj.id}`,
+          `seatRiders: "${obj.id}" seats on "ground", which is RESERVED for the flat ` +
+            `ground — but this sim also has a ramp object with id "ground", which is ` +
+            `therefore unreachable as a seatOn target. Rename that ramp.`,
+        );
+      }
+      if (!hasBottomWall) {
+        // Mirrors the grounded-container check: seat it anyway at y = 0 and say
+        // so, rather than silently placing a body over empty space.
+        reportDiagnostic(
+          `seat-ground-no-bottom:${obj.id}`,
+          `seatRiders: "${obj.id}" seats on the ground but environment.walls has no ` +
+            `'bottom' — it is placed resting on y = 0 and will fall from there.`,
+        );
+      }
+      // Unlike a ramp seat, ground seating does NOT set the angle — the ground
+      // is flat, so an authored tilt is the author's business. It is honoured
+      // in the extent instead: a rotated box reaches lower than height/2.
+      const angleRad = (obj.angle ?? 0) * angleScale;
+      out.push({ ...obj, y: groundSeatY(obj.width, obj.height, angleRad) });
       continue;
     }
 
@@ -513,6 +594,87 @@ export function checkFrictionSliderMasking(
 }
 
 /**
+ * FORCE-CONTROL TARGET (T1 of the 2026-08-14 drive register — the sled sims).
+ *
+ * Sims #1433/#1434 authored `appliedForce` on the SLED but bound the force
+ * and angle sliders to the PERSON, who was `isStatic`. Static bodies are
+ * zeroed in handleUpdate and skipped in handlePreStep, so those writes went
+ * nowhere — and because the slider's defaultValue happened to equal the
+ * authored magnitude, the sim looked right until a student dragged. The prompt
+ * now teaches the agent/patient rule (the slider targets the body that CARRIES
+ * the force); this is the thing that DETECTS a violation.
+ *
+ * Two shapes, both config-state truth (the bus semantic):
+ *  - the target is static: an `appliedForce.*` or `acceleration.*` slider on a
+ *    static body is a no-op for as long as it stays static (an `isStatic`
+ *    toggle could revive it at runtime, but that is a runtime event, and the
+ *    authored state is what we report on);
+ *  - the target carries no authored `appliedForce` while ANOTHER object does —
+ *    the agent-not-patient shape. A force slider on a body with no authored
+ *    force is fine on its own (the slider creates the force); it is the
+ *    presence of the force on a sibling that marks the likely mis-target.
+ * Unknown target ids are reported too: nothing downstream throws on them (the
+ * write just finds no body), which is exactly the silent kind.
+ */
+export function checkForceControlTarget(
+  objects: ExpandedObjectConfig[],
+  controls: readonly ControlConfig[],
+): void {
+  const byId = new Map(objects.map((o) => [o.id, o]));
+  const forceCarriers = objects
+    .filter((o) => vectorMagnitude(o.appliedForce) !== 0)
+    .map((o) => o.id);
+
+  for (const c of controls) {
+    if (c.type !== 'slider') continue;
+    const isForce = c.property.startsWith('appliedForce.');
+    const isAccel = c.property.startsWith('acceleration.');
+    if (!isForce && !isAccel) continue;
+
+    const target = byId.get(c.targetObj);
+    if (!target) {
+      reportDiagnostic(
+        `force-control-unknown-target:${c.targetObj}`,
+        `checkForceControlTarget: the "${c.label}" slider (${c.property}) targets ` +
+          `"${c.targetObj}", which is not an object in this sim. The slider writes ` +
+          `to nothing and nothing moves.`,
+      );
+      continue;
+    }
+
+    if (target.isStatic) {
+      reportDiagnostic(
+        `force-control-static-target:${c.targetObj}`,
+        `checkForceControlTarget: the "${c.label}" slider (${c.property}) targets ` +
+          `"${c.targetObj}", which is isStatic. Static bodies ignore applied forces ` +
+          `and accelerations, so this slider does NOTHING — the sim looks fine until ` +
+          `a student drags it. ` +
+          (forceCarriers.length > 0
+            ? `The force in this scene is authored on ${forceCarriers.map((id) => `"${id}"`).join(', ')}; ` +
+              `bind the slider to the body that CARRIES the force (the one being pushed), ` +
+              `not the one doing the pushing.`
+            : `Bind it to the dynamic body that should move.`),
+      );
+      continue;
+    }
+
+    if (isForce && vectorMagnitude(target.appliedForce) === 0) {
+      const others = forceCarriers.filter((id) => id !== c.targetObj);
+      if (others.length === 0) continue;
+      reportDiagnostic(
+        `force-control-agent-not-patient:${c.targetObj}`,
+        `checkForceControlTarget: the "${c.label}" slider (${c.property}) targets ` +
+          `"${c.targetObj}", which authors no appliedForce, while ` +
+          `${others.map((id) => `"${id}"`).join(', ')} ${others.length === 1 ? 'does' : 'do'}. ` +
+          `The slider will push "${c.targetObj}" (a second, separate force) and leave the ` +
+          `authored force untouched — probably the agent/patient mix-up: the slider ` +
+          `belongs on the body that carries the force, not the one applying it.`,
+      );
+    }
+  }
+}
+
+/**
  * The seam entry point — JsonSimulation calls this (post dedupeObjectIds)
  * instead of expandContainerObjects directly. Ordinary complete objects pass
  * through all three passes untouched.
@@ -523,7 +685,7 @@ export function expandObjects(
 ): ExpandedObjectConfig[] {
   const ramped = expandRampObjects(objects, env.angleScale);
   const complete = expandContainerObjects(ramped.objects, env);
-  const seated = seatRiders(complete, ramped.ramps, env.angleScale);
+  const seated = seatRiders(complete, ramped.ramps, env.angleScale, env.hasBottomWall);
   // Runs last, on settled ids, and mutates nothing — a pure authoring check.
   checkChapterSplit(seated, env.airResistanceEnabled);
   return seated;

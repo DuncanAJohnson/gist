@@ -4,6 +4,7 @@ import { WorldToCanvas } from '../../lib/worldToCanvas';
 import { getManifestItem } from '../../lib/renderableManifest';
 import type { ExpandedObjectConfig } from '../../schemas/simulation';
 import type { PhysicsBody } from '../../physics/types';
+import type { InfoTarget } from '../../lib/infoTargets';
 import {
   computeCornerCommit,
   computeEdgeCommit,
@@ -42,6 +43,20 @@ interface EditOverlayProps {
    */
   onResetPromptRequested?: (clientX: number, clientY: number) => void;
   objRefs: RefObject<Record<string, PhysicsBody>>;
+  /**
+   * ⇧-click info gesture (InfoBoxes). Active in every mode except position
+   * picking; the overlay canvas therefore keeps pointer-events on whenever
+   * this is true, even when neither editing nor the reset prompt is live.
+   */
+  infoActive?: boolean;
+  /** Which walls exist, so the floor/walls are hit-testable info targets. */
+  walls?: readonly string[];
+  /** Hover target changed (null = nothing under the pointer). */
+  onInfoHover?: (target: InfoTarget | null, clientX: number, clientY: number, shiftHeld: boolean) => void;
+  /** ⇧-click on a target. */
+  onInfoPin?: (target: InfoTarget, clientX: number, clientY: number) => void;
+  /** Plain pointerdown anywhere on the canvas — dismisses pinned boxes. */
+  onInfoClear?: () => void;
   pixelsPerMeter: number;
   unitScale: number;
   /**
@@ -77,6 +92,11 @@ function EditOverlay({
   onCommitEdit,
   onResetPromptRequested,
   objRefs,
+  infoActive = false,
+  walls,
+  onInfoHover,
+  onInfoPin,
+  onInfoClear,
   pixelsPerMeter,
   unitScale,
   zoomFactor = 1,
@@ -96,6 +116,17 @@ function EditOverlay({
   const pixelsPerMeterRef = useRef(pixelsPerMeter);
   const unitScaleRef = useRef(unitScale);
   const zoomFactorRef = useRef(zoomFactor);
+  const infoActiveRef = useRef(infoActive);
+  const wallsRef = useRef(walls);
+  const onInfoHoverRef = useRef(onInfoHover);
+  const onInfoPinRef = useRef(onInfoPin);
+  const onInfoClearRef = useRef(onInfoClear);
+  const lastInfoHoverRef = useRef<{ key: string | null; shift: boolean }>({ key: null, shift: false });
+  infoActiveRef.current = infoActive;
+  wallsRef.current = walls;
+  onInfoHoverRef.current = onInfoHover;
+  onInfoPinRef.current = onInfoPin;
+  onInfoClearRef.current = onInfoClear;
   editModeActiveRef.current = editModeActive;
   clickShowsResetPromptRef.current = clickShowsResetPrompt;
   editedObjectsRef.current = editedObjects;
@@ -150,14 +181,14 @@ function EditOverlay({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const interactive = editModeActive || clickShowsResetPrompt;
-    canvas.style.pointerEvents = interactive ? 'auto' : 'none';
+    canvas.style.pointerEvents = interactive || infoActive ? 'auto' : 'none';
     if (!editModeActive) {
       dragStateRef.current = { kind: 'idle' };
     }
     if (!interactive) {
       canvas.style.cursor = 'default';
     }
-  }, [editModeActive, clickShowsResetPrompt]);
+  }, [editModeActive, clickShowsResetPrompt, infoActive]);
 
   // Pointer event handlers.
   useEffect(() => {
@@ -199,12 +230,61 @@ function EditOverlay({
       return { ...obj, x: body.position.x / unit, y: body.position.y / unit };
     };
 
+    // Info-target hit test: bodies first (reverse order, like selection), then
+    // the wall slabs by their canvas-pixel rectangles — walls are not objects,
+    // but the floor is the contact most friction questions are about.
+    const hitInfoTarget = (p: CanvasPoint, w2c: WorldToCanvas, unit: number): InfoTarget | null => {
+      const objects = editedObjectsRef.current;
+      for (let i = objects.length - 1; i >= 0; i--) {
+        if (hitBody(p, getObjectAABBPx(liveObj(objects[i], unit), w2c, unit))) {
+          return { kind: 'object', id: objects[i].id };
+        }
+      }
+      const z = zoomFactorRef.current;
+      const t = WALL_THICKNESS * z;
+      const W = CANVAS_WIDTH * z;
+      const H = CANVAS_HEIGHT * z;
+      const has = (side: string) => wallsRef.current?.includes(side) === true;
+      if (has('bottom') && p.y >= H - t) return { kind: 'wall', side: 'bottom' };
+      if (has('top') && p.y <= t) return { kind: 'wall', side: 'top' };
+      if (has('left') && p.x <= t) return { kind: 'wall', side: 'left' };
+      if (has('right') && p.x >= W - t) return { kind: 'wall', side: 'right' };
+      return null;
+    };
+
+    const reportInfoHover = (e: PointerEvent, p: CanvasPoint, w2c: WorldToCanvas, unit: number) => {
+      if (!infoActiveRef.current || !onInfoHoverRef.current) return;
+      const target = hitInfoTarget(p, w2c, unit);
+      const key = target ? (target.kind === 'object' ? `object:${target.id}` : `wall:${target.side}`) : null;
+      const last = lastInfoHoverRef.current;
+      // Fire on target/shift change — and on every move while over a target,
+      // so the hint and hover box follow the pointer.
+      if (key === last.key && e.shiftKey === last.shift && key === null) return;
+      lastInfoHoverRef.current = { key, shift: e.shiftKey };
+      onInfoHoverRef.current(target, e.clientX, e.clientY, e.shiftKey);
+    };
+
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
       const p = getPointer(e);
       lastPointerRef.current = p;
       const w2c = buildW2C();
       const unit = unitScaleRef.current;
+
+      // ⇧-click: pin an info box. Claims the click outright — no selection,
+      // no drag, no reset prompt. A plain click anywhere dismisses the pins.
+      if (infoActiveRef.current) {
+        if (e.shiftKey) {
+          const target = hitInfoTarget(p, w2c, unit);
+          if (target) {
+            onInfoPinRef.current?.(target, e.clientX, e.clientY);
+            e.preventDefault();
+            return;
+          }
+        } else {
+          onInfoClearRef.current?.();
+        }
+      }
 
       // Editing is locked (sim running or paused mid-sim) — if a body was
       // clicked, hand the viewport-space click coords up so a "reset to edit"
@@ -296,6 +376,8 @@ function EditOverlay({
       const state = dragStateRef.current;
       const w2c = buildW2C();
       const unit = unitScaleRef.current;
+
+      if (state.kind === 'idle') reportInfoHover(e, p, w2c, unit);
 
       if (!editModeActiveRef.current) {
         // Hint that bodies are clickable; clicking will trigger the reset prompt.
@@ -394,13 +476,21 @@ function EditOverlay({
       canvas.style.cursor = 'default';
     };
 
+    const onPointerLeave = () => {
+      if (lastInfoHoverRef.current.key === null) return;
+      lastInfoHoverRef.current = { key: null, shift: false };
+      onInfoHoverRef.current?.(null, 0, 0, false);
+    };
+
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerleave', onPointerLeave);
     canvas.addEventListener('pointerup', onPointerUp);
     canvas.addEventListener('pointercancel', onPointerUp);
     return () => {
       canvas.removeEventListener('pointerdown', onPointerDown);
       canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerleave', onPointerLeave);
       canvas.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('pointercancel', onPointerUp);
     };

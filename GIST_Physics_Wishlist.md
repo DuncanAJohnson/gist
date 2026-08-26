@@ -12,6 +12,33 @@ Dependency hint:
 - 🔧 Schema + UI only
 - 🧪 Self-contained / mostly UI
 
+## `Representable today as:` — the anti-verdict field (convention added 2026-08-14)
+
+Entries MAY carry a **`Representable today as:`** line naming the nearest thing a
+teacher can already build with shipped primitives, even when the entry itself is
+unbuilt. It exists to stop a "we can't do X" from hardening into "X is
+impossible in GIST."
+
+**Why (Bill, 2026-08-14).** GIST is a physics-*concept* teaching system, and
+invariant #5 says its sims are dioramas — they teach a concept through a
+REPRESENTATION, not a mechanism through fidelity. So a gap stated at the
+mechanism level systematically understates what GIST can teach: we cannot model
+continuous mass-ejection propulsion, but two bodies pushing apart demonstrate
+the same law. Bill's framing: *"people are wildly creative and sometimes dream
+up clever work-arounds that system designers never thought of."* A verdict
+("GIST can't do thrust") is a prediction about user creativity, and it is a bet
+we lose. A primitive statement ("there are no ropes or pivots; a force does not
+change direction on its own") is checkable, honest, and leaves the work-around
+discoverable.
+
+**The rule this encodes: state the primitives, not the verdicts.** It governs
+this doc, and it governs the teacher-facing capability register (see
+`/docs/design-philosophy` → Known follow-ons #1). When a capability-absence line
+is REMOVED from `gist_instructions.py` (see the same page's audience model —
+absences are communicated to the teacher, not the LLM), it does not evaporate:
+it becomes or joins an entry HERE, carrying the concept at stake, why the
+mechanism is hard, and this line.
+
 ---
 
 ## 1. Authoring ergonomics — DRY for the LLM
@@ -47,6 +74,179 @@ LLM picks a preset and overrides only what's interesting. Cuts prompt noise dram
 
 ### ⭐⭐ 🔧 Inherit / extend pattern
 For one-off variants of a preset (`extends: "baseball"` with overrides). Less critical if presets cover the common cases; useful for "two identical baseballs but with different initial velocities."
+
+### ⭐⭐⭐ 🔧 Derived titles & labels from property paths (filed 2026-08-26 — Bill's call)
+
+Today every control `label`, output `label`, output-group `title`, graph
+`title`, and graph line `label` is FREE TEXT authored by the LLM. That is an
+artifact of the proof-of-concept system: the model names things, and the
+runtime displays whatever it wrote. **Overhaul: titles and labels should be
+HARD-CODED from the phenomenon controlled or measured** — derived from
+`targetObj` + `property` (and the vector kind for arrows), the same way
+`vectorTheme.ts` already owns the default label for every arrow kind and
+`unitConversion` already auto-derives the `unit` when it is left blank.
+
+**Why it earns ⭐⭐⭐.**
+- **Labels can currently LIE.** T6 (#1432): a graph titled "vertical motion"
+  plotting a horizontal `appliedForce.x`. No prompt clause can make free text
+  agree with the path it labels; a derived label agrees by construction. Same
+  family as the force-readout finding (T8): the path is the truth, the prose
+  is a second copy that drifts.
+- **Prompt simplification.** Every stage currently spends tokens on
+  label/title authoring guidance and examples ("Initial Velocity", "Box A
+  Speed", "Vertical velocity"…). Derived labels delete that surface — the
+  SkoleGPT/Gemma-tier move.
+- **i18n falls out for free.** `da.ts` already exists; a label keyed on
+  `property` is a lookup, a hand-authored string is not translatable.
+- **Consistency across sims:** every "speed" readout says the same thing,
+  with the same unit, in the same form — which is what a teacher comparing two
+  sims needs.
+
+**Design questions.**
+- The label vocabulary: `velocity.magnitude` → "Speed", `velocity.x` →
+  "Horizontal velocity", `force-net.magnitude` → "Net force", `appliedForce.angle`
+  → "Push angle" … one table, one owner (extend `vectorTheme.ts` or a sibling
+  `propertyLabels.ts`). Object name goes in via `targetObj` ("Cart · speed").
+- Graph/group titles are derived from their MEMBERS (one property → that
+  label; mixed x/y of one vector → "Velocity components"; mixed vectors →
+  fall back to a generic).
+- **Does the free-text field survive as an override?** Recommended: keep
+  `label`/`title` OPTIONAL as an override for genuinely pedagogical naming
+  ("Before the string breaks"), derive when absent — and move the prompt to
+  "omit unless you have a reason." This is the same shape as the `unit`
+  field today. Lifecycle note: this is a schema change (optional-ize) +
+  prompt change + renderer change — three places, and a regenerate.
+- Existing saved sims keep their authored labels (override present) — no
+  migration.
+
+**Representable today as:** the LLM writes the label, and the prompt asks it
+to be accurate. It usually is.
+
+**Sequencing:** wishlist; not queued. Retires T6 (and the label half of
+`parking_lot.md` → collinear force-arrow labels is adjacent, not the same).
+
+### ⭐⭐⭐ 🔧 Object-to-object relative positioning (reframed 2026-08-14 — **QUEUED as a candidate next dev task**)
+
+**Supersedes "Generalized seating — `seatOn: <any object id>`"**, which was raised
+in `Notes_on_Ramps_and_Tracks_Refactor.md` → Open questions on 2026-08-14 and is
+now a pointer to this entry. Stacking promoted the idea; **stacking is not the
+idea.** The general primitive is: *an object's t = 0 pose, expressed relative to
+another object's, instead of as absolute `x`/`y`.*
+
+**Bill's reframe (2026-08-14), with his examples:**
+
+| scene | the relation the author actually means | what's derived |
+|---|---|---|
+| weights on a dynamics cart (drive sim #1427/#1428) | bottom of A rests on top of B | y (and x centered) |
+| **a rack of billiard balls** | mutual adjacency in a triangular pattern | x and y, for many bodies at once |
+| **Galileo's falling bodies** — three rocks dropped together | all bottoms level at the same height | y only; x stays authored |
+| **1D collision, top-down, no gravity** | both centers of mass on one horizontal (or vertical) line | y only; x stays authored |
+| **"two carts 3 m apart"** | a specified separation | one axis, by distance rather than contact |
+
+Note what that table exposes: **only the first row is "seating."** Three of the
+five want *alignment or spacing with no contact at all*, and three of the five
+want **one axis derived and the other left authored** — which `seatOn` cannot
+express, since it always derives y (and, on a ramp, angle). That partiality is
+the single biggest thing the seating framing was hiding.
+
+**Why it earns ⭐⭐⭐.** It is the same authoring failure that forced
+`seatOn: "ground"`, one level up. `y` is an object's CENTER, so every one of
+these scenes currently requires the author to add half-extents of two different
+sprites — and the 2026-08-14 drive is the evidence that the LLM does not
+reliably do that arithmetic: asked to rest a sled on the floor, one sim guessed
+`height/2` and a sibling wrote `y: 0` and buried it 0.17 m. *Same instruction,
+two strategies, coin flip.* Relative positioning removes the arithmetic from the
+authoring surface entirely rather than teaching it better — the prompt-
+simplification move, which is the one that holds at the SkoleGPT/Gemma tier.
+And pedagogically, **the setup IS part of the physics**: Galileo's demo is a lie
+if the rocks don't start level, and a rack that starts interpenetrating teaches
+nothing about billiards.
+
+**Naming — the rename Bill invited.** `seatOn` implies support-contact, which
+three of the five scenes don't have. Two candidate surfaces:
+
+```jsonc
+// A — anchor form: general, but the model must reason in edges
+"place": { "relativeTo": "cart", "my": "bottom", "to": "top", "gap": 0, "align": "center" }
+
+// B — verb form: a small vocabulary of named relations
+"place": { "above": "cart" }
+"place": { "alignBottomsWith": "rock_1" }
+"place": { "rightOf": "cart_a", "gap": 3 }
+```
+
+**Recommendation: B on top of A** — one internal anchor engine (A), exposed to
+authors and the LLM as a short verb vocabulary (B). The evidence is the same
+`seatOn: "ground"` finding: the model reaches for the *idiom it was taught*, not
+for a general mechanism it has to compose correctly. `above` / `below` /
+`leftOf` / `rightOf` / `alignBottoms` / `alignCenters` / `alignTops` covers every
+row of the table above and each one is a single guessable token. Field name
+`place` reads for contact and non-contact alike; **`seatOn` stays as shipped
+sugar** — it uniquely derives an *angle* on a ramp, which no alignment verb
+does, and nothing already authored should break.
+
+**Design questions to settle before any code** (the first five migrated intact
+from the ramps note, the rest raised by the widened use cases):
+
+- **Start pose, never a maintained relation.** Every `seatOn` form is a START
+  POSE, not a runtime constraint. A stack or a rack tempts the other reading —
+  "keep them together" — which is a joint. Holding the line means the rack
+  scatters and the stack falls apart under acceleration, *which is the N1/N2
+  lesson* (#1428's weights sliding off is exactly this, and Bill called it a
+  win). Confirm the line holds before designing anything.
+- **Which surface, for an irregular collider.** `"ground"` is a plane and a ramp
+  has a defined surface; an arbitrary sprite has neither. Bounding box is the
+  cheap answer and matches the ground-seating precedent — but a wagon's "inside"
+  is not its bbox top, which is what `container` objects exist for.
+- **Ordering, chains, cycles.** A relative to B relative to C needs dependency
+  order and cycle detection; today's pass is one linear sweep over `objects`.
+  Real work, not a parameter change — and this is now the *common* case, not an
+  edge case, because a rack is a chain.
+- **Collider inset — this is the case that may force the manifest question.**
+  Ground seating deliberately used the bbox to avoid reading the manifest at the
+  expansion seam (invariant #8's load-order race). The residual was millimetres
+  and invisible *against a floor*. Between two visible bodies it is a "why
+  aren't they touching?" — and two insets compound. Options: run relative
+  placement at a later seam that is already manifest-gated, or accept bbox and
+  say so in the schema. **Decide deliberately; do not re-open the race by
+  accident.**
+- **Is `seatOn` the right name** for a field accepting ground / ramp / object —
+  see the naming recommendation above.
+- **Per-axis partiality** (new). Three scenes derive ONE axis and leave the other
+  authored. The schema must express "derive y, keep my x" without ceremony;
+  a relation that always derives both cannot do Galileo or the collision line.
+- **Contact placement needs a non-zero default gap** (new). Bodies overlapping at
+  t = 0 couple like a joint in both engines — see `parking_lot.md` →
+  initial-overlap contact coupling. A rack authored as "exactly touching" walks
+  straight into it. Likely resolution: contact verbs default to a small positive
+  epsilon and settle on the first step, with `gap: 0` available and documented as
+  the hazard it is.
+- **Rotated references** (new). Ground seating already honours an authored angle
+  via the extent formula `(w·|sin θ| + h·|cos θ|)/2`; a rotated *reference* needs
+  the same treatment, and "the top of a tilted crate" is genuinely ambiguous.
+- **Overlap with N-object spawn shorthand** (this section's first entry) — worth
+  settling early. A 15-ball rack is probably an *array/pattern* problem
+  (`count` + a `triangle` arrangement), not 15 pairwise relations; relative
+  positioning is for heterogeneous pairs (block on cart, rock beside rock). They
+  are complementary, and building either as if it were the other produces an
+  awkward surface. **Scope the boundary between them in the same discussion.**
+- **Expansion order.** The pass belongs in `src/lib/objectExpansion.ts` AFTER ramp
+  and container expansion (both derive poses the relation may reference), and it
+  absorbs today's `seatRiders`. Diagnostics on the bus for unknown reference,
+  cycle, and the reserved-word shadow (`seat-ground-shadowed` precedent).
+
+**Representable today as:** absolute `x`/`y` with hand-computed half-extents —
+which works, and is exactly what a human author does now. `seatOn: "ground"` and
+`seatOn: "<ramp id>"` already cover the two most common resting cases. What is
+missing is not a capability so much as an *ergonomic*: every scene above is
+buildable today, but the LLM builds it wrong often enough that the coin flip is
+the real defect.
+
+**Sequencing (Bill, 2026-08-14):** queued behind the remaining applied-forces
+work (through Phase 4) and the open T-register items in
+`Notes_on_Applied_Forces_Refactor.md`. Elevated to a **candidate next dev task**
+after those — at which point this entry converts into a refactor note per
+lifecycle discipline.
 
 ---
 
@@ -173,15 +373,82 @@ no phased refactor yet).
 - **Unlocks:** Hooke's law, pendulums, Atwood machines, springs, harmonic oscillators, rotating platforms, hinged doors, soft constraints. Half of intro mechanics is gated behind this.
 - **Note:** Rapier's `JointData.spring(restLength, k, c)` is the cleanest mapping for textbook Hooke. Planck-only joints (pulley, mouse, gear, friction) are a tier-2 nice-to-have. Roadmap flags Rapier's **missing native PulleyJoint** (Atwood shim) and rope/spring-joint **version availability** as the things to verify first.
 
-### ⭐⭐ 🧱 Contact-impulse readout
-Adapter exposes per-contact impulse magnitudes from `postSolve` (Planck) / `ContactForceEvent` (Rapier).
-- **Unlocks:** "Δp per collision" momentum-conservation graphs, Newton's-3rd-law force-pair arrows, impulse-vs-time graphs for impacts.
+### ✅ 🧱 Contact-impulse readout — **SHIPPED 2026-08-06** (free-body-diagrams steps 2+3)
+~~Adapter exposes per-contact impulse magnitudes from `postSolve` (Planck) / `ContactForceEvent` (Rapier).~~
+**Landed on both engines** as `getContactForces()` on the adapter interface
+([types.ts:142](src/physics/types.ts#L142), [RapierAdapter.ts:300](src/physics/rapier/RapierAdapter.ts#L300),
+[PlanckAdapter.ts:221](src/physics/planck/PlanckAdapter.ts#L221)). The per-frame
+values reach `userData.normalForce` / `userData.frictionForce` and already draw
+as the `force-normal` and `force-friction` arrows.
+- **Unlocks (status of each):** "Δp per collision" momentum graphs — still gated on system totals (Σp), not on this; **Newton's-3rd-law force-pair arrows — now UNBLOCKED, see below**; impulse-vs-time graphs for impacts — unblocked, unbuilt.
+- **Lesson worth keeping:** this entry sat marked 🧱 adapter-blocked for two
+  months after its blocker shipped. A wishlist entry's dependency hint is a
+  claim about the code and goes stale silently — re-check 🧱 items against the
+  adapter before quoting them as blocked.
 
 ### ⭐⭐ 🧱 CCD opt-in per body
 - **Unlocks:** fast projectiles without tunneling, thin-wall demos.
 
 ### ⭐⭐ 🧱 Per-surface friction patches
 A floor with low-μ ice patch + high-μ rubber patch, encoded as separate static bodies with different `friction` values. Already possible by authoring multiple floor segments; the request would be cleaner authoring (one floor entity with regions).
+
+### ⭐⭐ 🔧 Body-frame force — the direction rotates WITH the body (filed 2026-08-14)
+`appliedForce` (SHIPPED 2026-08-13) is world-frame by ratified decision: it acts
+at the COM and its direction never rotates with the body, so it models a steady
+push or a wind. A body-frame variant — say `appliedForce.frame: "body"` — would
+let the force turn as the body turns.
+
+**Origin: this entry IS a removed prohibition.** The prompt currently carries
+*"not a body-fixed rocket thruster (for thrust in a rotating frame, there is no
+field yet — don't fake it)"* ([gist_instructions.py:147](modal_functions/gist_instructions.py#L147),
+echoed in the `appliedForce` `.describe()`). Under the audience model
+(`/docs/design-philosophy`) capability ABSENCES are communicated to the teacher,
+not spent as prompt tokens — so that clause is a removal candidate, and this
+entry is where it goes so it is not lost. **Sequencing: the clause STAYS until
+the teacher-facing register (`/about`, Known follow-ons #1) exists**; removing
+the only statement of a limit before its replacement ships would be a net loss.
+
+- **Careful — "thrust" is three asks, not one.** See the N3 force-pair entry in
+  §5 for the decomposition. A body-frame force buys the *steerable* thruster; it
+  does NOT buy momentum exchange with expelled mass, which stays out of scope.
+  Most classroom "rocket" lessons are actually about N3 or about `a = F/m` with
+  changing mass, and neither needs a rotating frame.
+- **Representable today as:** any thrust scenario where the body does not rotate
+  — which is most intro-mechanics ones, since we do not teach attitude control.
+  Author the world-frame force and keep the body from spinning.
+- **Shares a primitive with the entry below:** both are "the force direction is
+  not fixed in the world frame." One implementation with two modes (`body` /
+  `toward`) would likely serve both.
+
+### ⭐⭐ 🔧 Target-aimed force — the direction tracks a point or another body (filed 2026-08-14)
+A force whose direction is recomputed each step to point at a target
+(`appliedForce.toward: "<object id>"` or a fixed point). **This is what
+centripetal force needs**, and it is the cheaper of the two ways to get circular
+motion.
+
+**Origin: sims #1429/#1431 (2026-08-14).** Asked for "centripetal force on an
+object with initial velocity, circular motion," the LLM produced a "Tethered
+Bob" with no tether, then — on remix — a CONSTANT world-frame force labelled
+*"Perpendicular force (|F_perp|)"*. The result is a parabola presented as
+circular motion: a sim that looks right and teaches the wrong thing. Nobody had
+written "don't fake centripetal force" in the prompt, and nobody could have —
+**you cannot enumerate the absences you have not thought of**, which is the
+argument for the teacher-facing register rather than more prohibitions.
+
+- **Cross-link, NOT a sub-item of Joints.** The obvious filing was under
+  §4 Joints (a tether is a constraint), and that would have been the over-narrow
+  verdict this doc now warns against: circular motion does not require a joint.
+  A target-aimed force gives you the orbit lesson with no constraint solver at
+  all. Joints remain the right answer for a RIGID tether (rope tension, a
+  pendulum); this is the right answer for a central force.
+- **Unlocks:** centripetal/circular motion, orbital motion (with an inverse-square
+  variant), "what happens when the string breaks" (drop the force mid-run — pairs
+  with the temporal layer), magnetic/electrostatic attraction toward a point.
+- **Representable today as:** *nothing faithful* — and that is worth saying
+  plainly, because the failure mode here is a plausible-looking wrong sim rather
+  than an obviously missing one. The honest interim is to teach circular motion
+  as an observation (author a scene, discuss the velocity arrow's turning)
+  rather than as a force diorama.
 
 ---
 
@@ -199,8 +466,81 @@ Stacked bars or pie showing KE / PE / Spring PE / Thermal (lost to friction) ove
 ### ⭐⭐ 🧪 Coordinate axes / labeled origin overlay
 Explicit X/Y axes drawn on the canvas with tick marks and units. Origin marker. Toggleable. Lays the foundation for proper vector teaching alongside the polar-form refactor.
 
-### ⭐ 🧪 Force-pair (Newton's 3rd law) visualization
-When two bodies are in contact, draw the action/reaction arrow pair. Reads from contact-impulse hook. Surprisingly hard to find a good UX for — arrow length scaling matters. Worth a UI iteration.
+### ⭐⭐⭐ 🧪 Force-pair (Newton's 3rd law) visualization — **UNBLOCKED 2026-08-06**, re-rated ⭐ → ⭐⭐⭐ (2026-08-14)
+When two bodies are in contact, draw the action/reaction arrow pair. ~~Reads from
+contact-impulse hook.~~ **That hook shipped** (see §4) — the values are already on
+`userData` and already drawn per-body, so the remaining work is pairing the
+arrows ACROSS two bodies, not new physics. Surprisingly hard to find a good UX
+for — arrow length scaling matters. Worth a UI iteration.
+
+**Re-rated because the ⭐ ("cool but narrow") reading was wrong** (Bill,
+2026-08-14): N3 is a core law of the intro-mechanics sequence, not a
+visualization garnish. It is also the concept sitting behind the *thrust* gap
+below.
+
+**N3 is three different asks, and only one of them is genuinely out of reach:**
+
+| flavor | example | status |
+|---|---|---|
+| **contact pair** | carts collide; cup catches a ball | **works today** — physics is exact (equal-and-opposite by construction in both solvers) and already in the library (`cup-catch`, `box-catch`, `twoBoxes`); only the paired ARROWS are missing, and that is this entry |
+| **push-off pair** | anchor tossed off a boat; two skaters shoving apart | forces are authorable on both bodies TODAY via `appliedForce`, but a CONSTANT pair keeps accelerating after separation — the honest version needs a duration/stop, i.e. the temporal layer (§2 here, and `parking_lot.md` → "General temporal / event layer") |
+| **continuous mass ejection** | actual rocket thrust | genuinely out of scope — needs momentum exchange with expelled mass we do not model |
+
+**⚠️ SCOPE BOUNDARY (Bill, 2026-08-14) — read before picking this up.** The
+in-scope half is *displaying* the two sides of ONE contact, whose impulses the
+solvers already compute and we already read per body. **Modelling the reaction
+CHAIN is explicitly out of scope**, and the ⭐⭐⭐ above is pedagogical triage,
+not a commitment to it. The distinction, in Bill's example: "a person pulls a
+sled" would otherwise oblige us to ask on what surface the person is pushing so
+that *that* surface pushes back and gives them traction — and then what holds
+that surface. The chain does not terminate anywhere useful for an
+intro-mechanics diorama. Concretely, all three of these are OUT:
+
+- inferring a force on body B from a force authored on body A,
+- closing the *agent's* free-body diagram (the person's, the thrower's),
+- any traction / support chain behind an authored force.
+
+This is the fourth concrete scoping on `/docs/design-philosophy`: **GIST draws
+one body's FBD at a time, and every authorable force is a force ON that body.**
+It is also what makes the authoring rule correct — a slider on a named object
+changes the forces in THAT object's FBD, so the sled carries the force and the
+person is scenery.
+
+- **Representable today as:** a contact collision with `force-normal` arrows on
+  BOTH bodies — the pair is already on screen, just not labelled as a pair. For
+  push-off, two bodies with equal-and-opposite `appliedForce` shows the law
+  correctly *while they are in contact*; stop the run at separation. Note this
+  is the author asserting the pair by hand, which is precisely why it stays in
+  scope: the system is displaying two independently authored forces, not
+  deriving one from the other.
+- **Unlocks:** N3 as a first-class taught law; the honest version of "thrust";
+  the missing cell in the Newton's-laws sequence (the coverage matrix in
+  `BENCHMARK_SIMS.md` has cells for N1, N2-1D and N2-2D — **there is no N3 cell**).
+
+**Why it earns ⭐⭐⭐ pedagogically (Bill, 2026-08-14).** N3 is the law that
+harbors the most misconceptions, *because* of how quotable its slogan is:
+"for every action there is an equal and opposite reaction" gets recited long
+before it means anything. It stays inert until a situation makes it explain
+something — and a visualization that puts both arrows on screen at the moment
+they matter is exactly that situation. This is a case where the display IS the
+lesson, not a decoration on one.
+
+**GATE — two things must exist before we cash this check (Bill, 2026-08-14):**
+
+1. **Specific teachable moments, defined.** Not "show the pair" in general —
+   named scenes where seeing the pair resolves a misconception a student
+   actually holds. Curriculum work, and the natural home is an N3 cell in the
+   `BENCHMARK_SIMS.md` coverage matrix (which has none today) plus its B-ID.
+   Without this the arrows are decoration and the ⭐⭐⭐ is unearned.
+2. **A true applied IMPULSE — a time-limited applied force.** `appliedForce` is
+   constant for the whole run, and the interesting N3 moments are events: the
+   anchor leaves the boat, the skaters let go, the carts separate. A constant
+   pair keeps accelerating after separation and teaches the wrong thing. This
+   is the parked temporal/event layer (§2 here; `parking_lot.md` → "General
+   temporal / event layer"), so **this entry is downstream of it** — build in
+   that order.
+
+Held deliberately in the wishlist rather than scoped, pending both.
 
 ### ⭐ 🧪 Vector-field overlay
 Background grid showing local gravitational/applied force at each cell. Mostly for orbital and field-line teaching, lower priority for intro mechanics.

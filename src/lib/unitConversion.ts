@@ -92,7 +92,13 @@ export function unitScaleFor(
     path.startsWith('acceleration.') ||
     // Force carries a length dimension (N = kg·m/s²); mass does not. Scaling it
     // with the length unit is what keeps F = m·a true in authored numbers.
-    path.startsWith('appliedForce.')
+    path.startsWith('appliedForce.') ||
+    // The READ-ONLY force kinds, readable by the same names they are drawn by
+    // (`force-net.magnitude`, `force-friction.x`, …) since 2026-08-14. Same
+    // dimension as `appliedForce`, so the same scale — and a `force-*` readout
+    // therefore agrees with an `appliedForce` readout on the same body in a
+    // non-metre sim, which is the whole point of scaling either of them.
+    path.startsWith('force-')
   ) {
     return lengthScale;
   }

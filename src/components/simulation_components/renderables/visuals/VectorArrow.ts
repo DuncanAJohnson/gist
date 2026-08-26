@@ -1,6 +1,6 @@
 import { registerVisual } from '../registry';
 import type { DrawContext, PixelVisual } from '../types';
-import type { Vec2 } from '../../../../physics/types';
+import { resolveVectorKind } from '../../../../lib/vectorSources';
 import {
   VECTOR_COLORS,
   VECTOR_DEFAULT_SCALES,
@@ -47,62 +47,16 @@ function drawVectorArrow(drawCtx: DrawContext, visual: PixelVisual) {
 
   const { kind } = visual;
 
-  // Source resolution. All vector kinds read from the body (or from userData
-  // on the body) so the visual layer is mode-agnostic — the replay loop
-  // restores both `body.velocity` and `body.userData.derivedAcceleration`
-  // from the Frame, and live mode keeps them current via the engine step and
-  // JsonSimulation.handleUpdate respectively.
-  let vx: number;
-  let vy: number;
-  if (kind === 'velocity') {
-    vx = body.velocity.x;
-    vy = body.velocity.y;
-  } else if (kind === 'acceleration') {
-    // Undefined for the first live frame, before handleUpdate runs once.
-    const derived = (body.userData.derivedAcceleration as Vec2 | undefined) ?? { x: 0, y: 0 };
-    vx = derived.x;
-    vy = derived.y;
-  } else if (kind === 'force-net') {
-    const derived = (body.userData.derivedAcceleration as Vec2 | undefined) ?? { x: 0, y: 0 };
-    vx = body.mass * derived.x;
-    vy = body.mass * derived.y;
-  } else if (kind === 'force-gravity') {
-    // Weight, m·g. drawCtx.gravity is the SI Y-up gravity vector ({x:0, y:-g}),
-    // so this already points down. In a gravity+drag-only scene, force-gravity +
-    // force-drag close exactly onto force-net (m·a = m·g + F_drag) — the FBD
-    // closure property that holds until contact forces enter (Goal-1 step 5).
-    vx = body.mass * drawCtx.gravity.x;
-    vy = body.mass * drawCtx.gravity.y;
-  } else if (kind === 'force-drag') {
-    // Quadratic air resistance, already vectorized every frame as −k·|v|·v by
-    // JsonSimulation's onUpdate. Only populated when airResistance.enabled; a
-    // body at rest or in vacuum reads {0,0} and the arrow is suppressed below.
-    const drag = (body.userData.dragForce as Vec2 | undefined) ?? { x: 0, y: 0 };
-    vx = drag.x;
-    vy = drag.y;
-  } else if (kind === 'force-normal') {
-    // Engine-read contact normal force (see header note): jitters at rest,
-    // zero when free or asleep.
-    const f = (body.userData.normalForce as Vec2 | undefined) ?? { x: 0, y: 0 };
-    vx = f.x;
-    vy = f.y;
-  } else if (kind === 'force-friction') {
-    // Engine-read contact friction force (see header note).
-    const f = (body.userData.frictionForce as Vec2 | undefined) ?? { x: 0, y: 0 };
-    vx = f.x;
-    vy = f.y;
-  } else {
-    // force-applied. Source landed with Goal-2 Phase 1 (2026-08-09):
-    // JsonSimulation's onUpdate stashes the applied force in NEWTONS on
-    // userData at a single site, handlePreStep converts that same value to a
-    // per-engine-step impulse, and the Frame carries it so the arrow survives
-    // replay. Today only the debug-panel force writes it — there is no schema
-    // field and no prompt support yet (debug-first, like ?forces=1), so this
-    // reads {0,0} and self-suppresses on every ordinary sim.
-    const f = (body.userData.appliedForce as Vec2 | undefined) ?? { x: 0, y: 0 };
-    vx = f.x;
-    vy = f.y;
-  }
+  // Source resolution lives in `src/lib/vectorSources.ts` (moved there
+  // 2026-08-14, when numeric readouts gained access to the same kinds). All
+  // kinds read from the body or from `userData`, so the visual layer stays
+  // mode-agnostic — the replay loop restores both from the Frame, and live
+  // mode keeps them current via the engine step and handleUpdate. Reading
+  // through that shared resolver is what guarantees an arrow and its numeric
+  // readout can never disagree; see its header before inlining anything back.
+  const source = resolveVectorKind(body, kind, drawCtx.gravity);
+  let vx = source.x;
+  let vy = source.y;
 
   // Component decomposition: an axis-locked visual zeroes the off-axis
   // component so only the vₓ or v_y leg is drawn (both originate at the body).

@@ -757,7 +757,7 @@ function VectorArrows() {
                 ['velocity', '20 px per (m/s)', 'body.velocity'],
                 ['acceleration', '10 px per (m/s²)', 'userData.derivedAcceleration'],
                 ['force-net', '2 px per N', 'm · a_derived'],
-                ['force-applied', '2 px per N', 'userData.appliedForce (debug-panel source only)'],
+                ['force-applied', '2 px per N', 'userData.appliedForce (authored field + slider + debug)'],
                 ['force-friction', '2 px per N', 'userData.frictionForce (engine-read)'],
                 ['force-normal', '2 px per N', 'userData.normalForce (engine-read)'],
                 ['force-drag', '2 px per N', 'userData.dragForce'],
@@ -786,6 +786,42 @@ function VectorArrows() {
           </tbody>
         </table>
       </div>
+
+      <h3>Every kind is also a READABLE property path (2026-08-14)</h3>
+      <p>
+        The &quot;Source on body&quot; column above is no longer reachable only by
+        the renderer. Each kind is a property path for outputs and graphs —{' '}
+        <code>force-net.magnitude</code>, <code>force-friction.x</code>,{' '}
+        <code>force-normal.y</code>, and so on, with{' '}
+        <code>.x</code> / <code>.y</code> / <code>.magnitude</code> /{' '}
+        <code>.angle</code>. Both the arrow and the readout call{' '}
+        <code>resolveVectorKind</code> in <code>src/lib/vectorSources.ts</code>,
+        so they cannot disagree — invariant #14&apos;s drag precedent (one
+        compute site, many consumers) applied to a quantity that now has five.
+      </p>
+      <p>
+        <strong>Read-only, and that is physics rather than policy.</strong>{' '}
+        <code>force-net</code> is m·a measured back off the motion and the
+        contact forces are read out of the solver, so there is nothing to write;{' '}
+        <code>setNestedValue</code> rejects a write to any{' '}
+        <code>force-*</code> path with a console warning and a pointer to{' '}
+        <code>appliedForce.*</code>, the one force with a writable source. Units
+        follow <code>appliedForce</code>: newtons carry a length dimension, so{' '}
+        <code>unitScaleFor</code> scales them by the length unit.
+      </p>
+      <p>
+        <strong>Why it was built:</strong> the drive on 2026-08-14 found the LLM
+        emitting <code>force-net.x</code> as an output property in four sims out
+        of four (#1425–#1428). It was not ignoring the enumerated path list — it
+        generalized from a capability surface in which force kinds were drawable
+        but silently unreadable, which is exactly the analogy a small model
+        makes. The symptom was invisible: an unresolvable path returned{' '}
+        <code>NaN</code>, and the outputs panel&apos;s <code>|| 0</code> rendered
+        it as a confident <code>0.00 N</code> while the cart accelerated. Closing
+        the asymmetry deleted the need for a prompt prohibition instead of adding
+        one — the cheaper fix at any model tier, and the more reliable one at the
+        tier we target.
+      </p>
 
       <p>
         <strong>Unit anchoring (known issue, 2026-07-07):</strong> these default scales are

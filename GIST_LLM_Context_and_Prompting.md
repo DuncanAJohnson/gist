@@ -76,9 +76,21 @@ Schema description used to say "0.01–0.05 = light damping, 0.1 = high drag" �
 Both example sims (`tossBall`, `twoBoxes`) are inlined into every generation, regardless of what the user asked for. For "build a pendulum" or "two-body collision," neither example is particularly relevant — they eat prompt budget without informing the output.
 - **Fix:** retrieval-augmented examples (see §5.1).
 
-### 3.5 🟡 Manifest is bundled in full every call
-[`generate_simulation.py:31-34`](modal_functions/generate_simulation.py#L31-L34) bundles the full renderables manifest into every stage's prompt. The skeleton and objects-fill stages need it; controls/graphs/outputs don't (they only reference object IDs, not SVGs). Inflates non-load-bearing prompt for ~60% of stages.
-- **Fix:** per-stage context tailoring (see §5.2).
+### 3.5 🟢 Manifest is bundled in full every call — **CORRECTED 2026-08-14: it is names-only, and the real cost is the SCHEMA**
+~~[`generate_simulation.py:31-34`](modal_functions/generate_simulation.py#L31-L34) bundles the full renderables manifest into every stage's prompt.~~ **Not true today** (and possibly not since `manifest_names_block()` landed): [`sim_pipeline/_context.py:66`](modal_functions/sim_pipeline/_context.py#L66) sends approved sprite **names + display names only**, explicitly "no vertices/colliders … keeps tokens low" — 244 sprites, **~1.7k tokens**. The full `manifest.json` is ~83k tokens, so quoting this issue as written overstates the cost ~50×.
+
+**Measured per-call static context (2026-08-14):**
+
+| block | ~tokens | sent |
+|---|---|---|
+| full JSON schema (`schema_block`) | **13,400** | every stage |
+| sprite names (`manifest_names_block`) | 1,700 | every stage |
+| stage prose | ~1–2k | per stage |
+
+**So the schema is the budget, not the manifest** — which is §3.7 ("schema description prose IS the prompt") stated in tokens. At 5–6 stages, one generation pays the schema ~70–80k tokens; the `appliedForce` `.describe()` alone is ~335 tokens on every one of them. This is the number that should discipline any proposal to add explanatory prose to a describe string, and it is the quantitative case for §5.4 (smaller schema for downstream stages) over per-stage manifest tailoring.
+
+- **Fix:** per-stage context tailoring (§5.2) still applies — the stages that don't reference SVGs don't need the names block either — but it is now a ~1.7k win, not a ~83k one. **§5.4 is the higher-value target.**
+- **The general lesson:** a known-issues entry citing file:line is a claim about code and goes stale silently. Re-measure before quoting.
 
 ### 3.6 🟡 No engine-specific guidance in the prompt
 The schema lists three engines but says nothing about which fields/ranges work well under each. Engine-specific quirks (e.g. per-fixture vs per-body restitution, and whatever comes with the upcoming joints/sensors features) can make the same config behave differently across engines with no warning in the prompt.
@@ -160,6 +172,21 @@ Recorded because it cuts across every "should the model infer this?" argument, a
 - **Candidate follow-on:** if framing clauses recur across benchmarks, that is evidence for surfacing framing hints in the *authoring UI* (a "top-down / side-on" affordance) rather than relying on every teacher to know the phrase.
 
 ---
+
+### 4.9 📋 PROPOSED prompt edits — held, not authored (register T6 / T13, filed 2026-08-26)
+
+**Stance (Bill, 2026-08-26): no prompt edits for singleton cases.** Each of
+these was seen ONCE in the 2026-08-14 drive. A clause that fixes one observed
+sim is a prohibition that "can only forbid what we thought to name" (the
+argument on `/docs/design-philosophy`), and it costs tokens on every stage of
+every generation. They are recorded here so the observation is not lost;
+they become prompt prose only if the pattern recurs, and each has a
+STRUCTURAL fix that would make the prose unnecessary.
+
+| # | observed (once) | proposed clause, if it recurs | structural fix that retires it |
+|---|---|---|---|
+| **T6** | #1432 plotted a horizontal `appliedForce.x` line on a graph *titled* "vertical motion"; the scene had only a bottom wall, so the parachute blew off-screen. | FILL GRAPHS: "a graph's title must describe the axis/quantity its lines plot — do not put an `.x` line on a graph named for vertical motion." FILL OBJECTS/env: "a body pushed sideways needs side walls or a bounded scene." | **Derived labels** — `GIST_Physics_Wishlist.md` §1, "Derived titles & labels from property paths." If the title is computed from `property`, it cannot disagree with the lines. The off-screen half stays a scene-bounds concern (wishlist / scene-fit guidance in FILL OBJECTS). |
+| **T13** | #1425 authored a `force-friction` arrow in a gravity-0 scene; with no normal force it draws permanently zero. Honest but noise. | FILL OBJECTS (`showVectors`): "only add `force-friction` / `force-normal` where a contact carries load — never in a gravity-0 scene without a pressing force." | A **zero-arrow suppression rule** in the renderer (sub-floor stub already exists for small arrows — a kind that is identically zero for the WHOLE run could be hidden or tagged on the diagnostics bus, config-truth style: "friction arrow on a body with g = 0 and no seatOn"). |
 
 ## 5. Improvements: prompt construction
 

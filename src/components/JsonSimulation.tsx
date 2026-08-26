@@ -15,6 +15,8 @@ import { createSimulation, updateChangesMade } from '../lib/simulationService';
 import type { UnitType, AngleUnit } from '../lib/unitConversion';
 import { UNIT_ABBREV, unitToMeters, scaleObjectToSI, unitScaleFor, angleUnitToRadians, isPolarVector } from '../lib/unitConversion';
 import { WorldToCanvas } from '../lib/worldToCanvas';
+import { resolveVectorKind } from '../lib/vectorSources';
+import { VECTOR_KINDS, type VectorKind } from './simulation_components/renderables/vectorTheme';
 // Controls
 import ControlRenderer from './simulation_components/controls/ControlRenderer';
 import type { ControlConfig, ToggleConfig, SliderConfig } from './simulation_components/controls/types';
@@ -39,6 +41,7 @@ import {
   applyEditCommitToObject,
   applyRampControlOverrides,
   checkFrictionSliderMasking,
+  checkForceControlTarget,
   type RampControlParam,
 } from '../lib/objectExpansion';
 import { clearDiagnostics } from '../lib/diagnosticsBus';
@@ -47,6 +50,8 @@ import { dedupeObjectIds } from '../lib/objectIdGuard';
 import RenderLayer from './simulation_components/renderables/RenderLayer';
 // Edit overlay + unsaved-changes indicator
 import EditOverlay from './simulation_components/EditOverlay';
+import InfoBoxes from './simulation_components/InfoBoxes';
+import { sameInfoTarget, type InfoAnchor, type InfoTarget } from '../lib/infoTargets';
 import UnsavedChangesIndicator from './simulation_components/UnsavedChangesIndicator';
 import type { ObjectEditCommit } from '../lib/editGeometry';
 import {
@@ -175,15 +180,35 @@ type Frame = {
 
 // Resolve the {x, y} of a vector base path for reading. Acceleration is the
 // finite-difference on userData, not a body field.
-const getVectorComponents = (obj: any, base: string): { x: number; y: number } | undefined => {
+const getVectorComponents = (
+  obj: any,
+  base: string,
+  gravity: Vec2,
+): { x: number; y: number } | undefined => {
   let v: any;
-  if (base === 'acceleration') {
+  // FORCE KINDS are readable by the same name they are drawn by — `force-net`,
+  // `force-friction`, `force-normal`, `force-drag`, `force-gravity`,
+  // `force-applied` — and route through the SAME resolver the arrows use, so a
+  // readout and its arrow cannot disagree (see src/lib/vectorSources.ts).
+  // READ-ONLY: setNestedValue rejects writes to these paths.
+  //
+  // Wired 2026-08-14 because the LLM emitted `force-net.x` in four of four sims
+  // on the applied-forces drive. It was not disobeying the enumerated path list;
+  // it generalized from a capability surface where force kinds were drawable but
+  // silently unreadable. Closing the asymmetry was cheaper — and far more
+  // reliable at the small-model tier — than adding a prohibition.
+  if (VECTOR_KINDS.includes(base as any)) {
+    if (!obj) return undefined;
+    v = resolveVectorKind(obj as PhysicsBody, base as VectorKind, gravity);
+  } else if (base === 'acceleration') {
     v = obj?.userData?.derivedAcceleration;
   } else if (base === 'appliedForce') {
     // Read the RESOLVED force (authored + control + debug), which is what the
     // physics consumed and what the `force-applied` arrow draws — so a numeric
     // readout and its arrow can never disagree. Writes go to
-    // `configuredAppliedForce` instead; see setNestedValue.
+    // `configuredAppliedForce` instead; see setNestedValue. Kept alongside the
+    // `force-applied` alias above: this is the AUTHORED field's name, and the
+    // only one of the two that a slider may write.
     v = obj?.userData?.appliedForce;
   } else {
     v = base.split('.').reduce((current: any, key) => current?.[key], obj);
@@ -191,18 +216,26 @@ const getVectorComponents = (obj: any, base: string): { x: number; y: number } |
   return v && typeof v.x === 'number' && typeof v.y === 'number' ? { x: v.x, y: v.y } : undefined;
 };
 
-const getNestedValue = (obj: any, path: string): any => {
+const getNestedValue = (obj: any, path: string, gravity: Vec2): any => {
   // Polar projections of any vector base: "<base>.magnitude" / "<base>.angle".
   // Magnitude is SI (e.g. m/s); angle is returned in RADIANS (SI), measured
   // counter-clockwise from +X. The display boundary (readDisplayValue) then
   // converts angle to the env angleUnit — no degree math lives here.
   if (path.endsWith('.magnitude') || path.endsWith('.angle')) {
     const base = path.slice(0, path.lastIndexOf('.'));
-    const vec = getVectorComponents(obj, base);
+    const vec = getVectorComponents(obj, base, gravity);
     if (!vec) return undefined;
     return path.endsWith('.magnitude')
       ? Math.hypot(vec.x, vec.y)
       : Math.atan2(vec.y, vec.x);
+  }
+  // Force kinds by component: "force-net.x", "force-friction.y", … The polar
+  // projections above already route here via getVectorComponents.
+  const dot = path.indexOf('.');
+  if (dot > 0 && VECTOR_KINDS.includes(path.slice(0, dot) as any)) {
+    const vec = getVectorComponents(obj, path.slice(0, dot), gravity);
+    const axis = path.slice(dot + 1);
+    return axis === 'x' || axis === 'y' ? vec?.[axis] : undefined;
   }
   // Redirect acceleration.* to the finite-difference stored on userData.
   if (path.startsWith('acceleration.')) {
@@ -358,6 +391,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
     // cleared window above so it re-reports on every re-expansion, like every
     // other producer.
     checkFrictionSliderMasking(expanded, controls);
+    checkForceControlTarget(expanded, controls);
     return expanded;
   }, [
     objects,
@@ -461,6 +495,10 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
 
   // Finite-difference state for derivedAcceleration.
   const prevVelocitiesRef = useRef<Record<string, { x: number; y: number }>>({});
+  // Property paths already warned about, so a misconfigured output doesn't log
+  // on every frame. Per-sim (a ref, not a module Set) so switching sims gives
+  // the next one's problems a fresh voice.
+  const warnedPathsRef = useRef<Set<string>>(new Set());
   const prevAngularVelocitiesRef = useRef<Record<string, number>>({});
   const prevTimeRef = useRef<number>(0);
 
@@ -500,6 +538,73 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   // Popup shown when the user clicks an object while editing is locked. Stores
   // viewport coords so the bubble can be positioned next to the click.
   const [resetPromptAt, setResetPromptAt] = useState<{ x: number; y: number } | null>(null);
+  // ⇧-click object info (InfoBoxes, 2026-08-26). Pins are the boxes the user
+  // has clicked (max 2 — a pair); infoHover is the transient second target
+  // while ⇧ is held; infoHint is the ⇧ⓘ affordance on plain hover.
+  const [infoPins, setInfoPins] = useState<InfoAnchor[]>([]);
+  const [infoHover, setInfoHover] = useState<InfoAnchor | null>(null);
+  const [infoHint, setInfoHint] = useState<{ x: number; y: number } | null>(null);
+  const infoPinsRef = useRef(infoPins);
+  infoPinsRef.current = infoPins;
+  const handleInfoHover = useCallback(
+    (target: InfoTarget | null, x: number, y: number, shiftHeld: boolean) => {
+      const pins = infoPinsRef.current;
+      if (!target) {
+        setInfoHint(null);
+        setInfoHover(null);
+      } else if (pins.length === 0) {
+        setInfoHint({ x, y });
+        setInfoHover(null);
+      } else if (pins.length === 1 && shiftHeld && !sameInfoTarget(pins[0].target, target)) {
+        setInfoHint(null);
+        setInfoHover({ target, x, y });
+      } else {
+        setInfoHint(null);
+        setInfoHover(null);
+      }
+    },
+    [],
+  );
+  const handleInfoPin = useCallback((target: InfoTarget, x: number, y: number) => {
+    setInfoHover(null);
+    setInfoHint(null);
+    setInfoPins((pins) => {
+      if (pins.length === 0) return [{ target, x, y }];
+      if (pins.length === 1 && !sameInfoTarget(pins[0].target, target)) return [pins[0], { target, x, y }];
+      // Re-clicking the pinned body, or a third target: start over from here.
+      return [{ target, x, y }];
+    });
+  }, []);
+  const handleInfoClear = useCallback(() => {
+    setInfoPins((pins) => (pins.length === 0 ? pins : []));
+    setInfoHover(null);
+  }, []);
+  // Esc dismisses; releasing ⇧ drops the transient hover box (a pin survives).
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleInfoClear();
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') setInfoHover(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, [handleInfoClear]);
+  // Drop pins that point at objects that no longer exist.
+  useEffect(() => {
+    setInfoPins((pins) =>
+      pins.every((p) => {
+        const t = p.target;
+        return t.kind === 'wall' || expandedObjects.some((o) => o.id === t.id);
+      })
+        ? pins
+        : [],
+    );
+  }, [expandedObjects]);
 
   // Session-local engine override. Resets on reload — the config's
   // environment.physicsEngine is always the starting point. Both the override
@@ -693,21 +798,48 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
   // instance, which crashes React when rendered. Callers should treat NaN as
   // missing data.
   const readDisplayValue = useCallback((obj: any, path: string): number => {
-    const raw = getNestedValue(obj, path);
+    const raw = getNestedValue(obj, path, gravityVec);
     if (typeof raw !== 'number') {
-      if (raw !== undefined && raw !== null) {
-        // Log once per unique path so a misconfigured prop doesn't spam the console.
+      // Warn for EVERY unresolved path, including the undefined case — which is
+      // the common one (a property name that simply does not exist) and was the
+      // one this guard used to skip. That silence is how four sims shipped
+      // `force-net.x` readouts nobody noticed (2026-08-14).
+      //
+      // The dedupe the old comment promised but never implemented: warn once per
+      // unique path, or a bad property logs on every frame of every run.
+      if (!warnedPathsRef.current.has(path)) {
+        warnedPathsRef.current.add(path);
         console.warn(
-          `readDisplayValue: path "${path}" resolved to non-number (${typeof raw}). Outputs/graphs will show '—'. ` +
-          `Did the AI emit a property without an axis suffix (e.g. "velocity" instead of "velocity.y")?`,
+          `readDisplayValue: path "${path}" did not resolve to a number ` +
+          `(${raw === undefined ? 'undefined — no such property' : typeof raw}). ` +
+          `Outputs will show '—' and graphs will gap. ` +
+          `Did the property omit an axis suffix ("velocity" instead of "velocity.y"), ` +
+          `or name something that doesn't exist?`,
         );
       }
       return NaN;
     }
     return raw / unitScaleFor(path, unitScale, angleScale);
-  }, [unitScale, angleScale]);
+  }, [unitScale, angleScale, gravityVec]);
 
   const setNestedValue = (obj: any, path: string, value: any): void => {
+    // FORCE KINDS ARE READ-ONLY. They became readable as property paths on
+    // 2026-08-14, which put them within reach of a slider — and a slider bound
+    // to e.g. "force-net.x" would otherwise reach the generic branch below and
+    // THROW on `target[lastKey] = value` (target is undefined). Reject loudly
+    // instead. They are read-only by physics, not by policy: `force-net` is
+    // DERIVED from measured motion (invariant #14) and the contact forces are
+    // read back out of the solver, so there is nothing to write. To make a
+    // force a student can change, author `appliedForce` and bind the slider to
+    // "appliedForce.*" — that is the one force path with a writable source.
+    const forceBase = path.slice(0, path.indexOf('.'));
+    if (forceBase && VECTOR_KINDS.includes(forceBase as any)) {
+      console.warn(
+        `setNestedValue: "${path}" is READ-ONLY — ${forceBase} is measured, not set. ` +
+          `Bind the control to "appliedForce.x" / "appliedForce.magnitude" instead.`,
+      );
+      return;
+    }
     // Acceleration isn't a native PhysicsBody field — it's a per-body config
     // applied each step by handleUpdate via velocity integration. Route writes
     // to userData.configuredAcceleration so sliders targeting "acceleration.x"
@@ -1884,7 +2016,19 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
                   config={group}
                   getValue={(targetObj, property) => {
                     const key = `${targetObj}.${property}`;
-                    return clampToZero(outputValues[key] || 0);
+                    // `?? 0`, NOT `|| 0` — the difference is the whole fix.
+                    // ABSENT key (nothing computed yet: a paused, never-stepped
+                    // sim, whose body loop is gated on deltaTime > 0) → 0, which
+                    // is what every sim has always shown on load.
+                    // PRESENT but NaN (the property path did not resolve) → pass
+                    // the NaN through; clampToZero preserves it and `Output`
+                    // renders an em-dash, which it has always been able to do.
+                    // `|| 0` collapsed both cases to 0, so an unresolvable path
+                    // displayed a confident "0.00" — a fabricated measurement.
+                    // Found via the LLM's invented `force-net.x` readouts
+                    // (2026-08-14): a student saw "Net force: 0.00 N" on an
+                    // accelerating cart, with nothing logged anywhere.
+                    return clampToZero(outputValues[key] ?? 0);
                   }}
                 />
               ))}
@@ -1922,11 +2066,23 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
             setResetPromptAt({ x: clientX, y: clientY })
           }
           objRefs={objRefs}
+          infoActive={!pickingPosition}
+          walls={environment.walls}
+          onInfoHover={handleInfoHover}
+          onInfoPin={handleInfoPin}
+          onInfoClear={handleInfoClear}
           pixelsPerMeter={pixelsPerMeter}
           unitScale={unitScale}
           zoomFactor={zoomFactor}
         />
       </BaseSimulation>
+      <InfoBoxes
+        objects={expandedObjects}
+        objRefs={objRefs}
+        pins={infoPins}
+        hover={infoHover}
+        hint={infoHint}
+      />
       {resetPromptAt && (
         <>
           <div

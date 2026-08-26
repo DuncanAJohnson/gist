@@ -2398,3 +2398,434 @@ and `RuntimeLoop.tsx` earlier today), which retires the last of them.
 Verification: `tsc` clean on all touched files (`da.ts` locale typing is the
 known baseline); `npm run lint` at the known baseline (4 react-refresh context
 splits).
+
+---
+
+### Findings 2026-08-14 — the `modal serve` drive: nine sims, and the LLM asked for a capability we had left half-built
+
+Bill drove the Phase 2 prompt on `modal serve` (NOT deployed — the deploy is
+still owed and should happen once, after this session's prompt changes) and
+generated sims #1425–#1434. Reviewed all nine. The headline is not a physics
+bug: **cell 7's authoring surface works.** Across every force scene the model
+reached for `appliedForce` and never once substituted `acceleration`, so the
+chapter rule from Phase 2 is holding. All five force authorings used POLAR,
+which retroactively justifies breaking the pin and shipping polar with the
+field rather than after it.
+
+Four findings mattered.
+
+#### 1. The LLM invented force READOUTS — 4 sims out of 4 — and they rendered as a confident `0.00`
+
+`#1425`–`#1428` each emitted output properties that did not exist:
+`force-net.x`, `force-friction.magnitude`, `force-normal.magnitude`. Traced end
+to end: `getNestedValue` had branches for `acceleration.` and `appliedForce.`
+only, so the path fell through to the generic reduce and resolved `undefined`;
+`readDisplayValue` returned `NaN` **and skipped its own console warning**
+(the guard is `raw !== undefined && raw !== null`, and this case IS undefined);
+then the outputs panel's `outputValues[key] || 0` coerced `NaN` to **0**. So a
+student saw *Net force: 0.00 N* on an accelerating cart, with no warning
+anywhere. Worse than a crash, because it reads as a measurement.
+
+**Two consequences worth separating.** (a) The `'—'` behaviour that warning
+message promises **does not exist** — `|| 0` coerces before `OutputGroup` ever
+sees the value, so no misconfigured path can render as a dash. That is a
+separate live bug (register item T9), still open. (b) The model's assumption was
+CORRECT and we were the ones being incoherent.
+
+**Diagnosis that drove the fix: the model reasons by ANALOGY from the capability
+surface, not from the enumerated list.** Phase 2 taught it that force kinds are
+first-class *drawable* things; it concluded they are also *readable* things. It
+was not disobeying the enumerated path list — it generalized past it. At the
+SkoleGPT/Gemma tier analogy is more robust than enumeration, so **every
+asymmetry in the surface has to be patched with prompt prose, and that prose is
+least reliable exactly where we need it most.** Wiring the readouts was
+therefore a prompt-SIMPLIFICATION move: it deletes the need for an instruction
+instead of adding one.
+
+**SHIPPED (T8).** Every vector kind is now a readable property path —
+`force-net.*`, `force-friction.*`, `force-normal.*`, `force-drag.*`,
+`force-gravity.*`, `force-applied.*`, each with `.x`/`.y`/`.magnitude`/`.angle`.
+
+- **One compute site, five consumers.** The kind→value if-chain moved out of
+  `VectorArrow.ts` into `src/lib/vectorSources.ts` (`resolveVectorKind`), and
+  the arrow renderer and `JsonSimulation`'s path reader both call it. Wiring the
+  readouts by re-deriving the values would have created precisely the drift
+  invariant #14 forbids. Nothing in that module computes physics: values are
+  read off the body, off `userData`, or derived from measured motion
+  (`force-net` = m·a_derived). **Do not "improve" it by summing components.**
+- **READ-ONLY, and that is physics not policy.** Making forces readable put them
+  within reach of a slider, and a slider bound to `force-net.x` would have hit
+  the generic branch of `setNestedValue` and **thrown** (`target[lastKey]` on an
+  undefined target). It now rejects any `force-*` write with a warning pointing
+  at `appliedForce.*` — the one force with a writable source.
+- **Units:** `unitScaleFor` scales `force-*` by the length unit, same as
+  `appliedForce` (N = kg·m/s² carries a length dimension). The `.angle` check
+  still runs first, so `force-net.angle` gets the angle scale — the trap the
+  velocity family already dodged.
+- **Three places:** schema describes for outputs/graphs (+ a READ-ONLY note on
+  the slider `property`), regenerated, prompt updated in all three stage
+  sections, `/docs/vector-arrows` gained a section.
+- **Verified headless** through `resolveVectorKind` and `unitScaleFor`: all
+  eight kinds resolve; `force-net` = m·a on both components; `force-gravity`
+  = −m·g; polar round-trip exact (34.641 N at 30° → magnitude 34.6410, angle
+  30.0000); cm-sim scaling; `force-net.angle` takes the angle scale not the
+  length scale; and a body with empty `userData` reads 0 for every kind without
+  crashing (only `force-gravity` non-zero, correctly). `tsc` clean, `npm run
+  lint` at the known baseline.
+
+#### 2. The sled sliders were DEAD — force on the patient, control on the agent
+
+`#1433`/`#1434` authored `appliedForce` on the **sled** but bound the force and
+angle sliders to the **person**, who is `isStatic`. Static bodies are zeroed in
+`handleUpdate` and skipped in `handlePreStep`, so those writes went nowhere; the
+sled's 30 N at 20° was frozen. The slider `defaultValue` (30) coincided with the
+authored magnitude, and the readout targeted the sled — so **the sim looks
+correct until a student drags the slider, at which point nothing moves and the
+number does not change either.** The friction slider (targeting the sled) worked
+fine, so it failed selectively.
+
+Not a stupid error: the person is the AGENT of the pull and the sled is the
+PATIENT, and our schema only models the patient. Prompt now states the rule
+explicitly with this scene as the named example. A config-state diagnostic for
+"force control targets a body that carries no force / is static" remains open
+(register item T1).
+
+#### 3. Ground seating — the cause is the `y: 0` placeholder idiom, NOT the collider inset
+
+An earlier read of `#1434` blamed the collider-inset trap. Wrong, and the
+correction changes the fix. Measured insets are tiny (sled 5.4 mm, cart 24 mm);
+`y = height/2` would have been fine. The model instead wrote **`y: 0`**,
+treating y as the bottom edge — and the schema TAUGHT it that: the `y` describe
+says *"for container objects with mode grounded, ramp objects, and objects
+carrying `seatOn`, y is derived at load — author 0 as a placeholder."* That
+idiom does not cover plain objects, where nothing derives anything. `#1426`
+used `height/2` and got away with it; `#1434` used the placeholder and buried
+the sled 0.17 m under the floor. **Same instruction, two strategies, coin
+flip.** That makes `seatOn: "ground"` the natural fix — it makes the `y: 0` the
+model already writes literally correct, in vocabulary it already reaches for.
+Open (register item T2).
+
+#### 4. Stacked weights on the dynamics cart — Bill's call: a WIN, not a bug
+
+`#1427`/`#1428` add 1 kg weights to a 2 kg cart while the mass slider still
+reads "Mass of Cart" = 2, so `F/m` computed off the panel (5 m/s²) disagrees
+with the observed 2.01 m/s². Filed initially as "the sim contradicts itself."
+**Bill overruled, and correctly:** adding masses to a dynamics cart is exactly
+what you do in a real lab, the failed first prediction is a teachable moment,
+and the run threw in a free Newton's-1st observation when the cart hit the wall
+and the weights slid on. The weight masses ARE already displayed (a "Weight
+outputs" group, in kg) and the slider IS honestly labelled — what is missing is
+only the **system total** (Σm), which is the same capability gap already logged
+against cell 5 for Σp/ΣKE. Geometry was clean: 1.7 mm and 5.1 mm settle gaps,
+no initial overlap. At the slider's 50 N max the top weight slides off backward
+(needs 12 m/s², friction can carry 4.9), which is S3.1 stacked-crates arriving
+unprompted.
+
+#### Also filed, not fixed
+
+Centripetal (`#1429`/`#1431`) — no joints exist, and the remix produced a
+CONSTANT world-frame force labelled *"Perpendicular force"*, i.e. a parabola
+presented as circular motion. Filed to `GIST_Physics_Wishlist.md` as a
+**target-aimed force** (direction tracks a point), deliberately NOT as a
+sub-item of Joints: circular motion does not require a constraint. `#1431`'s
+displaced bob was Bill dragging it before the remix — the edit-commit path
+working as designed, not a remix bug (T5 closed).
+
+#### The framing decisions this drive forced (full record on `/docs/design-philosophy`)
+
+- **No LLM-side capability refusal.** The system attempts the sim; the TEACHER
+  is equipped to recognize the shortfall. Capability absences are communicated
+  to the teacher, not spent as prompt tokens — the prompt stops accumulating
+  absence-prose, and existing clauses (the body-fixed-thruster line) become
+  removal candidates **once `/about` exists**, not before.
+- **The audience model.** Both existing three-places rules assume the LLM is an
+  affected audience; this decision was the first where it deliberately is not.
+  Generalized: a decision lands when every affected audience is updated and the
+  record says which were judged unaffected. Five audiences — contract, LLM
+  (describe prose + `gist_instructions.py` are ONE audience in two files, per
+  §3.7), dev team, teacher, student.
+- **State the primitives, not the verdicts** (Bill). *"GIST can't do thrust"* is
+  a prediction about user creativity and a bet we lose; *"there are no ropes or
+  pivots; a force does not change direction on its own"* is checkable and leaves
+  the work-around discoverable. Every wishlist gap now carries a
+  `Representable today as:` line. And the harder reason it cannot be solved in
+  the prompt: **a prohibition can only forbid what we thought to name** — nobody
+  wrote "don't fake centripetal force," and nobody could have.
+- **Prompt budget, measured:** the full JSON schema is ~13.4k tokens and ships
+  on EVERY stage (5–6 per generation, so ~70–80k per sim); the `appliedForce`
+  describe alone is ~335 tokens. The sprite manifest is names-only at ~1.7k —
+  `GIST_LLM_Context_and_Prompting.md` §3.5 ("bundled in full every call") is
+  STALE.
+
+Verification: `tsc` clean on all touched files (`da.ts` locale typing is the
+known baseline); `npm run lint` at the known baseline (4 react-refresh context
+splits); `npm run generate:schema` re-run.
+
+---
+
+### Findings 2026-08-14 (cont.) — the FBD is SINGLE-BODY; N3 reaction chains scoped OUT
+
+The agent/patient prompt rule added above needed a *reason*, and Bill supplied
+the one that turns it from a mechanical workaround into a stated scoping
+decision. Recorded here because Goal 1 (free-body diagrams) is this note's
+workstream, and because the boundary now governs what the wishlist may promise.
+
+**The scoping (Bill, 2026-08-14):** GIST draws the free-body diagram of ONE
+body at a time, and every force the schema can author is a force ON that body.
+A slider on a named object changes the forces in THAT object's FBD. The
+reaction partner is not modelled and the causal chain behind the force is not
+closed.
+
+**Why it must be bounded, in his framing:** "person pulls sled" would otherwise
+oblige us to ask on what surface the person is pushing such that *that* surface
+pushes back and gives them traction — and then what holds that surface. The
+chain does not terminate anywhere useful for an intro-mechanics diorama.
+**Out of scope at this point.**
+
+**What this fixes about the earlier entry.** #1433/#1434's dead sliders were
+diagnosed mechanically (writes to a static body's `configuredAppliedForce` are
+zeroed in `handleUpdate` and skipped in `handlePreStep`). True, but that is the
+CONSEQUENCE. The reason the force belongs on the sled is that the sled is the
+body under study; the person is scenery — a visual label for the pull's origin,
+carrying no physics. The prompt now states the FBD framing first and the no-op
+second, and explicitly forbids authoring a reaction force on the puller.
+
+**In scope vs out.** Contact impulses are equal-and-opposite by construction
+inside both solvers and we already read them per body, so *displaying* the two
+sides of one contact stays a live wishlist item (force-pair visualization,
+§5 there). Scoped OUT: inferring a force on B from a force authored on A;
+closing the agent's own FBD; any traction/support chain. The wishlist entry
+carries this boundary inline so its ⭐⭐⭐ reads as pedagogical triage rather
+than a commitment to reaction-chain modelling.
+
+**Three places:** prompt (FILL CONTROLS, the targetObj rule) · doc page
+(`/docs/design-philosophy`, "The fourth concrete scoping") · schema — the
+`appliedForce` describe already reads "A constant applied force **on this
+body**", which is the single-body framing stated at the field, so no change was
+needed there. Recorded per the audience model: contract unaffected, student
+unaffected.
+
+---
+
+### Findings 2026-08-14 (cont.) — T9: an unresolvable property path no longer fabricates a `0.00`
+
+The companion to T8, and the reason T8's bug went unnoticed for a week of
+generated sims. Two one-line-shaped fixes, both in `JsonSimulation`.
+
+**1. `|| 0` → `?? 0` at the outputs `getValue`.** `Output.tsx` has ALWAYS been
+able to render an em-dash for a non-finite value — `typeof value === 'number' &&
+Number.isFinite(value)` with a `'—'` fallback. It never fired because
+`outputValues[key] || 0` collapsed `NaN` to `0` before `Output` ever saw it. So
+the `'—'` promised by `readDisplayValue`'s own warning message did not exist on
+any code path.
+
+The distinction the fix preserves, and why `??` rather than dropping the
+fallback entirely:
+
+| case | before | after |
+|---|---|---|
+| key ABSENT (paused, never-stepped sim — the body loop is gated on `deltaTime > 0`) | `0.00` | `0.00` (unchanged) |
+| key present but **NaN** (path did not resolve) | `0.00` ❌ | **`—`** ✅ |
+| real zero / sub-clamp value / normal value | unchanged | unchanged |
+
+`clampToZero(NaN)` already passes NaN through (`Math.abs(NaN) < 0.01` is false),
+so nothing else needed touching. Verified across all five cases.
+
+**2. The warning now fires for the case that matters, once per path.** The guard
+was `if (raw !== undefined && raw !== null)` — so an undefined resolution, i.e.
+**a property name that simply does not exist**, was the one case that warned
+about nothing. That is exactly what `force-net.x` was. It now warns for every
+unresolved path, and the dedupe the old comment claimed ("log once per unique
+path") is actually implemented, via a per-sim `warnedPathsRef` — a ref rather
+than a module-level Set, so switching sims gives the next one's problems a fresh
+voice. Without the dedupe this would log on every frame of every run.
+
+**Together with T8 this closes the loop on #1425–#1428:** their invented
+`force-net.x` / `force-friction.magnitude` / `force-normal.magnitude` readouts
+now RESOLVE to real newtons (T8), so those four sims work as authored — and the
+*next* invented path shows an em-dash and a console warning instead of a
+fabricated measurement (T9).
+
+Unchanged by design: graphs still receive NaN and gap (that was already true),
+and the CSV export reads graph points rather than `outputValues`, so no export
+behaviour changed.
+
+Verification: `tsc` clean on all touched files (`da.ts` locale typing is the
+known baseline); `npm run lint` at the known baseline (4 react-refresh context
+splits); display chain verified case-by-case.
+
+---
+
+### 2026-08-14 session close-out — the drive register, and what carries forward
+
+The 2026-08-14 drive produced a numbered finding register (T1–T14) used to keep
+nine sims' worth of threads from being dropped. Recorded here as an INDEX — the
+rationale lives in the dated Findings entries above and in the docs named per
+item, not restated here.
+
+**Closed this session**
+
+| # | thread | resolution |
+|---|---|---|
+| T2 | `y: 0` buries a plain object | `seatOn: "ground"` SHIPPED — `Notes_on_Ramps_and_Tracks_Refactor.md` Findings 2026-08-14 |
+| T3 | centripetal / no joints | filed as **target-aimed force** in `GIST_Physics_Wishlist.md` §4 (deliberately NOT under Joints) |
+| T4 | force on the agent vs the patient | prompt rule + **the fourth concrete scoping** (single-body FBD) on `/docs/design-philosophy` |
+| T5 | #1431's displaced bob | not a bug — Bill dragged it; the edit-commit path working as designed |
+| T8 | invented force readouts | force kinds wired as read-only property paths; `src/lib/vectorSources.ts` is the one resolver |
+| T9 | unresolvable paths render `0.00` | `\|\| 0` → `?? 0`; warning now fires for the undefined case, deduped per path |
+| T12 | stacked weights "contradiction" | **not a bug — Bill overruled and was right**; it is the lab move, the failed prediction is the lesson |
+
+**Open, carried to the next session**
+
+| # | thread | shape of the work | home |
+|---|---|---|---|
+| ~~**T1**~~ | ~~No diagnostic when a force control targets a body carrying no force (or a static one).~~ **CLOSED 2026-08-26** — `checkForceControlTarget`, see Findings 2026-08-26 below. | shipped | this note |
+| ~~**T6**~~ | #1432 plots a horizontal `appliedForce.x` on a "vertical motion" graph; only a bottom wall, so the parachute blows off-screen. **HELD as a PROPOSED edit 2026-08-26** — Bill: no prompt edits for singleton cases. | `GIST_LLM_Context_and_Prompting.md` §4.9 (+ wishlist §1 "Derived titles & labels" for T6) | — |
+| ~~**T10**~~ | ~~No system totals (Σm).~~ **RE-SCOPED 2026-08-26** — Bill: no Σm for now; SHIPPED ⇧-click object info + pair interaction box instead (Findings 2026-08-26). The Σp/ΣKE gap against cell 5 stands on its own. | shipped | this note |
+| **T11** | One µ slider governs cart↔ground AND cart↔weight via the max rule. A concrete forcing case for the held friction-representation question that is **not** about walls (walls are µ 0, which is why the existing narrowing didn't cover it). | feeds the held question | `Notes_on_Ramps_and_Tracks_Refactor.md` → Open questions |
+| ~~**T13**~~ | `force-friction` arrow authored in a gravity-0 scene (#1425) draws permanently zero. Honest but noise. **HELD as a PROPOSED edit 2026-08-26** — Bill: no prompt edits for singleton cases. | `GIST_LLM_Context_and_Prompting.md` §4.9 (+ wishlist §1 "Derived titles & labels" for T6) | — |
+| **T14** | **The deploy.** Never done — the drive ran on `modal serve`. Now carries Phase 2, the 08-09 chapter rule, force readouts, `seatOn: "ground"`, and the agent/patient rule. | `modal deploy` for generate + remix (both share `gist_instructions.py`); `gist-update-changes` consumes neither and needs nothing | invariant #11 |
+
+**Working-practice decision (Bill, 2026-08-14): commit AFTER the T's are
+finished, not now.** The session ends with 15 modified files + 1 new, uncommitted
+and tsc/lint-clean. The reasoning is the deploy coupling: `modal deploy` ships
+the WORKING TREE (invariant #11), so a half-finished register would mean either
+deploying prompt changes mid-thought or committing a state we know we are about
+to edit again. One commit, then one deploy, once the register is empty.
+
+**Next session leads off with** `seatOn: "<any object id>"` (generalized
+seating) — `Notes_on_Ramps_and_Tracks_Refactor.md` → Open questions. That is a
+DISCUSSION, not a build; the T's follow it.
+
+---
+
+### 2026-08-14 (cont.) — the lead-off discussion happened; it spun OUT, and the T's resume
+
+The generalized-seating discussion above ran and produced a REFRAME rather than a
+design: Bill widened it from "seat an object on another object" to
+**object-to-object relative positioning** — any t = 0 pose expressed relative to
+another object's, contact or not. Stacking promoted the idea but is one of five
+motivating scenes (rack of billiard balls; three rocks whose bottoms start level
+for a Galileo drop; two bodies with CMs on one line for a top-down 1D collision;
+"two carts N m apart"), and three of the five derive ONE axis while leaving the
+other authored — which `seatOn` structurally cannot express. Rename invited.
+
+**Filed to `GIST_Physics_Wishlist.md` §1** (authoring ergonomics), ⭐⭐⭐ 🔧, with
+the five migrated design questions plus the four the wider framing raised
+(per-axis partiality, a non-zero default gap for contact placement given the
+initial-overlap hazard, rotated references, and the boundary against the
+N-object spawn shorthand). The ramps-note open question is now a superseded
+pointer; `RefactorRoadmap.tsx` carries it as a proposed node spun out of the
+ramps subgraph.
+
+**Sequencing (Bill):** it is a **candidate next dev task**, not the current one —
+the remaining applied-forces work through Phase 4 and the open T-register items
+come first. Three-places is deliberately UNTOUCHED (nothing is built; there is
+no schema field or prompt prose to sync, and reading that absence as drift would
+be wrong). Register state is unchanged by this entry: **T1, T6, T10, T11, T13,
+T14 (the deploy) remain open**, and the commit-then-deploy discipline still
+holds.
+
+---
+
+### Findings 2026-08-26 — T1 SHIPPED: `checkForceControlTarget`, the detector for the agent/patient rule
+
+The prompt (FILL CONTROLS, 2026-08-14) teaches that a force slider targets the
+body that CARRIES the force; nothing detected a violation, and the sled sims
+(#1433/#1434) showed why that matters — a slider bound to the static puller
+looked correct until dragged. Now detected at config time.
+
+**`checkForceControlTarget(objects, controls)`** in `src/lib/objectExpansion.ts`,
+called beside `checkFrictionSliderMasking` at the JsonSimulation call site
+(needs controls, so it cannot live inside `expandObjects`; runs inside the
+bus-cleared window, so it re-reports on every re-expansion). Three keys, all
+config-state truth per the ratified bus semantic:
+
+| key | fires when | why it is silent-until-dragged |
+|---|---|---|
+| `force-control-static-target:<id>` | an `appliedForce.*` or `acceleration.*` slider targets an `isStatic` object | static bodies are zeroed in `handleUpdate` and skipped in `handlePreStep`; the message names the objects that DO author a force, so the fix is one edit |
+| `force-control-agent-not-patient:<id>` | an `appliedForce.*` slider targets a dynamic body that authors NO `appliedForce` while another object does | the slider creates a second, separate force on the wrong body; the authored one stays frozen — the #1433 shape with a dynamic puller |
+| `force-control-unknown-target:<id>` | the target id matches no object | the write finds no body; nothing throws |
+
+Deliberately NOT flagged: a force slider on a dynamic body with no authored
+force when no other object carries one either — that is the ordinary "the
+slider IS the force" authoring and is correct. Also not flagged: a static
+target that an `isStatic` toggle could later revive — a runtime event, outside
+the bus's config-truth semantic, same reasoning as the friction-slider badge
+ignoring drags. Magnitudes are compared through `vectorMagnitude`, never
+`.x`/`.y` (the polar hazard, invariant #10).
+
+**Three places / audience model:** dev-team-facing diagnostic only. Contract
+unaffected (no field), LLM unaffected (the prompt rule already exists; this
+is its detector), teacher/student unaffected (badge is debug-panel only).
+
+**Verified headless** through `checkForceControlTarget`: the sled case fires
+static-target on both sliders; the correct target is silent; a dynamic
+non-carrier beside a carrier fires agent-not-patient; a lone dynamic
+non-carrier is silent; an unknown id fires unknown-target; a `friction`
+slider on a static body is silent (out of scope). `tsc` clean, `npm run lint`
+at the known baseline (4 react-refresh context splits).
+
+**Drive-confirmed same day:** Bill sees the badge on sim #1439 (the sled
+scene) in the debug panel's Diagnostics box.
+
+**Register:** T1 closed. T6/T13 moved to PROPOSED (`GIST_LLM_Context_and_Prompting.md` §4.9) — Bill: no prompt edits for singleton cases; T6 spawned the wishlist item "Derived titles & labels from property paths" (§1), the overhaul of POC-era free-text labels. Still open: T10, T11, T14 (the deploy).
+Commit-then-deploy discipline unchanged.
+
+---
+
+### Findings 2026-08-26 — T10 re-scoped: no Σm; instead ⇧-click object info + a pair INTERACTION box
+
+**Bill's call:** no system totals for now. What a student actually needs when
+`F/m` off the panel disagrees with the motion is to *look at the bodies* —
+so the fix is a disclosure gesture, not a new aggregate.
+
+**The gesture.** Hovering a body shows a small hint — ⇧ (the shift glyph) +
+ⓘ — reading "⇧-click ⓘ". ⇧-click PINS an info box for that body: mass, µ,
+e, and a `static` tag, read LIVE off the physics body (so a mass or friction
+slider drag is visible in the box), falling back to config when no body
+exists. With one box pinned and ⇧ still held, hovering a second target shows
+that target's box AND an **interaction box** for the pair; ⇧-click the second
+target pins the pair. Plain click on the canvas or Esc dismisses; releasing ⇧
+drops the transient hover box but keeps the pin. Available in every mode
+(editing, running, paused) except position-picking.
+
+**Walls are targets.** The floor is the contact most friction questions are
+about, and it is not an object — so the wall slabs are hit-testable by their
+canvas-pixel rectangles (only walls that exist). Their box says what the
+adapters do: explicit zero material (`RapierAdapter.createWalls`), so a body's
+own µ and e govern its contact with them.
+
+**The interaction box — why it kicks the friction can down the road.** Both
+engines take the LARGER coefficient of a contact pair, for friction AND
+restitution (Rapier: `CoefficientCombineRule.Max` set explicitly in
+`addCollidersForShape`; Planck: `mixRestitution` is max natively and friction
+is coerced to match). That rule is invisible in the JSON and is exactly what
+`checkFrictionSliderMasking` warns about. The box shows it per pair —
+`max(0.40, 0.60) = 0.60 · ramp governs` — which is the disclosure the held
+pair-friction question (`Notes_on_Ramps_and_Tracks_Refactor.md` → Open
+questions) needed before it can be resolved: a teacher can now SEE which body
+owns a contact. Restitution answered while we were at it: it is not averaged
+or multiplied; it is max, same rule — one line in the box covers both.
+
+**Where it lives.**
+- `src/lib/infoTargets.ts` — `InfoTarget` (object | wall side), `InfoAnchor`,
+  key/equality helpers (in `lib/` so the component file stays
+  react-refresh-clean).
+- `src/components/simulation_components/InfoBoxes.tsx` — the boxes and the
+  hint; polls body values at 10 Hz only while something is showing.
+- `EditOverlay.tsx` — owns the gesture, because it already owns the canvas
+  hit-test (`hitBody` over live AABBs). Its canvas now keeps pointer-events
+  on whenever `infoActive`, not only in edit/locked modes; ⇧-pointerdown claims
+  the click outright (no select, no drag, no reset prompt); plain pointerdown
+  clears pins; `pointerleave` clears hover.
+- `JsonSimulation.tsx` — pin/hover/hint state, Esc/⇧-release keys, stale-pin
+  pruning, mount after `BaseSimulation`.
+
+**Not in the box (deliberately, per Bill's pick):** size/position, live
+motion, forces — the numeric FBD already exists as output paths (T8) and the
+loupe; the box is about MATERIAL. Open: whether the interaction box should also
+say whether the pair is currently in contact (the contact-force seam knows).
+
+Verification: `tsc` clean, `npm run lint` at the known baseline. Drive
+pending (Bill).

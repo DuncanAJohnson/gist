@@ -391,6 +391,51 @@ function DesignPhilosophy() {
         version of this codebase managed to count gravity twice.
       </p>
 
+      <h2>
+        The fourth concrete scoping: the free-body diagram is SINGLE-BODY —
+        Newton&apos;s-3rd-law reaction chains are out of scope
+      </h2>
+      <p>
+        <em>Ratified 2026-08-14 (Bill), prompted by the person-pulls-sled sims
+        #1433/#1434.</em>
+      </p>
+      <p>
+        <strong>The scoping.</strong> GIST draws the free-body diagram of{' '}
+        <em>one body at a time</em>, and every force the schema can author is a
+        force <em>on</em> that body. It does not model the reaction partner of
+        that force, and it does not close the causal chain behind it.
+      </p>
+      <p>
+        <strong>Why it has to be bounded, in Bill&apos;s words.</strong> Take
+        &quot;a person pulls a sled.&quot; Tracking the force pair would mean
+        also asking: on what surface is the person pushing, such that{' '}
+        <em>that</em> surface pushes back and gives them traction? And then what
+        holds that surface? The chain does not terminate anywhere useful for an
+        intro-mechanics diorama. <strong>Out of scope at this point.</strong>
+      </p>
+      <p>
+        <strong>This is what makes the authoring rule correct rather than
+        arbitrary.</strong> A slider on a named object changes the forces in{' '}
+        <em>that object&apos;s</em> FBD. So in the sled scene the{' '}
+        <code>appliedForce</code> and both of its sliders target the{' '}
+        <strong>sled</strong> — the body under study — and the person is
+        scenery: a visual label for where the force comes from, carrying no
+        physics of their own. The mechanical symptom of getting this wrong
+        (sliders bound to a static person are silent no-ops) is real, but it is
+        the consequence, not the reason.
+      </p>
+      <p>
+        <strong>What stays in scope.</strong> Contact pairs are equal-and-opposite
+        by construction inside both solvers, and we already read them out per
+        body (<code>force-normal</code>, <code>force-friction</code>). So{' '}
+        <em>displaying</em> the two sides of a single contact remains a live
+        wishlist item — see the force-pair entry in{' '}
+        <code>GIST_Physics_Wishlist.md</code>, which now carries this boundary
+        explicitly. What is out of scope is <em>modelling</em> the reaction
+        chain: closing the agent&apos;s own FBD, or inferring a force on body B
+        from a force authored on body A.
+      </p>
+
       <h2>Future scoping decisions</h2>
       <p>
         Air resistance is the first one, not the last. Other affordances will
@@ -471,9 +516,130 @@ function DesignPhilosophy() {
           should be reflected in (a) the schema <code>.describe()</code> string
           for the field, (b) the LLM prompt prose, and (c) a section on this
           doc page. If a decision isn't in all three places, it isn't fully
-          landed.
+          landed. <em>Generalized 2026-08-14</em> — these three are the audience
+          set for a <em>scoping</em> decision specifically; see the audience
+          model below for decisions whose audiences differ.
         </li>
       </ul>
+
+      <h2>Where a decision has to land — the audience model</h2>
+      <p>
+        GIST has two &quot;three-places&quot; rules: invariant #2 in{' '}
+        <code>CLAUDE.md</code> (for LLM-authorable capabilities: schema, prompt,
+        docs/renderers) and the scoping-decision rule just above. Both assume
+        the LLM is an affected audience, because for those decision types it
+        always is. <strong>That assumption broke on 2026-08-14</strong>, on a
+        decision whose whole content was that the LLM should be told nothing
+        new.
+      </p>
+      <p>
+        The rule generalizes. A decision lands when <strong>every affected
+        audience has been updated, and the record states which audiences were
+        judged unaffected and why.</strong> That keeps the teeth — you still
+        cannot silently skip the prompt — while admitting decisions whose
+        audience set is not the default three. The five audiences:
+      </p>
+      <ul>
+        <li>
+          <strong>The contract</strong> — <code>simulation.ts</code>{' '}
+          <em>structure</em> (types, unions, optionality), consumed by the
+          frontend and by the generated JSON schema. The LLM never sees this
+          half.
+        </li>
+        <li>
+          <strong>The LLM</strong> — <code>.describe()</code> prose plus{' '}
+          <code>gist_instructions.py</code>. Note these are <em>one audience in
+          two files</em>, not two places: the describe strings are shipped
+          verbatim in the prompt (<code>GIST_LLM_Context_and_Prompting.md</code>{' '}
+          §3.7, &quot;schema description prose is the prompt&quot;). Every
+          sentence here is paid on every stage of every generation — the{' '}
+          <code>appliedForce</code> describe alone is ~335 tokens.
+        </li>
+        <li>
+          <strong>The dev team</strong> — these <code>/docs</code> pages and the
+          refactor notes.
+        </li>
+        <li>
+          <strong>The teacher</strong> — no surface yet; see Known follow-ons #1
+          below.
+        </li>
+        <li>
+          <strong>The student</strong> — in-sim labels, readouts and arrows;
+          eventually <code>pedagogicalNotes</code> (follow-on #4).
+        </li>
+      </ul>
+
+      <h3>State the primitives, not the verdicts</h3>
+      <p>
+        The rule governing what we say to the teacher (Bill, 2026-08-14).{' '}
+        <strong>&quot;GIST can&apos;t do thrust&quot; is a prediction about user
+        creativity, and it is a bet we lose.</strong> &quot;There are no ropes
+        or pivots; a force does not change direction on its own&quot; is
+        checkable, honest, and leaves the work-around discoverable.
+      </p>
+      <p>
+        This is the diorama principle pointed at the teacher. A sim teaches a
+        concept through a <em>representation</em>, not a mechanism through
+        fidelity — so a capability register organized by mechanism
+        systematically understates what GIST can teach. We cannot model
+        continuous mass-ejection propulsion; two bodies pushing apart
+        demonstrate the same law. And it is the teacher, who knows their lesson,
+        who is best placed to find that substitution. Corollary for the
+        wishlist: every gap carries a{' '}
+        <code>Representable today as:</code> line naming the nearest thing
+        already buildable (convention added to{' '}
+        <code>GIST_Physics_Wishlist.md</code> the same day).
+      </p>
+      <p>
+        There is a second, harder reason this cannot be solved in the prompt:{' '}
+        <strong>a prohibition can only forbid what we thought to name.</strong>{' '}
+        Nobody wrote &quot;don&apos;t fake centripetal force&quot; — nobody could
+        have — and sims #1429/#1431 duly produced a constant world-frame force
+        labelled as a perpendicular one. A register can be general where an
+        enumeration cannot, at any model tier.
+      </p>
+
+      <h3>Worked example — no LLM-side capability refusal (decided 2026-08-14)</h3>
+      <p>
+        <strong>The decision:</strong> we will NOT build a feature where the LLM
+        detects that a request needs a missing capability and tells the user the
+        sim cannot be built. The system attempts the sim; the teacher is
+        equipped, via the capability register, to recognize the shortfall — as
+        in &quot;ah yes, constant force in magnitude and direction; that
+        won&apos;t work for a centripetal force.&quot;
+      </p>
+      <ul>
+        <li>
+          <strong>Contract</strong> — not affected. No schema change; refusal is
+          not a schema concept.
+        </li>
+        <li>
+          <strong>LLM</strong> — affected as a <em>policy of restraint</em>, not
+          as new text: the prompt stops accumulating capability-absence prose,
+          and existing instances (e.g. the body-fixed-thruster clause at{' '}
+          <code>gist_instructions.py</code>) become removal candidates once the
+          teacher register exists. Recorded so this reads as a decision rather
+          than an omission.
+        </li>
+        <li>
+          <strong>Dev team</strong> — this section.
+        </li>
+        <li>
+          <strong>Teacher</strong> — the reason the register moves from
+          &quot;deferred&quot; to &quot;needed&quot;; see follow-on #1.
+        </li>
+        <li>
+          <strong>Student</strong> — not affected.
+        </li>
+      </ul>
+      <p>
+        Every removed absence-clause is tracked in{' '}
+        <code>GIST_Physics_Wishlist.md</code>, carrying the concept at stake, why
+        the mechanism is hard, and its <code>Representable today as:</code> line
+        — so a &quot;we can&apos;t&quot; stays a live question
+        (&quot;why can&apos;t we?&quot;, &quot;what if we figure it out?&quot;)
+        instead of hardening into a &quot;never.&quot;
+      </p>
 
       <h2>Known follow-ons (deferred)</h2>
       <p>
@@ -483,15 +649,38 @@ function DesignPhilosophy() {
       </p>
       <ol>
         <li>
-          <strong>User-facing communication of scoping decisions.</strong> The
-          teacher running the sim with their class currently has no way to
-          know that air resistance is scoped, that restitution defaults
-          privilege visibility, that <code>v_t</code> in this sim differs from
-          Wikipedia. The system needs an "about the physics in this
-          simulation" affordance — either in-sim (info button), in a separate{' '}
-          <code>/about</code> page, or as a schema-level{' '}
-          <code>pedagogicalNotes</code> field rendered prominently. Deferred
-          while the test user community is small.
+          <strong>User-facing communication of scoping decisions —{' '}
+          <em>and of capability absence</em>.</strong> The teacher running the
+          sim with their class currently has no way to know that air resistance
+          is scoped, that restitution defaults privilege visibility, that{' '}
+          <code>v_t</code> in this sim differs from Wikipedia. The system needs
+          an "about the physics in this simulation" affordance — either in-sim
+          (info button), in a separate <code>/about</code> page, or as a
+          schema-level <code>pedagogicalNotes</code> field rendered
+          prominently. <del>Deferred while the test user community is
+          small.</del>
+          <br />
+          <strong>Scope widened + mechanism chosen 2026-08-14.</strong> This
+          item was written entirely around <em>scoped realism</em> — the number
+          is deliberately unrealistic. The applied-forces drive surfaced the
+          other half: <em>capability absence</em> — the physics is not there at
+          all (no ropes or pivots, no force that changes direction on its own).
+          Both answer the same teacher question, &quot;why didn&apos;t my sim
+          deliver?&quot;, from opposite directions, and a register carrying only
+          the first would send a teacher hunting for &quot;circular
+          motion&quot; away empty-handed. <strong>Mechanism: the standalone{' '}
+          <code>/about</code> page</strong> — it is the only one of the three
+          that costs no schema field and no per-sim authoring, and{' '}
+          <code>Home.tsx</code> / <code>Library.tsx</code> already provide the
+          shell. Write it to the &quot;state the primitives, not the
+          verdicts&quot; rule above, organized by physics vocabulary rather than
+          by schema field (the §4.8 line in{' '}
+          <code>GIST_LLM_Context_and_Prompting.md</code>: framing language for
+          teachers, never schema mechanics). The existing{' '}
+          <code>FeedbackModal</code> is the natural return path for &quot;I
+          found a way to build X&quot; reports, which the register should invite
+          rather than foreclose. <code>pedagogicalNotes</code> (#4 below) stays
+          parked as the per-sim complement.
         </li>
         <li>
           <strong>A teacher's guide.</strong> A single document a teacher can

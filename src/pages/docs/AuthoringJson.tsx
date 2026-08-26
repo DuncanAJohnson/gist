@@ -444,6 +444,39 @@ function AuthoringJson() {
         the surface; resize the ramp: riders re-seat). <code>seatOn</code> is a <strong>start pose,
         not an attachment</strong> — at t &gt; 0 the rider moves freely.
       </p>
+
+      <h4><code>seatOn: "ground"</code> — the flat-ground twin (2026-08-14)</h4>
+      <p>
+        The same field takes the reserved literal <code>"ground"</code> to rest an
+        object on the floor (top of the bottom wall, y = 0). Author{' '}
+        <code>y: 0</code> as the placeholder, exactly as for a ramp rider. No
+        object named <code>ground</code> need exist — and if a <em>ramp</em> is
+        named that, it is shadowed and the seam says so. An authored{' '}
+        <code>angle</code> is preserved (the ground is flat, so nothing overrides
+        it) and is honoured in the extent, so a tilted box rests on its corner
+        rather than sinking.
+      </p>
+      <p>
+        <strong>Why it exists.</strong> <code>y</code> is an object's{' '}
+        <em>center</em>, so <code>y: 0</code> puts it half below the floor — yet
+        the schema teaches "author <code>y: 0</code> as a placeholder" for every
+        case the runtime derives (grounded containers, ramps, riders). Asked to
+        "seat the sled on the ground," the LLM reached for that idiom on a plain
+        object, where nothing derived anything, and buried it 0.17 m (sim
+        #1434); a sibling sim guessed <code>height/2</code> and got away with it.
+        Same instruction, two strategies, coin flip. This makes the{' '}
+        <code>y: 0</code> the model already writes literally correct, rather than
+        adding a rule that has to out-argue an idiom the schema itself taught.
+      </p>
+      <p>
+        <strong>Bounding box, not collider — deliberately.</strong> The seat uses
+        the authored <code>height</code>, matching ramp seating, so the residual
+        is the sprite's collider inset: millimetres in practice (sled 5.4 mm,
+        dynamics_cart 24 mm), settled on the first step. A collider-flush seat
+        would need the manifest at the expansion seam, which can evaluate before{' '}
+        <code>BaseSimulation</code> finishes gating on <code>loadManifest()</code>
+        — reintroducing exactly the load-order race invariant #8 closed.
+      </p>
       <FieldTable
         rows={[
           { name: 'angle', type: 'number', desc: <>Incline angle in the environment <code>angleUnit</code> (default degrees), from horizontal. Diorama-clamped to ≈ [5°, 80°].</> },
