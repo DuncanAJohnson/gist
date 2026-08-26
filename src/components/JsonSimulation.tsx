@@ -252,6 +252,24 @@ const getNestedValue = (obj: any, path: string, gravity: Vec2): any => {
   return path.split('.').reduce((current, key) => current?.[key], obj);
 };
 
+/**
+ * Fold the configured applied force (+ the debug-panel force, superposed) into
+ * userData.appliedForce — the ONE value the solver (handlePreStep), the
+ * force-applied arrow and the appliedForce.* / force-applied.* readouts all read
+ * (invariant #14's one-site rule). handleUpdate calls this every step; the
+ * slider write paths call it too, so the arrow tracks a force slider LIVE
+ * before play, the way a velocity arrow tracks a velocity slider (2026-08-26,
+ * Bill). Static bodies carry no force, matching handlePreStep's skip.
+ * Module-level and ref-fed so the slider writers stay dependency-free.
+ */
+function resolveAppliedForce(body: PhysicsBody, debugForceN: number, debugTargetId: string | null): void {
+  const cfgForce = body.userData.configuredAppliedForce as Vec2 | undefined;
+  const debugFx = !body.isStatic && body.id === debugTargetId ? debugForceN : 0;
+  body.userData.appliedForce = body.isStatic
+    ? { x: 0, y: 0 }
+    : { x: (cfgForce?.x ?? 0) + debugFx, y: cfgForce?.y ?? 0 };
+}
+
 function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationProps) {
   const navigate = useNavigate();
 
@@ -864,6 +882,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
         obj.userData.configuredAppliedForce = { x: 0, y: 0 };
       }
       obj.userData.configuredAppliedForce[axis] = value;
+      resolveAppliedForce(obj, debugForceRef.current, debugForceTargetRef.current);
       return;
     }
     const keys = path.split('.');
@@ -923,6 +942,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
       held.angle = value;
     }
     heldVectorStateRef.current[key] = held;
+    if (base === 'appliedForce') resolveAppliedForce(obj, debugForceRef.current, debugForceTargetRef.current);
   };
 
   const clampToZero = (value: number): number => {
@@ -1082,12 +1102,7 @@ function JsonSimulation({ config, simulationId, localJsonEdit }: JsonSimulationP
         // the physically honest combination — two pushes on a crate add — and
         // it keeps the debug harness usable on a sim that already authors a
         // force instead of silently discarding the authored value.
-        const cfgForce = body.userData.configuredAppliedForce as Vec2 | undefined;
-        const debugFx =
-          !body.isStatic && body.id === debugForceTargetRef.current ? debugForceRef.current : 0;
-        body.userData.appliedForce = body.isStatic
-          ? { x: 0, y: 0 }
-          : { x: (cfgForce?.x ?? 0) + debugFx, y: cfgForce?.y ?? 0 };
+        resolveAppliedForce(body, debugForceRef.current, debugForceTargetRef.current);
 
         const prevVelocity = prevVelocitiesRef.current[objectConfig.id];
         if (prevVelocity) {

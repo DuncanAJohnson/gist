@@ -2829,3 +2829,65 @@ say whether the pair is currently in contact (the contact-force seam knows).
 
 Verification: `tsc` clean, `npm run lint` at the known baseline. Drive
 pending (Bill).
+
+---
+
+### Findings 2026-08-26 — the force-applied arrow now tracks its slider LIVE before play
+
+**Bill's ask:** "live applied-force display like we have for initial velocity."
+A velocity slider writes `body.velocity` directly, so the velocity arrow moves
+under the slider at t = 0. A force slider only wrote
+`userData.configuredAppliedForce`; the displayed value, `userData.appliedForce`,
+was folded from it (plus the debug-panel force) INSIDE `handleUpdate`, which is
+gated on `deltaTime > 0` — so before play the `force-applied` arrow and every
+`appliedForce.*` / `force-applied.*` readout sat at the authored value and
+ignored the slider until the first step.
+
+**Fix:** the fold is now one module-level `resolveAppliedForce(body, debugN,
+debugTarget)` in `JsonSimulation.tsx`, called from `handleUpdate` (unchanged
+behaviour) AND from both slider write paths (`setNestedValue`'s cartesian
+branch, `writeVectorPolar` for `.magnitude` / `.angle`). The solver, the
+arrow and the readouts still read the single `userData.appliedForce` slot —
+invariant #14's one-site rule holds; the only change is WHEN it is refreshed.
+Module-level and ref-fed so the slider writers stay free of hook
+dependencies (an in-component helper tripped `exhaustive-deps`).
+
+Verification: `tsc` clean, lint at the known baseline. Drive pending (Bill):
+on a force sim at initial conditions, drag the force magnitude / angle slider
+and watch `F_app` follow.
+
+---
+
+### 2026-08-26 session close-out — the drive register is CLOSED
+
+| # | resolution |
+|---|---|
+| T1 | `checkForceControlTarget` SHIPPED; drive-confirmed on #1439 |
+| T2, T3, T4, T5, T8, T9, T12 | closed 2026-08-14 (see that close-out) |
+| T6, T13 | HELD as proposed prompt edits — `GIST_LLM_Context_and_Prompting.md` §4.9. **Working-practice decision (Bill): no prompt edits for singleton cases** — a clause that fixes one observed sim is paid on every stage of every generation; record the observation, act on the pattern. T6 spawned the wishlist item "Derived titles & labels from property paths" (§1). |
+| T10 | RE-SCOPED — no Σm; ⇧-click object info + pair interaction box SHIPPED instead |
+| T11 | stays a DISCUSSION (pair-friction hold); the interaction box makes the max rule observable per pair, which was its precondition |
+| T14 | **DEPLOYED 2026-08-26 (Bill)** — generate + remix. Gotcha for the next deploy: `.env.local`'s `VITE_SIMULATION_AI_URL` / `_REMIX_URL` must point at the deployed hosts, not the `-dev` (`modal serve`) hosts, and Vite reads the file only at startup — a dead `-dev` host shows in Safari as `TypeError: Load failed`, which looks like an AI-provider error and is not one. |
+
+Committed as `1a2a166` (the register minus the deploy). After it, uncommitted
+at close: the live-`F_app`-slider fix (`resolveAppliedForce`) and this note.
+
+**Audience record for today's decisions.** T1: dev team only (prompt rule
+pre-existed; contract/LLM/teacher/student unaffected). T6/T13: LLM audience
+deliberately untouched. Info boxes and live `F_app`: student surface + dev
+note; nothing authorable, so contract and LLM unaffected.
+
+**Follow-ons surfaced, not built**
+- No `/docs` page describes canvas GESTURES (click-to-edit, drag/resize,
+  reset prompt, now ⇧-click info). The refactor roadmap graph is the only
+  mention of `EditOverlay`. A short "Canvas gestures" section on the runtime
+  page would be the dev-team home when the next gesture lands.
+- Interaction box could say whether the pair is currently IN CONTACT (the
+  contact-force seam knows) — the natural next disclosure.
+- Drive confirmations still pending: ⇧-click boxes on a sim with a ramp and
+  the floor; `F_app` following its slider at initial conditions with
+  `?forces=1`.
+
+**Next session leads off with:** whatever remains of applied forces through
+Phase 4 per the roadmap; object-to-object relative positioning (wishlist §1)
+stays the queued candidate behind it.
