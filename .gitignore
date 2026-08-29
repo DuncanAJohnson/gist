@@ -29,3 +29,8 @@ CLAUDE.md
 __pycache__/
 
 .venv/
+
+.env.local.backup
+
+# Vercel CLI link state (local-only, like .claude)
+.vercel

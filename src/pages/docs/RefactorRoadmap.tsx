@@ -555,6 +555,7 @@ function RefactorRoadmap() {
         <li><code>Notes_on_Vector_Representation_Refactor.md</code></li>
         <li><code>Notes_on_Concave_Colliders_Refactor.md</code></li>
         <li><code>Notes_on_Ramps_and_Tracks_Refactor.md</code> — the env-shapes doc the 2026-07-10 generator charter promised</li>
+        <li><code>Notes_on_Engine_Upgrades_Refactor.md</code> — engine version currency: Planck 1.5.0 COM fix, Rapier 0.20.0 re-validation (maintenance track, opened 2026-08-26)</li>
       </ul>
 
       <h3>Visualization &amp; runtime refactor proposals (in-app docs)</h3>

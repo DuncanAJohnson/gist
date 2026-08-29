@@ -154,7 +154,67 @@ The legacy constant-linear-damping field. With Matter gone, both remaining engin
 
 ---
 
+## Engine version currency
+
+How current our two engine dependencies are, and what a bump costs. Added
+2026-08-26 after both engines turned out to have drifted a full release without
+anyone noticing. Plan and phased rollout live in
+[Notes_on_Engine_Upgrades_Refactor.md](Notes_on_Engine_Upgrades_Refactor.md);
+this section holds the present-tense state.
+
+**Sequenced behind Recordings R1 (agreed 2026-08-26).** The Rapier bump waits on
+recordings gaining `metadata.engine` + `engineVersion`, so the upgrade lands as a
+legible discontinuity in the artifact history *and* so pre/post recordings of the
+same config can measure what it changed. Recordings are the instrument for
+assessing engine updates, not just a thing exposed to them. Planck (Phase 1)
+carries no such dependency.
+
+### 🔴 Both engines are a release behind — and one trap actively conceals it (measured 2026-08-26)
+Installed vs npm `latest`: **Planck 1.4.2 → 1.5.0** (published 2026-04-07) and
+**`@dimforge/rapier2d-compat` 0.19.3 → 0.20.0** (published 2026-08-08, wrapping
+Rapier core 0.35.0). `poly-decomp` 0.3.0 is current; upstream dead since 2022.
+- **The concealing trap:** `dimforge/rapier.js` was **archived 2026-07-12** and merged into the main Rapier monorepo under `typescript/`. The archived repo's `CHANGELOG.md` is frozen with 0.19.3 as its last entry — which is *exactly the version we run* — so it reads as "we're up to date" to anyone who checks. **Live changelog is `dimforge/rapier` → `typescript/CHANGELOG.md`.**
+- **Semver asymmetry, backwards from the risk:** `^1.4.2` **admits** planck 1.5.0, so only the lockfile pins us — the safe upgrade can land by accident on someone's `npm update`. `^0.19.3` **excludes** 0.20.0 (caret on `0.x`), so the upgrade that needs care cannot land by accident. Land Planck deliberately so it isn't landed carelessly.
+- **Cadence:** Rapier went silent for nine months (0.19.3 2025-11-05 → 0.20.0 2026-08-08). A long quiet then a single minor bump = a large batched release.
+
+### 🔴 The Rapier contact-force correction factor is fused to core 0.35.2
+[RapierAdapter.ts:316-317](src/physics/rapier/RapierAdapter.ts#L316-L317) applies
+`corr = iters / (iters + 1)`, derived empirically 2026-08-06 because
+`contactImpulse()` accumulated one substep too many. Rapier core **0.35.2 fixes
+that upstream** ("the impulses reported on contacts … are now the total impulse
+applied during the step, instead of one substep too many"). **0.20.0 wraps 0.35.0,
+not 0.35.2** — so the correction is still needed today, but the first release that
+wraps ≥ 0.35.2 makes it **actively wrong**, silently scaling every contact force by
+`i/(i+1)`.
+- **Why this is nastier than it looks:** normal and friction scale *together*, so component arrows still close onto the derived net — **invariant #14's double-count alarm would not fire.** This is a failure mode our existing safety net cannot catch.
+- **Also:** the 0.35.0 solver rework means the ratio must be **re-measured** on any bump, never assumed to still be `i/(i+1)`.
+- Phase 0 of the upgrades note is a comment at the call site recording this. Worth landing even if both upgrades are deferred indefinitely.
+
+### 📋 Box2D v3 is not flowing into Planck (assessed 2026-08-26)
+Planck is a port of Box2D **v2.4**; Erin Catto's current work is the **v3** rewrite
+(SIMD solver, TGS Soft constraints) — a from-scratch redesign, not patches a
+downstream port can cherry-pick. The 1.4.2 → 1.5.0 source diff touches **no**
+solver / contact / island / TimeStep file. Rapier, despite unrelated lineage, *has*
+absorbed Box2D v3's soft-constraint ideas, and core 0.35.0 continues that line.
+- **Read:** the rising tide is lifting Rapier (our default) and leaving Planck at anchor. Mild argument for Rapier staying default; mild argument against investing in Planck-specific fidelity beyond parity-checking.
+
+---
+
 ## Cross-engine inconsistencies (mapping hazards)
+
+### 🔴 Planck 1.4.2 computes a WRONG centre of mass for irregular polygons (found 2026-08-26)
+`planck/src/common/Matrix.ts:63` in **the version we run** reads `out.y = v.x + w.y`
+where it must read `v.y + w.y`. Its one internal caller is
+`PolygonShape.computeMass` line 491 — the final step converting the area centroid
+back into shape coordinates — so **every polygon body gets a displaced centre of
+mass**, and `massData.I` is then shifted using that wrong centre, so rotational
+inertia is off too. Fixed upstream in **planck 1.5.0** under the changelog line
+"Bug fix addVec2".
+- **Why it survived:** `s` is the *vertex average* and `center` is the area centroid *relative to s*. For symmetric shapes (centred or offset boxes, any triangle) those coincide, `center` is `(0,0)`, and the swapped component is zero — correct by accident. It only bites irregular convex polygons.
+- **Magnitude:** across the 173 polygon colliders in `public/renderables/manifest.json`, y-error as a fraction of shape extent is **median 4.8%, worst ≈29%** (`orange_fruit`, `metronome`, `fishing_boat`, `office_chair`). ⚠️ **Measured on RAW outlines** — Planck actually sees *decomposed convex parts* (invariant #7), each smaller and more regular, though a body's composite COM is the mass-weighted sum of individually displaced part centres. Direction and existence are certain; **the magnitude needs a per-part re-measure before anyone quotes it.**
+- **We do not shield ourselves:** both `setMassData` call sites — [PlanckAdapter.ts:160-164](src/physics/planck/PlanckAdapter.ts#L160-L164) and [PlanckAdapter.ts:364-368](src/physics/planck/PlanckAdapter.ts#L364-L368) — read `body.getLocalCenter()` and hand it straight back, faithfully *preserving* the wrong centre. Rapier computes mass properties in Rust and is unaffected.
+- **Candidate explanation for a known divergence — NOT yet established.** A displaced COM is exactly a tipping-threshold error, and this doc (below) plus `CLAUDE.md` invariant #4 record that Planck's "marginal tips differ". First mechanical hypothesis we have had for it. It does **not** explain "more energetic". Phase 1 of the upgrades note is the experiment; do not promote this to an explanation until measured.
+- See [Notes_on_Engine_Upgrades_Refactor.md](Notes_on_Engine_Upgrades_Refactor.md) §B.
 
 ### 🟢 Rapier mass setter — `setAdditionalMass` replaces, doesn't accumulate
 Setting `body.mass = X` repeatedly used to oscillate between `X` and the base collider mass. Bug confirmed and fixed at [RapierAdapter.ts:159-167](src/physics/rapier/RapierAdapter.ts#L159-L167) and [RapierAdapter.ts:219-227](src/physics/rapier/RapierAdapter.ts#L219-L227) by capturing `baseMass` once at construction. Planck was never affected (its `setMassData` already replaces, not deltas).
@@ -257,6 +317,7 @@ Needed for momentum/energy plots ("show Δp per collision"), 3rd-law force-pair 
 Needed for fast projectiles or thin walls (high-velocity falls in free-fall sims).
 - Planck `body.setBullet(true)`, Rapier `rigidBody.enableCcd(true)`.
 - **Partially mitigated today by precompute:** `handlePlay` always precomputes at `precomputeTimestepHz = 480` and replays, so the fine sub-stepping is a de-facto CCD substitute. The concave-collider Phase 0 cup test caught a fast marble through sub-decimeter walls at a 2 m scene with no tunneling. CCD still matters for live (non-precomputed) play and very fast small bodies. See [Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md), Phase 2.
+- **Partly closed for us by an upgrade we haven't taken (noted 2026-08-26):** Rapier core 0.35.0 rewrote CCD around sweep-based time-of-impact and **enables it by default against fixed colliders**, with `ccdEnabled` now upgrading a body to a "bullet" that also sweeps kinematic and dynamic bodies. So `@dimforge/rapier2d-compat` 0.20.0 would hand us most of this gap without asking — *and would change trajectories for fast bodies meeting ground and ramps*, which is a benchmark re-drive, not a free win. See [Notes_on_Engine_Upgrades_Refactor.md](Notes_on_Engine_Upgrades_Refactor.md) Phase 2.
 
 ### 🟡 Per-body friction setter
 Adapter doesn't expose `setFriction(μ)`. Needed for the `frictionDemo` mode (Phase 2.5 of applied forces).
@@ -464,6 +525,7 @@ Scripts (`lib.mjs` + per-shot drivers) were kept by Bill outside the repo for re
 - [Notes_on_Applied_Forces_Refactor.md](Notes_on_Applied_Forces_Refactor.md) — PhET Forces and Motion analogue, includes the static-friction demo mode
 - [Notes_on_Vector_Representation_Refactor.md](Notes_on_Vector_Representation_Refactor.md) — magnitude/angle as first-class polar representation for any vector field
 - [Notes_on_Concave_Colliders_Refactor.md](Notes_on_Concave_Colliders_Refactor.md) — concave containers via convex decomposition (cup/wagon); Phase 0 shipped
+- [Notes_on_Engine_Upgrades_Refactor.md](Notes_on_Engine_Upgrades_Refactor.md) — engine version currency; Planck 1.5.0 COM fix + Rapier 0.20.0 re-validation (opened 2026-08-26)
 
 ### Curriculum & benchmark roadmap (topics-driven; added 2026-07-02)
 The *what-to-build-and-why* layer above the per-refactor notes. See the "curriculum

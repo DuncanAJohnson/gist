@@ -134,6 +134,11 @@ function RecordingsAndCameras() {
     timestamp: number,
     duration: number,
     tier: 'kinematics' | 'dynamics' | 'momentum',
+    // Physics provenance — which engine build actually produced these frames.
+    // Frames are sealed away from the engine, so without this a run is not
+    // self-describing. Added at R1 by design: see "Physics provenance" below.
+    engine: 'rapier' | 'planck',
+    engineVersion: string,           // e.g. '0.19.3' — the npm package version
   },
 }`}</pre>
       <p>
@@ -372,7 +377,11 @@ the initial camera set.`}</pre>
         <li>
           <strong>R1 — Recording type + local autosave.</strong> Define the type,
           wrap precompute completion in a "create Recording" step, persist to
-          IndexedDB. UX: a tiny "Run 1 saved" toast after replay finishes.
+          IndexedDB. UX: a tiny "Run 1 saved" toast after replay finishes.{' '}
+          <strong>Stamp physics provenance here</strong> (<code>engine</code> +{' '}
+          <code>engineVersion</code> in <code>metadata</code>) — not later. Once
+          recordings are on disk, adding provenance is a migration over artifacts
+          that can never be back-filled, because the build that made them is gone.
         </li>
         <li>
           <strong>R2 — Library UI.</strong> Sidebar or modal listing recordings
@@ -381,7 +390,12 @@ the initial camera set.`}</pre>
         <li>
           <strong>R3 — Compare mode (one display style).</strong> Pick ghost
           overlay or graph overlay first; the other modes follow. Multi-select
-          in the library, "Compare" button, time-synced playback.
+          in the library, "Compare" button, time-synced playback. Compare must
+          check <code>engine</code> and <code>engineVersion</code> agreement and{' '}
+          <em>label</em> a mismatch — never refuse it. Overlaying two physics
+          builds <em>unknowingly</em> is the failure provenance prevents; doing it{' '}
+          <em>knowingly</em> is a deliberate instrument (see below), so the UI
+          annotates rather than blocks.
         </li>
         <li>
           <strong>R4 — Cloud persistence + sharing.</strong> Save recordings to
@@ -447,6 +461,32 @@ the initial camera set.`}</pre>
           <strong>Recording schema versioning.</strong> Add <code>version: 1</code>{' '}
           from day one. Migrations for added fields are usually trivial (default
           new fields to null). Migrations for changed semantics need a real plan.
+        </li>
+        <li>
+          <strong>Physics provenance — what to do on a version mismatch?</strong>{' '}
+          The fields land at R1; the <em>policy</em> is open. A recording replays
+          frames without touching the engine, so a run captured under one engine
+          build and reloaded under another is silently a different experiment —
+          and the frame cache cannot help, since it is in-memory and dies with the
+          component (invariant #13 is correctly scoped to runtime-mutable inputs,
+          so engine version deliberately does <em>not</em> join its key). Options
+          on mismatch: annotate the run quietly, warn on load, warn only when
+          comparing, or refuse to overlay. <strong>Lean: annotate always, warn on
+          compare, never refuse</strong> — a stale recording is still a real
+          observation, and hiding it teaches worse than labelling it.{' '}
+          <strong>"Never refuse" is now load-bearing, not just a preference.</strong>{' '}
+          A pre-upgrade and a post-upgrade recording of the same config and the
+          same <code>controlValues</code> differ <em>only</em> by the engine build,
+          which makes a cross-version overlay the sharpest available measurement of
+          what an engine upgrade actually changed — CCD trajectory shifts, solver
+          differences, sleeping behaviour. Recordings are therefore not merely{' '}
+          <em>exposed</em> to engine upgrades; they are how we <em>assess</em> them,
+          and a policy that blocked mismatched overlays would destroy that
+          instrument. Sequencing agreed 2026-08-26: R1 ships before the Rapier
+          bump, so the upgrade lands as a legible discontinuity in the recording
+          history. See{' '}
+          <code>Notes_on_Engine_Upgrades_Refactor.md</code> → "Sequencing
+          dependency".
         </li>
         <li>
           <strong>Compare-mode time alignment.</strong> Different control values
