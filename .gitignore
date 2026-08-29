@@ -34,3 +34,4 @@ __pycache__/
 
 # Vercel CLI link state (local-only, like .claude)
 .vercel
+.env*
