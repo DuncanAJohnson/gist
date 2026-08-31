@@ -84,10 +84,21 @@ Both example sims (`tossBall`, `twoBoxes`) are inlined into every generation, re
 | block | ~tokens | sent |
 |---|---|---|
 | full JSON schema (`schema_block`) | **13,400** | every stage |
-| sprite names (`manifest_names_block`) | 1,700 | every stage |
+| sprite names (`manifest_names_block`) | 1,700 | ~~every stage~~ → **3 sprite-picking stages only** (stale; corrected 2026-08-29 below) |
 | stage prose | ~1–2k | per stage |
 
 **So the schema is the budget, not the manifest** — which is §3.7 ("schema description prose IS the prompt") stated in tokens. At 5–6 stages, one generation pays the schema ~70–80k tokens; the `appliedForce` `.describe()` alone is ~335 tokens on every one of them. This is the number that should discipline any proposal to add explanatory prose to a describe string, and it is the quantitative case for §5.4 (smaller schema for downstream stages) over per-stage manifest tailoring.
+
+**Re-measured 2026-08-29** (prompted by the two-deploy manifest question — see `Local_Sim_Workflow.md` §6). Two things moved since 2026-08-14:
+
+| block | ~tokens | sent to | per generation |
+|---|---|---|---|
+| `schema_block` | **14,018** | every stage (~6) | **~84,100** |
+| `manifest_names_block` | 1,800 | **skeleton + objects_fill only** (remix: objects_remix) | ~3,600 |
+
+- **The manifest half of §5.2 has SHIPPED.** `manifest_names_block()` is now pulled in via `extra_blocks` by [`skeleton.py:34`](modal_functions/sim_pipeline/skeleton.py#L34), [`objects_fill.py:31`](modal_functions/sim_pipeline/objects_fill.py#L31) and [`objects_remix.py:23`](modal_functions/sim_pipeline_remix/objects_remix.py#L23) — controls, graphs, outputs and assemble no longer receive it. The 2026-08-14 table's "every stage" is stale for that row.
+- **The ratio is now measured, not estimated: the manifest is 4.1% of the combined static context; the schema is 96%.** Both grew (244 → 246 sprites; 13.4k → 14.0k schema tokens), so the gap widens as the schema does.
+- **Consequence for new-stage proposals:** a dedicated "read the renderables" retrieval stage would attack the 4% *and* add an LLM round-trip. Not worth it at 246 sprites. If the library ever makes it worth it, the cheap form is a **non-LLM prefilter** (keyword/embedding match on the user prompt → pass ~20 candidates), which costs no extra call. Revisit around ~1,000 sprites, where the names block alone would rival one schema block.
 
 - **Fix:** per-stage context tailoring (§5.2) still applies — the stages that don't reference SVGs don't need the names block either — but it is now a ~1.7k win, not a ~83k one. **§5.4 is the higher-value target.**
 - **The general lesson:** a known-issues entry citing file:line is a claim about code and goes stale silently. Re-measure before quoting.
@@ -195,8 +206,10 @@ Replace the two static few-shot examples with a small library (10–20 reference
 - **Implementation:** add a `simulations/library/` directory of well-formed reference sims, each with a `concept: ['projectile' | 'collision' | ...]` tag and a one-line description. Skeleton stage picks the closest 2–3 based on the user prompt + identified concept and inlines them.
 - **Why it's a big deal:** the LLM is much better at "make one of these but for X" than at "make X from scratch." Concrete examples beat abstract guidance every time.
 
-### 5.2 ⭐⭐⭐ Per-stage context tailoring
-Today every stage gets the full manifest + full schema. Stage by stage:
+### 5.2 ⭐⭐⭐ Per-stage context tailoring — 🟢 manifest half SHIPPED, 🔴 schema half open
+**Status corrected 2026-08-29.** The manifest half of this item is DONE: only the sprite-picking stages receive the names block (`extra_blocks` in `skeleton.py` / `objects_fill.py` / `objects_remix.py`). The schema half is untouched — every stage still gets the full `simulation_schema.json`, which is where 96% of the static budget lives. The original analysis below is preserved; read "every stage gets the full manifest" as historical.
+
+Stage by stage:
 - **Skeleton:** needs full manifest (picks SVGs), needs schema for the top-level + scene_dimension.
 - **Objects fill:** needs full manifest + ObjectConfigSchema only.
 - **Controls fill:** needs the produced objects + ControlConfigSchema. **Doesn't need the manifest at all.**
@@ -211,6 +224,8 @@ The static portions of the prompt — preamble, schema, manifest — are constan
 
 ### 5.4 ⭐⭐ Smaller schema for downstream stages
 The full `simulation_schema.json` includes types for every config (controls, graphs, outputs, environment) — but the controls-fill stage only needs the `ControlConfigSchema` definition. Generate a per-stage schema slice (Zod → JSON-Schema for just the relevant subtree) and ship only that to each stage.
+
+**Measured 2026-08-29 — the cheapest slice to cut first.** The schema's *top-level description string* is 7,366 chars, and **64% of it (4,707 chars) is the two worked EXAMPLES** ("Vertical Ball Toss", "Two Boxes Collision"). Those are full `SimulationConfig` documents — objects, controls, outputs and graphs — and they ship on **every** stage, including controls/graphs/outputs fill, which are each authoring only one slice and already receive the produced objects. Stripping or stage-selecting just the examples is a smaller change than a full Zod→JSON-Schema subtree slicer and recovers a meaningful share of the ~84k. Note §3.4 already flags these examples as "static and global" for a *quality* reason; this is the same target with a budget argument.
 
 ### 5.5 ⭐⭐ Validation feedback loop
 When the LLM emits invalid JSON or a schema-incompat config, the current path is (presumably) "raise a Python exception → SSE error event → user starts over." Better:

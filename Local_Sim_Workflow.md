@@ -279,6 +279,81 @@ The gap scales with authored size, so it is worst on large objects. Fixes:
 Don't calibrate y-positions to sub-centimetre precision on one engine and
 expect the other to agree — resting height is engine-dependent at that scale.
 
+## 6. Publishing a new renderable — the two-deploy path (2026-08-29)
+
+Everything in §5 makes a sprite work **locally**, where the manifest is read off
+disk. Getting it into a *deployed* sim — and into the LLM's vocabulary — takes
+**two deploys plus one precondition**, and none of the three failure modes throws.
+
+### The precondition: `status: "approved"`
+
+Both consumers filter on it, so a non-approved entry is invisible no matter how
+many times you deploy:
+
+- prompt side — `manifest_names_block()` in
+  [modal_functions/sim_pipeline/_context.py](modal_functions/sim_pipeline/_context.py)
+  skips any item whose `status != "approved"`
+- renderer side —
+  [src/lib/renderableManifest.ts:68](src/lib/renderableManifest.ts#L68) does the same
+  on load
+
+All 246 current items are approved, so this is dormant — but it is the first thing
+to check when a new sprite "doesn't exist" on both sides at once.
+
+### Deploy 1 — the frontend (Vercel)
+
+The renderer fetches `/renderables/manifest.json` as a static asset
+([renderableManifest.ts:63](src/lib/renderableManifest.ts#L63)), and the art is
+served from `public/renderables/<name>.svg`. Both ship in the frontend build.
+
+### Deploy 2 — Modal (generate + remix)
+
+Each pipeline app **bakes the manifest into its image at deploy time**:
+[generate_simulation.py:51-54](modal_functions/generate_simulation.py#L51-L54) and
+[remix_simulation.py:56](modal_functions/remix_simulation.py#L56) copy
+`public/renderables/manifest.json` to `/root/renderables_manifest.json`, which
+`manifest_names_block()` renders as the `## AVAILABLE SVGs` list.
+
+The prompt then hard-binds the model to that list — *"Pick names verbatim… Do not
+invent names"* ([gist_instructions.py:30](modal_functions/gist_instructions.py#L30))
+and *"MUST match a name from the AVAILABLE SVGs list verbatim"*
+([:99](modal_functions/gist_instructions.py#L99)). So a stale deploy does not
+produce an error; it produces a **silently different sprite choice**.
+
+`update_changes_made.py` does **not** bake the manifest — it needs nothing.
+
+### Order matters: frontend FIRST, then Modal
+
+The two stale states fail differently, which is what fixes the order:
+
+| stale side | symptom |
+|---|---|
+| **Modal stale**, frontend fresh | LLM never picks the new sprite. Invisible — reads as the model simply not choosing it. |
+| **Frontend stale**, Modal fresh | LLM emits a valid name the renderer can't resolve → `getManifestItem` returns null → **rectangle fallback**. Visibly wrong sim. |
+
+Deploying the frontend first means the worst case is a sprite that exists but
+isn't used yet. The reverse order produces broken-looking sims for the whole
+window between the two deploys.
+
+### This is NOT a schema or prompt change
+
+`svg` is a free `z.string()` with no enum
+([simulation.ts:153](src/schemas/simulation.ts#L153); the generated JSON schema
+carries `{"type": "string"}`). The schema never enumerates sprite names — **the
+manifest is the enumeration**, and it reaches the LLM as prompt text at deploy
+time. So adding a renderable touches neither `simulation.ts` nor
+`gist_instructions.py`; the manifest file *is* the LLM-facing surface, and
+`modal deploy` is how it lands.
+
+### Two backends now (see CLAUDE.md invariant #11)
+
+Since 2026-08-29 generate/remix run on **Bill's** Modal for `bill_dev` and
+**Duncan's** for `main`. A manifest addition on `bill_dev` reaches that deployment
+as soon as both deploys above are run, but does not reach `main` until the branch
+merges **and Duncan redeploys his Modal**.
+
+---
+
 ## Quick reference — files you'll touch
 
 | What | Where |
@@ -292,6 +367,8 @@ expect the other to agree — resting height is engine-dependent at that scale.
 | Collider manifest | [public/renderables/manifest.json](public/renderables/manifest.json) |
 | Manifest loader | [src/lib/renderableManifest.ts](src/lib/renderableManifest.ts) |
 | SVG art | [public/renderables/](public/renderables/) |
+| Prompt-side manifest reader | [modal_functions/sim_pipeline/_context.py](modal_functions/sim_pipeline/_context.py) (`manifest_names_block`) |
+| Manifest → Modal image | [generate_simulation.py:51-54](modal_functions/generate_simulation.py#L51-L54), [remix_simulation.py:56](modal_functions/remix_simulation.py#L56) |
 | Worked examples | `ballIntoCupDrop.json`, `ballIntoCupArc.json` + their wrappers |
 
 ---

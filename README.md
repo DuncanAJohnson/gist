@@ -10,6 +10,40 @@ We use [Recharts](https://recharts.github.io/) for graphing output.
 
 We use [Modal](https://modal.com/) for server-less functions (mostly just calling to AI). All Modal functions are specified [here](https://github.com/DuncanAJohnson/gist/tree/main/modal_functions).
 
+## Deployments
+
+Two independent deployments, split by branch. **They do not share a backend** —
+each front end points at the Modal account named below, so a sim generated on one
+is not exercising the other's endpoints or budget.
+
+| branch | front end | generate / remix backend |
+|---|---|---|
+| `main` | Duncan's Vercel project (Git-connected — pushes auto-build) | Duncan's Modal |
+| `bill_dev` | <https://gist-bill-dev.vercel.app> (CLI snapshot deploys) | Bill's Modal |
+
+`update-changes` is on Duncan's Modal account for both, since the `gist-supabase`
+secret lives there.
+
+The `bill_dev` deployment exists so others can try in-progress work without
+building it locally. It is published by running `vercel --prod` from Bill's
+working tree rather than from a git push, which means:
+
+- **It is a snapshot of a working tree, not of a commit.** It tracks
+  `origin/bill_dev` by commit hygiene, not by any mechanism, so it can be
+  slightly ahead of or behind what is on GitHub. Deployments are stamped with the
+  commit they were built from.
+- **Only Bill can publish it.** Deliberate, so there is no deploy branch to keep
+  in sync and nothing auto-builds off shared branches. If someone else ever needs
+  to publish, that is the point to switch it to a Git connection.
+- The production URL is public and has no password, so it can be forwarded
+  freely.
+
+Endpoint URLs are read from env (`VITE_SIMULATION_AI_URL`,
+`VITE_SIMULATION_REMIX_URL`, `VITE_UPDATE_CHANGES_MADE_MODAL_URL`), never
+hardcoded. Note they are inlined at **build** time — changing one requires a
+rebuild, and Vite will not fail the build if a value is missing, so a green build
+does not prove the env is correct.
+
 ## AI Priming
 
 Our LLM priming can be found [here](https://github.com/DuncanAJohnson/gist/blob/main/modal_functions/gist_instructions.py). If you would like, you can take this prompt and put it into your LLM of choice, generate json, and paste the json into the simulation.
