@@ -199,6 +199,69 @@ STRUCTURAL fix that would make the prose unnecessary.
 | **T6** | #1432 plotted a horizontal `appliedForce.x` line on a graph *titled* "vertical motion"; the scene had only a bottom wall, so the parachute blew off-screen. | FILL GRAPHS: "a graph's title must describe the axis/quantity its lines plot — do not put an `.x` line on a graph named for vertical motion." FILL OBJECTS/env: "a body pushed sideways needs side walls or a bounded scene." | **Derived labels** — `GIST_Physics_Wishlist.md` §1, "Derived titles & labels from property paths." If the title is computed from `property`, it cannot disagree with the lines. The off-screen half stays a scene-bounds concern (wishlist / scene-fit guidance in FILL OBJECTS). |
 | **T13** | #1425 authored a `force-friction` arrow in a gravity-0 scene; with no normal force it draws permanently zero. Honest but noise. | FILL OBJECTS (`showVectors`): "only add `force-friction` / `force-normal` where a contact carries load — never in a gravity-0 scene without a pressing force." | A **zero-arrow suppression rule** in the renderer (sub-floor stub already exists for small arrows — a kind that is identically zero for the WHOLE run could be hidden or tagged on the diagnostics bus, config-truth style: "friction arrow on a body with g = 0 and no seatOn"). |
 
+### 4.10 ⭐⭐⭐ 📋 Idealization-by-omission — PROPOSED, ratified as a CLASS (Bill, 2026-08-31), held pending authoring
+
+**The convention the prompt never teaches:** an introductory textbook problem
+declares its physics **by omission** — what it doesn't mention doesn't exist.
+No "rough surface" / µ / "coefficient" → frictionless. No "air resistance" →
+vacuum. "Constant velocity" → equilibrium. The sim's job for a stated numeric
+problem (given F/m/a/t, asked for v) is to **reproduce the textbook answer**,
+and today's prompts not only omit that rule — they actively prime AGAINST it
+(the breakaway/µ-slider guidance in FILL OBJECTS celebrates friction with no
+counterweight). Bill 2026-08-31: this is a **blanket rule, not a singleton** —
+it "covers us for all physics topics for introductory physics," and it is "a
+classic potential trap for intermediate and advanced physics" (where problems
+deliberately UN-idealize; the rule must therefore stay an *inference from the
+prompt's register*, not a hard-coded default).
+
+**The two observed failures (2026-08-31), and why one is only half an
+LLM-judgment problem:**
+
+| prompt | expected | got | diagnosis |
+|---|---|---|---|
+| "Tom pulls a 45 kg wagon with 200 N at 15° from rest — how much faster after 2 s?" (Δv ≈ 8.59 m/s) | frictionless: a = 200·cos15°/45 ≈ 4.29 m/s² | wagon with µ > 0 | Skeleton routes "wagon" → `container: true`; an omitted container friction defaults to **0.7 grounded** ([src/lib/openContainer.ts:191](src/lib/openContainer.ts#L191), documented in FILL OBJECTS). µ = 0.7 → breakaway ≈ 309 N > 200·cos15° ≈ 193 N — the wagon shouldn't even MOVE. So the fix must demand `friction: 0` **explicitly authored**; omission loses to the runtime default. |
+| "Driving at 12 m/s, accelerate at 3.2 m/s² for 60 m — final velocity?" (v_f ≈ 23.0 m/s) | pure 1D kinematics | cart sim with gravity on (and likely container-default friction / possibly no bottom wall) | Gravity per se is harmless on level frictionless ground (normal cancels); the wrongness is friction and/or falling. But **gravity: 0 IS the clean idealization for stipulated-acceleration kinematics** — `acceleration` is additive (invariant #9), so g = 0 + no walls + `acceleration.x` is the problem itself, with no contact artifacts. |
+
+**Gravity on/off is a per-chapter judgment, which is why this can't be a
+blanket environment default:** the wagon problem NEEDS gravity ON (the
+200·sin15° ≈ 52 N vertical component must be eaten by the normal force; g = 0
+would lift the wagon diagonally), while the car problem wants gravity OFF.
+Same class, opposite settings — the judgment belongs where judgment already
+happens.
+
+**Proposed mechanism (when authored):**
+1. **SKELETON fragment** (~10 lines of stage prose): after "Identify the
+   physics concept first," an idealization rule — detect the textbook-problem
+   register; friction/air exist only if named; gravity 0 for
+   stipulated-acceleration kinematics on a level path (the B18 top-down frame,
+   inferred instead of taught), gravity 9.8 wherever weight/normal/incline/
+   angled force is doing work. The skeleton EMITS its call as an explicit
+   scaffold field (e.g. `"idealizations": {"friction": false, "air": false}`)
+   — scaffold fields are prompt-only, like `scene_dimension`: **no schema
+   change, no three-places dance**.
+2. **FILL OBJECTS fragment** (one line): when the skeleton says frictionless,
+   author `friction: 0` **explicitly on every body, containers included** —
+   an explicit 0 is the only thing that beats the 0.7 container default.
+
+**Cost & placement:** ~200 tokens of per-stage prose — the cheap real estate
+(§3.5: stage prose is ~1–2k/stage; the schema block is the 96%). Deliberately
+NOT `.describe()` prose: this is per-prompt judgment, not field semantics.
+
+**Audience judgment (the five-audience model):** touches the **LLM** (stage
+fragments only) and the **dev team** (this entry). Unaffected: the **contract**
+(scaffold fields never enter `simulation.ts`), the **teacher**, the
+**student**. When it ships, the teacher-facing corollary ("GIST reads textbook
+problems as idealized") may earn an `/about` line — noted, not owed.
+
+**Relations:** the missing sibling of §4.6 (concept-tagged guidance) and the
+inference-side answer to B18's framing-clause note ("ultimately we want the
+LLM to infer that framing on its own — that remains the goal"). The eval bench
+is **B20/B21 in `BENCHMARK_SIMS.md`** (PROPOSED) — Bill's two prompts
+verbatim, with the textbook answers as pass criteria. Held per the §4.9
+stance's spirit: the CLASS is ratified, the prose is not yet authored — author
+it as a deliberate edit, test via `modal serve` against B20/B21, and remember
+`modal deploy` ships the working tree (CLAUDE.md invariant #11).
+
 ## 5. Improvements: prompt construction
 
 ### 5.1 ⭐⭐⭐ Retrieval-augmented examples
