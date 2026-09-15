@@ -248,6 +248,20 @@ work (through Phase 4) and the open T-register items in
 after those — at which point this entry converts into a refactor note per
 lifecycle discipline.
 
+**UPDATE 2026-09-15 (Bill) — re-sequenced BEHIND the `bench` element (ramps
+note R6).** The Aristotle lane-stack drive (sims #1474–1486) showed that three
+of the scenes this entry was carrying — parallel lanes, the table-edge
+projectile, turtle-vs-hare with gravity ON — are SURFACE cases, not pairwise
+ones: they want a flat synthesized surface with a known top face, which
+sidesteps every hazard listed above (no manifest at the seam, no inset on the
+surface side, no chain). That is `bench`, scoped 2026-09-15 as **R6** in
+`Notes_on_Ramps_and_Tracks_Refactor.md` (Findings 2026-09-15, BN1–BN8) and
+sequenced ahead of this entry. **Boundary:** `bench` takes lanes / tables /
+ledges via `seatOn: "<benchId>"` (the third seatable surface after ground and
+ramp); this entry keeps the heterogeneous pairwise cases — weights on a cart,
+the rack, "N m apart", Galileo's level bottoms — unchanged in scope and still
+⭐⭐⭐, just no longer first in line.
+
 ---
 
 ## 2. Timing & scripted events

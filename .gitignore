@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Local only input docs
+Input_docs_for_local_testing_eval_brainstorming_etc/*
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

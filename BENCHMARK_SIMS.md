@@ -6,6 +6,10 @@
 
 **Amendment 2026-08-09 (Bill) — B18 and B19 reworded, then RATIFIED and FROZEN the same day.** Recorded here so the edit is visible rather than silent, and so the freeze has a date. The rewordings were sanctioned only because the prompts were still PROPOSED at the time: **B19** drop height 20 m → 3 m; **B18** gained the framing clause *"from the top down with no gravity, so the carts just glide"* — a deliberate piece of user-facing prompt education for the low-cost/localized-model tier (see the note under B18). **Bill ratified both on 2026-08-09 ("prompts are good to go"), so both are now FROZEN test fixtures under Protocol #2** — from here they are edited by adding a new B-ID and marking the old one superseded, never by rewording. ~~No PROPOSED prompts remain outstanding.~~ **B20 and B21 added as PROPOSED 2026-08-31** (the idealization-by-omission bench — see their entries); they stay editable until ratified.
 
+**Amendment 2026-09-03 (Bill) — Tier C opened: problem-source sites.** A third genre alongside recreation targets (Tier A) and authoring engines (Tier B): sites mined for verbatim textbook-register *prompts*, scored against the printed answer. First entry **B22 · StickMan Physics** — confirmed the same day as the verbatim source of both B20 and B21 (source lines added to their entries). Tier C entries are corpus registrations, not frozen prompts; the prompts they yield freeze individually when they graduate into Tier A.
+
+**Amendment 2026-09-15 (Bill) — B23 added as PROPOSED.** The Aristotle lane-stack specimen (sims #1474–1486) filed as the eval bench for the `bench` element (`Notes_on_Ramps_and_Tracks_Refactor.md` R6); editable until ratified. Its prompt is the verbatim #1474 prompt — deliberately bare, so it tests unaided authoring of the lane pattern.
+
 **Stance — these platforms are collaborators, not targets (Bill, 2026-08-07).** GIST is engine-agnostic; it is ed-tech agnostic in exactly the same way. A good sim is a good sim, and every student should have access to it. PhET, The Physics Classroom, oPhysics, myPhysicsLab and the rest built the pedagogical canon this document is measured against — their work informs ours, and the position we want to grow into is one where ours can inform theirs. Three practical consequences: (1) benchmark language stays respectful and specific — we name what a sim teaches well, never "beat" it; (2) every parity claim carries its honesty note where our model differs (B1's drag note is the template) — an unqualified side-by-side is a claim we haven't earned; (3) **if any of this becomes outward-facing**, it ships with attribution, per-source license compliance, links that send traffic *to* the original sim, and no implication of endorsement. Screenshots of third-party sims are not to be hosted in `public/` or rendered from a `/docs` page until that licensing pass is done and recorded here — `/docs` is served ungated in production.
 
 **ID discipline.** B-IDs are append-only. Never renumber and never reword a frozen prompt — both are eval drift (Protocol #2). New IDs are added at the end of their tier, so numbering is not contiguous within a tier; that is intentional.
@@ -160,6 +164,7 @@
 
 ### B20 · Textbook dynamics — angled pull, frictionless by omission *(PROPOSED)*
 - **Status:** prompt **PROPOSED 2026-08-31** (editable until Bill ratifies; frozen the moment the tag comes off — Protocol #2). Filed as the eval bench for the **idealization-by-omission** prompt fix (`GIST_LLM_Context_and_Prompting.md` §4.10); observed failing on that date (wagon generated with µ > 0 — likely the grounded-container 0.7 default — so the 200 N pull is below breakaway and the wagon shouldn't even move).
+- **Source:** StickMan Physics F=ma practice problem set (verbatim; verified 2026-09-03) — see **B22**.
 - **Concepts:** Newton's 2nd law with an angled force; component decomposition; the textbook convention that an unmentioned friction is zero.
 - **Pedagogical core:** a stated numeric problem pasted verbatim — the sim must *reproduce the textbook answer*, not a "realistic" wagon. Gravity must stay ON (the 200·sin15° ≈ 52 N vertical component is eaten by the normal force); friction must be explicitly 0 on every body.
 - **GIST mapping:** matrix cell 8 adjacent (N2 with an angled force on level ground rather than an incline) · exercises `appliedForce` polar authoring (Goal 2).
@@ -169,12 +174,22 @@
 
 ### B21 · Textbook 1D kinematics — stipulated acceleration, unaided framing *(PROPOSED)*
 - **Status:** prompt **PROPOSED 2026-08-31** (editable until ratified; then frozen — Protocol #2). Filed alongside B20 as the §4.10 eval bench — and this one is the **unaided-inference twin B18's framing-clause note reserved**: B18 teaches the user to say "top down, no gravity"; B21 hands the model a bare textbook problem and asks it to infer that frame itself. Observed failing 2026-08-31 (cart sim with gravity on; wrongness likely container-default friction and/or an unbounded fall).
+- **Source:** StickMan Physics 1D motion practice problem set (verbatim; verified 2026-09-03) — see **B22**.
 - **Concepts:** 1D kinematics with constant acceleration; v² = v₀² + 2aΔx; the kinematics chapter's forceless `acceleration` stipulation (CLAUDE.md invariant #9).
 - **Pedagogical core:** the model must recognize the textbook-problem register and idealize: gravity 0 (level path, stipulated a — no weight/normal at work), no friction, no air; `acceleration.x: 3.2` as the kinematic stipulation, NOT an `appliedForce` (the cause is unmodelled by design).
 - **GIST mapping:** matrix cell 1 (B18's cell) · Graphs **G1**.
 - **Example prompt (PROPOSED):** *"You are driving at 12 m/s when you hit the gas to pass another car. What is your final velocity if you accelerated at 3.2 m/s² for 60 meters?"*
 - **Pass:** car starts at 12 m/s and accelerates at 3.2 m/s²; velocity when 60 m have elapsed ≈ **23.0 m/s** (√(144 + 2·3.2·60) = √528) within harness tolerance; no friction, no drag, no gravity-driven motion; car stays on its line for the whole run.
 - **Exceed:** a position or velocity readout (or graph crossing) lets the student read off v at Δx = 60 m directly; the scene reads as B18's glide frame *without* the prompt having asked for it.
+
+### B23 · Aristotle's claim — three lanes, three surfaces *(PROPOSED)*
+- **Status:** prompt **PROPOSED 2026-09-15** (editable until Bill ratifies; frozen the moment the tag comes off — Protocol #2). Filed as the eval bench for the **`bench` element** (`Notes_on_Ramps_and_Tracks_Refactor.md` → R6, Findings 2026-09-15). Observed 2026-09-15 on sims #1474–1486: the LLM built 2.7 m benches (cart-length lanes); the "extend / start all three at 1 m/s" remix un-anchored the benches and retargeted all outputs to them; reaching the intended three-lane scene took two remixes and ~9 hand edits.
+- **Concepts:** Newton's 1st law vs Aristotle's "motion needs a sustained force"; friction as the hidden force; the same initial state under three surface conditions, side by side.
+- **Pedagogical core:** three identical carts with identical initial velocity on three long parallel benches (µ = 0 / very low / medium), gravity ON. The frictionless cart coasts forever, the medium one stops. With a per-cart push slider the student finds that a *constant* push on the friction bench holds a *constant* velocity (Aristotle's observation) while the same push on the frictionless bench accelerates (Newton's) — F_net = 0 at constant v is the reveal. The **lane-stack pattern** is the general trick: several experiments at once, different y, same x, no "turn off gravity" framing.
+- **GIST mapping:** matrix cell 6 (N1 — second benchmark alongside B5) · the lanes pattern also serves cell 1 (B18's const-v vs const-a, gravity ON) · `bench` (R6) + `seatOn: "<benchId>"` · `appliedForce.x` sliders (Goal 2) · `force-friction` / `force-applied` / `force-net` arrows.
+- **Example prompt (PROPOSED):** *"Was Aristotle right? Please create three lab benches so students can test Aristotle's claim about force and motion."* (verbatim #1474 prompt — deliberately bare: it tests whether `bench` plus the prompt teaching yield the lane stack unaided).
+- **Pass:** three static full-width benches at distinct heights with µ 0 / ≈0.02 / ≈0.5; three carts seated on them at the same x with equal initial velocity; one push slider per cart on `appliedForce.x`; outputs and graphs target the CARTS; the frictionless cart's vₓ stays constant to harness tolerance for the whole run; the medium-friction cart stops.
+- **Exceed:** a velocity-vs-time graph of all three carts; friction + applied + net arrows on each cart so the balanced-forces case reads as F_net = 0 at constant v.
 
 ---
 
@@ -203,6 +218,61 @@ These occupy GIST's own architectural niche: one engine, arbitrary scenes. They 
 
 ---
 
+## Tier C — Problem-source sites (prompt corpora, not recreation targets)
+
+Opened 2026-09-03. A third genre, distinct from both tiers above: these sites
+are mined for **prompts**, not recreated as sims. An introductory problem bank
+is a corpus of stated numeric problems in the textbook register — exactly the
+input the idealization-by-omission work
+(`GIST_LLM_Context_and_Prompting.md` §4.10) says GIST must read correctly:
+paste the problem verbatim, and the sim must reproduce the textbook answer.
+Where Tier A sets the pedagogical bar and Tier B the authoring bar, Tier C
+sets the **comprehension bar** — can GIST read the register teachers actually
+assign from?
+
+**Workflow:** a *stated-numeric* problem mined from a Tier C site is pasted
+verbatim as a generation prompt and scored against the site's worked answer.
+One that earns eval-fixture status graduates into **Tier A as its own B-ID**
+with the textbook answer as the pass criterion — B20/B21 are the precedent
+(both are StickMan Physics problems, verbatim). The Stance applies unchanged:
+these sites are collaborators; attribution is recorded per-entry, and nothing
+outward-facing (hosted problem text, screenshots, `/docs` rendering) ships
+without the licensing pass.
+
+**Two problem registers (Bill, 2026-09-03 — same-day extension).** Mining a
+problem bank yields two distinct kinds of prompt, and they succeed
+differently:
+
+1. **Stated-numeric problems** — the classic textbook evaluation question
+   (given F/m/a/t, asked for v). Idealized by omission (§4.10), scoreable
+   against the printed answer; the register the workflow above serves, and
+   the only one that graduates into Tier A eval fixtures.
+2. **Observe-and-respond problems** — open-response questions with **no one
+   right answer**. First specimen (StickMan F=ma set, mined in the 2026-09-03
+   run): *"Does a 795 kg Lorinser speedy, 6300 kg elephant, or 8.6 kg wagon
+   have more inertia and why?"* The sim's job is not to reproduce an answer
+   but to be an **explorable laboratory**: the question is truly open, and a
+   student runs many mini-experiments through remix and direct manipulation
+   to make sense of what inertia *is* — how their observations of the three
+   objects differ. What it practices is observational skill, curiosity, and
+   mini experimental design. These are **lesson-seeds, not eval fixtures**:
+   rubric dimension B (fidelity vs an analytical overlay) has no target, and
+   the value concentrates in D and E — GIST's revise-by-language is exactly
+   what makes the open question rich (a fixed-scene sim can't chase a
+   student's "what if"). Open question: whether lesson-seeds deserve their
+   own qualitative rubric (*does the sim afford the mini-experiments the
+   question invites?*) — unscored for now; specimens are collected in the
+   mining-run logs.
+
+### B22 · StickMan Physics (problem bank + animated lessons)
+- **URLs:** https://stickmanphysics.com ✔ (verified 2026-09) · F=ma problem set: https://stickmanphysics.com/stickman-physics-home/forces/newtons-second-law-of-motion-net-force-causes-acceleration/fma-problem-set/ ✔ · 1D motion problem set: https://stickmanphysics.com/stickman-physics-home/one-dimensional-motion/one-dimensional-motion-practice-problem-set/ ✔
+- **What it is:** free animated physics lessons across twelve units (1D motion through nuclear physics) with per-unit practice problem sets, worked example solutions, randomly generated assessments, and an equation sheet; high-school / intro-college audience. **Licensing:** ©2026 StickMan Physics, all rights reserved — no CC or open license found (2026-09-03 check); site also sells teacher resources via TeachersPayTeachers. Internal eval use of problem text is fine; anything outward-facing waits on the Stance's licensing pass.
+- **Why it matters:** the problem sets are clean specimens of the textbook register — stated numerics, idealization by omission, one asked quantity — which makes them the natural feedstock for §4.10 eval benches. Bill's 2026-08-31 session generated a batch of sims from these problems; the two observed failures became **B20** and **B21**.
+- **Benchmark use:** mine per-unit problem sets as prompt corpora matched to coverage-matrix cells (Unit 1 · 1D motion → cells 1–2; Unit 3 · forces → cells 6–8; momentum unit → cell 5; 2D motion unit → cells 3–4). Paste verbatim, score against the printed answer, log time-to-working-sim; graduate keepers into Tier A as new B-IDs. Log observe-and-respond specimens (see "Two problem registers") as lesson-seeds in the mining-run log.
+- **First mining run (2026-09-03, Bill):** eight problem families from four StickMan pages (F=ma set, horizontal-friction set, incline planes, 1D motion set, angry-birds projectile) driven through generate + remix — sims **#1447–1472**. Log: Bill's prompt-testing Google Doc (shared with Ethan and Duncan); local HTML export under `Input_docs_for_local_testing_eval_brainstorming_etc/September_3_2026/` (git-ignored, local-only). Headline findings: the B20 and B21 failures reproduced live (unstated friction authored; gravity assumed + "car" → cart), and in both cases a one-line **remix recovers the textbook answer** ("no friction" / "turn off gravity") — remix is the manual channel for the idealization §4.10 would automate. Bonus capability evidence: a remix added a working **applied-force-angle slider** on the incline problem, and click-and-drag repositioning substituted cleanly for prompting object positions.
+
+---
+
 ## Coverage matrix — foundational mechanics (opened 2026-08-07)
 
 Scope: the eight foundational cells behind 1D/2D kinematics, free fall, 1D momentum, and Newton's 1st/2nd laws. This is **not** a coverage matrix for all 19 B-IDs — it is the entry-level band, the part of the curriculum a teacher reaches for first, and the part where our canon turned out to be thinnest.
@@ -216,7 +286,7 @@ Scope: the eight foundational cells behind 1D/2D kinematics, free fall, 1D momen
 | 3 | 2D kinematics / projectile | **B1** | `projectileVelocityComponents`, `projectileLaunchPolar` | 🟡 THIN | **capability:** no trajectory persistence, no range/landing readout |
 | 4 | Free fall 2D (simultaneous release) | **B10** · S0.5 | **`monkey-and-apple`** (local fixture) **+ sim 1411** (published exploration) — a deliberate pair | 🟡 THIN | fixture built 2026-08-07, drive + A–E scoring owed |
 | 5 | 1D momentum / collisions | **B2** | `cup-catch`, `box-catch`, `twoBoxes` | 🟡 THIN | **capability:** no system-total (Σp, ΣKE) outputs |
-| 6 | Newton's 1st law | **B5** (shared) · S2.3 | `wagon-stop` | ✅ FILLED* | *scored-against-rubric pass still owed |
+| 6 | Newton's 1st law | **B5** (shared) · **B23** *(proposed 09-15)* · S2.3 | `wagon-stop` | ✅ FILLED* | *scored-against-rubric pass still owed |
 | 7 | Newton's 2nd law, 1D | **B5** | `applied-force-1d` · `applied-force-2d` | 🟡 AUTHORABLE 2026-08-13 | *was* 🔴 (no impulse API) → 🟡 unblocked 2026-08-09. Phase 2 landed the `appliedForce` field + force property paths, so B5 is authorable; owes the B5 scene, the drive, and scoring |
 | 8 | Newton's 2nd law, 2D (incline) | **B6** | `ramp-slide` | ✅ FILLED* | *µs ≠ µk absent; friction representation held |
 

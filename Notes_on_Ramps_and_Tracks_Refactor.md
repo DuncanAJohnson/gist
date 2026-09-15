@@ -103,6 +103,11 @@ alongside `containerExpansion.ts`.
 - **R5 — tracks.** Own workstream, likely its own doc section or file;
   chains/polylines on STATIC bodies (invariant #7 forbids them on dynamic
   bodies only), energy-drift harness first (PHYSICS_SHAPES Rung 1 box).
+- **R6 — `bench` (flat lane / table / ledge) — 🟡 SCOPED 2026-09-15 (Bill),
+  sequenced AHEAD of R4, R5 and wishlist §1 relative positioning.** The flat
+  sibling of `ramp` and the THIRD `seatOn` target (ground · ramp · bench).
+  Decisions BN1–BN8 + phasing BN-A…BN-D in Findings 2026-09-15. Eval bench:
+  **B23** (PROPOSED). Evidence: sims #1474–1486.
 
 ## Design rationale (v1 decisions)
 
@@ -145,7 +150,10 @@ alongside `containerExpansion.ts`.
 - Curved/multi-segment surfaces (tracks — R5).
 - Dynamic wedges (block-on-sliding-wedge two-body problems).
 - Flat crest platform / run-out ledge on the ramp itself (compose with a
-  plain static box meanwhile).
+  plain static box meanwhile). **2026-09-15: partly subsumed by R6 `bench`** —
+  a ramp whose foot meets a bench's edge (or a bench whose edge feeds a ramp)
+  is a composition of two synthesized static surfaces, no ramp-side ledge
+  param needed.
 - A friction slider — `controls[]` property paths cover kinematics only;
   a `friction` control is a separate controls-surface decision.
 - ~~A live `ramp.angle` control~~ **BUILT same day** — see the
@@ -721,3 +729,128 @@ behaviour and diagnostic. `tsc` clean, `npm run lint` at the known baseline.
 (sitting a box ON another box), which still requires hand arithmetic. Promoted
 out of this aside into **Open questions → "Generalized seating"** (2026-08-14,
 Bill's call) — it is next session's lead-off discussion, not a someday-maybe.
+
+### Findings 2026-09-15 — `bench` SCOPED (R6): the flat sibling of `ramp`, third `seatOn` target — Bill ratified BN1–BN8
+
+**Evidence — the Aristotle lane-stack drive, sims #1474–1486 (Bill, 2026-09-15).**
+Prompt: *"Was Aristotle right? Please create three lab benches so students can
+test Aristotle's claim about force and motion."* The LLM (#1474) built three
+static `oak_plank` boxes 2.7 m wide — cart-length "benches" a cart leaves in a
+second — with the carts and outputs wired correctly. The first remix (#1475,
+*"extend three benches across the screen … start all three with 1 m/s"*) bound
+**"all three" to the sentence's SUBJECT**: the benches got `velocity: {x: 1}`,
+flipped to `isStatic: false`, and all six outputs were retargeted from the carts
+to the benches (still wrong in #1486 — a remix-scope specimen, logged here, not
+a prompt clause; see `no-prompt-edits-for-singletons`). The second remix (#1476,
+*"anchor the benches, seat the carts, line up the X"*) did the half-extent
+arithmetic RIGHT (cart y = bench y + 0.27 + 0.40) and preserved Bill's dragged
+bench positions — the wishlist §1 "coin flip" landing heads. Bill then tried
+`seatOn: "bench_a"` by hand (#1481 — hits the not-a-ramp dangling-ref branch,
+`objectExpansion.ts` seatRiders; the cart passes through with no `y`), then
+`seatOn: "ground"` (#1482 — floor, not bench), then branched back to #1479 and
+finished by hand. Two remixes + ~9 hand edits to reach a three-lane scene.
+
+**Why this is NOT object-to-object relative positioning (wishlist §1) — and why
+Bill's reflection that `seatOn` is deliberately ramp-or-ground-only holds.** §1
+lists the hazards of seating on an arbitrary sprite: no defined top surface, a
+collider inset that is invisible against a floor but visible between two
+bodies, the manifest-at-the-seam load-order race (invariant #8), and chains
+needing dependency order. **A synthesized bench has none of them.** Like a
+ramp, its collider is a rectangle GIST built itself, so its top face is known
+exactly at the expansion seam with zero manifest dependency and zero inset on
+the surface side; the rider's own bbox residual is the same millimetres ground
+seating already accepts. That makes `bench` the natural **third seatable
+surface family**: `"ground"` (plane at y = 0) · `"<rampId>"` (incline) ·
+`"<benchId>"` (plane at an authored height, finite span with edges). Three of
+§1's motivating scenes — parallel lanes, table-edge projectile, turtle-vs-hare
+with gravity ON — turn out to be SURFACE cases, not pairwise ones, and move
+here; §1 keeps the heterogeneous pairs (weights on a cart, the rack, "N m
+apart", Galileo's level bottoms). Boundary recorded in the wishlist entry.
+
+**What transfers from the ramp machinery unchanged:** factory → synthesized
+sprite + rect collider, always static, `seatOn` derives `y` (never `angle` —
+flat, like ground), off-span clamp + bus entry (SO4), `seat-friction-masked`
+(the declared pair), re-seat on every re-expansion (drag-snap free), edit
+back-feed via `applyEditCommitToObject`, and — later — an expansion-aware
+slider on the ramp-dimension-slider precedent.
+
+**Decisions (BN1–BN8, Bill 2026-09-15):**
+
+1. **BN1 — Name: `bench`.** Bill's word, lab-flavored. The `.describe()` lists
+   the synonyms the textbook register uses — *table, counter, shelf, ledge,
+   platform, lane, frictionless surface, track* — so "marble rolls off a
+   table" maps. **Teacher audience (Bill): the lingo goes in user-facing
+   documentation** so a teacher can ask for a bench by name. That audience has
+   no surface yet (`/docs/design-philosophy` follow-on #1, the `/about`
+   capability register) — `bench` is its first concrete customer. **Bill
+   2026-09-15: hold the note in the design-philosophy doc** (`/docs/design-
+   philosophy` → Known follow-ons #1 now carries it); `/about` comes later, and
+   bench is its first entry when it opens. Not optional: recorded as an
+   affected audience.
+2. **BN2 — Span: `from` / `to`** (x endpoints, configured units). Both omitted →
+   full scene width (so "extend across the screen" is the DEFAULT, not a
+   remix); one omitted → that end at the scene edge. The object's `x` is
+   derived (author `x: 0` placeholder, the ramp/container idiom). A table EDGE
+   is what the projectile author actually means — zero arithmetic. Dragging a
+   bench translates `from`/`to` (and the height) through the edit back-feed;
+   resizing writes `from`/`to`.
+3. **BN3 — Vertical: `bench.y`, not `height`** (Bill). The lanes framing wins
+   the name: in the Aristotle and turtle/hare scenes a bench IS a lane, and
+   "lane y" reads better than "table height". **CONFIRMED by Bill
+   2026-09-15: `bench.y` is the TOP-SURFACE height above the ground** — the number
+   the physics uses (fall height, lane position) — and the slab hangs below it
+   (thickness default TBD, diorama-scaled, ~0.5 in config units); the object's
+   center `y` is derived, author `y: 0` placeholder. Rationale: an author
+   thinking "the table top is 8 m up" must not have to add a thickness/2.
+4. **BN4 — Friction default 0** — the ramp precedent and the
+   idealization-by-omission stance (unstated = frictionless). Per-lane µ is
+   authored explicitly (Aristotle: 0 / 0.02 / 0.5).
+5. **BN5 — Slab only, always static.** Collider = the slab rectangle, no legs
+   (a cup can sit under a table edge). `isStatic` is not emitted for benches
+   (ramps precedent) — which makes the #1475 class ("start all three at
+   1 m/s" un-anchoring the benches) structurally impossible. Synthesized
+   sprite with a **default fill distinct from the floor** (Bill) so lanes read
+   as furniture, not ground. A drawn-legs `style` is a possible later option,
+   not v1.
+6. **BN6 — Seating on a bench.** `seatOn: "<benchId>"` → `y` = surface +
+   rider half-extent (the ground formula `(w·|sin θ| + h·|cos θ|)/2`, angle
+   honoured in extent, never set), `x` authored, clamped into `[from, to]` +
+   bus entry on clamp. Seam ordering: benches expand in the ramp pass's slot
+   (both are synthesized static surfaces) BEFORE containers and riders, so a
+   container can ride a bench (wagon on a table). Bench velocity seeding: NONE
+   (flat — the ramp's down-slope seed has no analogue; authored velocity is
+   world-frame as always).
+7. **BN7 — Phasing.** **BN-A** seam + seat mechanics, local JSON exhibits
+   (the Aristotle lane-stack rebuilt as a living exhibit; a marble-off-table
+   → cup composition as the second), headless harness → **BN-B** drive gate
+   (Bill: drag a bench, drag a rider along it and past its edge, resize span)
+   → **BN-C** three-places landing (schema `bench` + regenerate, prompt
+   teaching incl. the lanes pattern and the synonyms, `/docs` authoring-json +
+   roadmap, PLUS the teacher-facing vocabulary from BN1), CC5-style gate
+   (`modal serve` generate + remix → deploy → prod validation) → **BN-D**
+   `bench.y` expansion-aware slider (ramp.* precedent: value → override map
+   ahead of `expandObjects`; riders re-seat; joins the frame-cache key by
+   construction — invariant #13). Bill: land the seat first, then tinker with
+   `bench.y`.
+8. **BN8 — Sequencing: AHEAD of wishlist §1 relative positioning, and ahead of
+   R4/R5** (Bill). Smaller, better-bounded, unblocks three benchmark-shaped
+   labs (lane stack, table-edge projectile, gravity-on turtle/hare) and the
+   lane-stack specimen itself becomes **B23 (PROPOSED)** in `BENCHMARK_SIMS.md`.
+   Relation to R5: a bench is the flat track segment; R5 may later compose
+   bench + ramp segments rather than invent a flat primitive of its own.
+
+**Diagnostics to decide at build (not decisions yet):** lane clearance — a
+rider taller than the gap between its bench and the one above (or a bench
+whose slab intersects another's) is live config-state truth the bus should
+report; a bench with `from ≥ to`; a bench `y` at or below 0 (that is the
+ground — say so). Not in scope: benches as a `container` "grounded" target
+(containers seat on the floor or ride via `seatOn`, which BN6 already covers).
+
+**Open sub-questions carried to BN-A/BN-C:** thickness default and whether it
+is authorable; whether
+`bench.from`/`bench.to` are slider-able alongside `bench.y` in BN-D (the
+projectile lab wants the edge to move, arguably more than the height).
+
+**CLAUDE.md:** invariant #1 currently reads *"`seatOn` takes a ramp id OR the
+reserved literal `"ground"`"* — that sentence changes when R6 SHIPS (ground ·
+ramp · bench), not at scoping.

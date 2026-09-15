@@ -681,6 +681,19 @@ function DesignPhilosophy() {
           found a way to build X&quot; reports, which the register should invite
           rather than foreclose. <code>pedagogicalNotes</code> (#4 below) stays
           parked as the per-sim complement.
+          <br />
+          <strong>First named customer 2026-09-15 — the <code>bench</code>{' '}
+          vocabulary.</strong> Scoping the <code>bench</code> element (ramps
+          note R6) was the first decision to name the teacher as an{' '}
+          <em>affected</em> audience: Bill&apos;s call is that a teacher should
+          be able to ask for a bench by name, so the word — and its
+          synonyms (table, counter, shelf, ledge, lane, track) — belongs in
+          user-facing documentation, not only in the LLM&apos;s describe
+          text. Held HERE until <code>/about</code> is built (Bill: &quot;we
+          will get to /about later&quot;); it is the register&apos;s first
+          entry when it opens. The general point stands for any future
+          synthesized element: a name the LLM is taught is a name the
+          teacher must be able to use.
         </li>
         <li>
           <strong>A teacher's guide.</strong> A single document a teacher can
